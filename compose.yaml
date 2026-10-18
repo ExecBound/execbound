@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: execbound-local
+
+services:
+  db:
+    image: postgres:17.11
+    environment:
+      POSTGRES_USER: execbound_owner
+      POSTGRES_DB: execbound
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/local_setup.py to generate local credentials}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55439}:5432"
+    volumes:
+      - ./local-data/docker-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U execbound_owner -d execbound"]
+      interval: 2s
+      timeout: 3s
+      retries: 20

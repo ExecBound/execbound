@@ -1,0 +1,1 @@
+{"operation_ref":"endpoint.isolate","target":{"kind":"hostname","value":"workstation-01.example.test"},"arguments":{},"reference":"INC-12345/verify-reimport","claimed_context":{"incident_id":"11111111-1111-4111-8111-111111111111"}}

@@ -1,0 +1,72 @@
+{
+  "additionalProperties": false,
+  "description": "The signed claims: the domain, the version and the executor record, nothing else.\n\nJWT_SIGN adds nothing to the claims its formula supplies, as observed against a live\nTines tenant, so an `iat` is refused like any other extra claim.",
+  "properties": {
+    "account_id": {
+      "format": "uuid",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "domain": {
+      "const": "execbound.executor.outcome",
+      "title": "Domain",
+      "type": "string"
+    },
+    "intent_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Intent Hash",
+      "type": "string"
+    },
+    "operation_id": {
+      "format": "uuid",
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "EXECUTED",
+        "FAILED_NOT_EXECUTED"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "plan_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "EXECUTED",
+        "VERSION_MISMATCH",
+        "CANCELLED_NOT_EXECUTED",
+        "TARGET_NOT_FOUND"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "reported_at": {
+      "format": "date-time",
+      "title": "Reported At",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "domain",
+    "version",
+    "operation_id",
+    "account_id",
+    "intent_hash",
+    "plan_hash",
+    "outcome",
+    "reason",
+    "reported_at"
+  ],
+  "title": "JwsClaims",
+  "type": "object"
+}

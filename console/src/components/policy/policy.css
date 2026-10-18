@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The policy pages' own rules (#678), loaded with those pages rather than in app.css, so an
+   approval link opened cold does not fetch them. */
+/* The stepper that makes a policy live (#678): validate, preview, activate, as an
+   ordered list with a rule down its side. The current step takes the accent on that rule, and
+   its status word says the same in text. At phone width the controls wrap under each other. */
+.policy-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.policy-steps > li { display: grid; gap: 8px; padding-left: 14px; border-left: 1px solid var(--eb-line); min-width: 0; }
+.policy-steps > li[aria-current="step"] { border-left: 3px solid var(--eb-accent); padding-left: 12px; }
+.policy-steps h3 { margin: 0; font-size: 14px; }
+.policy-steps p { margin: 0; }
+.policy-step-status { font-size: 12.5px; color: var(--eb-muted); }
+.policy-step-controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.policy-step-controls .field { margin: 0; }
+.policy-changed > summary { cursor: pointer; margin: 8px 0; }
+/* Changes from the active policy: one list item per change, so it reads at phone width. */
+.policy-changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.policy-change { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.policy-change > p { margin: 0; }
+/* Download rules, beside the editable draft in "What this policy does". */
+.policy-rules-file { display: grid; gap: 6px; justify-items: start; margin-top: 10px; }
+.policy-rules-file > p { margin: 0; }
+/* The latest activation's reason under a version's time: clamped to two lines by the style
+   sheet, never cut in the text, so the whole reason stays the cell's text. */
+.policy-note {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; margin-top: 2px; font-size: 12.5px; color: var(--eb-muted); overflow-wrap: anywhere;
+}

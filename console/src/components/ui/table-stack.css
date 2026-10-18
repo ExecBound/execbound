@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Loaded with the pages whose tables stack, never with the cold approval link (#678). */
+/* An agent's paths (#678): the rules are what a person reads there, so they keep a measure of
+   their own and every cell starts at the top of its row. */
+.table.reach-table th, .table.reach-table td { padding-left: 8px; padding-right: 8px; }
+.table.reach-table td { vertical-align: top; height: auto; padding-top: 10px; padding-bottom: 10px; }
+.table.reach-table .reach-rules { width: 45%; min-width: 18rem; }
+.reach-rules > div + div { margin-top: 6px; }
+/* A table that stacks where its container is narrow (#678): each row a block and each cell a
+   line under its column's name, so nothing runs past a card's edge. The first cell names the
+   row and carries no name of its own. */
+.table-wrap:has(> .table-stack) { container-type: inline-size; }
+@container (max-width: 899px) {
+  .table.table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .table.table-stack, .table.table-stack tbody, .table.table-stack tr, .table.table-stack td { display: block; }
+  .table.table-stack tr { padding: 10px 0; border-bottom: 1px solid var(--eb-line); }
+  .table.table-stack td { height: auto; padding: 2px 0; border: 0; overflow-wrap: anywhere; }
+  .table.table-stack td:first-child { font-weight: 600; }
+  .table.table-stack td[data-label]::before { content: attr(data-label); display: block; margin-top: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--eb-faint); }
+  .table.table-stack .reach-rules { width: auto; min-width: 0; }
+}

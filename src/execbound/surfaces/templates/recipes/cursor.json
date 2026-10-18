@@ -1,0 +1,9 @@
+{#- SPDX-License-Identifier: Apache-2.0 -#}
+{
+  "mcpServers": {
+    "execbound": {
+      "url": "{{ origin }}/mcp/",
+      "headers": {"Authorization": "Bearer ${env:EXECBOUND_CREDENTIAL}"}
+    }
+  }
+}

@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Local runtimes, caches and generated output
+.venv/
+.tools/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+# The console build lands inside the package (console/vite.config.ts); hatch packages it by name.
+src/execbound/surfaces/console_dist/
+console/node_modules/
+# The API client is generated from console/openapi/console-v1.json by openapi-ts on every
+# build, typecheck and test, so it is not committed: two pull requests that each add a route
+# regenerate the same few hundred kilobytes and conflict on output neither of them wrote.
+console/src/api/
+# The hosted edition's client, generated the same way from its own document (#496).
+console/src/hosted/api/
+*.egg-info/
+*.log
+
+# Private/source review material and local data
+private/
+sources/
+*.zip
+local-data/
+*.sqlite3
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# The documentation site's generated sources and output (#418). `pnpm sources` writes docs/
+# from the publish manifest and copies the tokens, the fonts and the OpenAPI document into
+# static/, so none of it is committed and `git diff --exit-code` after a build is a real check.
+docs-site/node_modules/
+docs-site/docs/
+docs-site/static/
+docs-site/src/css/tokens.css
+docs-site/build/
+docs-site/build-trust/
+docs-site/site.generated.json
+docs-site/.docusaurus/

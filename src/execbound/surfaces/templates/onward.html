@@ -1,0 +1,16 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block head %}
+  {# A provider's or a directory's callback lands here rather than redirecting on (`onward`):
+     the refresh is a navigation this page begins, so it starts on this site and carries the
+     SameSite=Strict session. The link is the same navigation for a browser that ignores a
+     refresh. No referrer, so the callback's spent code travels in no header. #}
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="refresh" content="0; url={{ location }}">
+{% endblock %}
+{% block body %}
+<section class="login">
+  <h1>{{ heading }}</h1>
+  <p class="intro"><a href="{{ location }}">Continue to ExecBound</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,2271 @@
+{
+  "description": "Synthetic checkpoint report vectors for chapter 2 of the executor protocol: one grant, one scenario, the report sent for it and what it settles, for every row of section 2.8, and reports section 2.9 refuses. Every id is made up and every key is public test material that authenticates nothing anywhere.",
+  "executor_keys": {
+    "conformance-ed25519": {
+      "algorithm": "ED25519",
+      "public_key": "2543b92ff1095511476adc8369db6ddc933665a11978dda1404ee1066ca9559d",
+      "test_private_key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f"
+    },
+    "conformance-es256": {
+      "algorithm": "ES256",
+      "public_key": "02bf97d0ee1866aac6f80826ebadc42f3d81e1b6b8f298f5d3ebe7542b7cb483a7",
+      "test_private_key": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f"
+    }
+  },
+  "journal_keys": {
+    "conformance-journal": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
+  },
+  "refusals": {
+    "execution_id": "00000000-0000-4000-8000-000000000480",
+    "grant": {
+      "act_expires_at": "2026-10-15T09:15:00.250000Z",
+      "action": "endpoint.isolate",
+      "arguments": {},
+      "binding": {
+        "account_id": "00000000-0000-4000-8000-000000000202",
+        "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+        "operation_id": "00000000-0000-4000-8000-000000000380",
+        "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc"
+      },
+      "expected_version": "resource-v7",
+      "operation_id": "00000000-0000-4000-8000-000000000380",
+      "precondition_class": "ENFORCED_BY_PROVIDER",
+      "provider": "mock_crowdstrike",
+      "provider_command": {
+        "account_id": "00000000-0000-4000-8000-000000000202",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+        "execution_id": "00000000-0000-4000-8000-000000000480",
+        "expected_version": "resource-v7",
+        "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+        "operation_id": "00000000-0000-4000-8000-000000000380",
+        "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+        "provider": "mock_crowdstrike",
+        "provider_operation": "contain",
+        "resource_provider_id": "conformance-device-01",
+        "tenant_id": "00000000-0000-4000-8000-000000000201",
+        "version": 1
+      },
+      "provider_operation": "contain",
+      "regranted": false,
+      "report_expires_at": "2026-10-16T09:00:00.250000Z",
+      "report_secret": "vector-128-report-secret-000000000000000000000000",
+      "resource_provider_id": "conformance-device-01"
+    },
+    "granted_at": "2026-10-15T09:00:00.250000Z",
+    "reports": {
+      "attestation-altered-after-signing": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "An attestation whose claims were changed after they were signed.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRkFJTEVEX05PVF9FWEVDVVRFRCIsInBsYW5faGFzaCI6IjZhMjcyNDUwZTJjNjYxMmE1NzcxNjE4NTIwMzUxZDgwNDExY2JmNmFkZTc2YjMxZjFiNzEzNTY0YWZiNzU0YmMiLCJyZWFzb24iOiJUQVJHRVRfTk9UX0ZPVU5EIiwicmVwb3J0ZWRfYXQiOiIyMDI2LTEwLTE1VDA5OjAyOjAwWiIsInZlcnNpb24iOjF9",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "-soqKxS7ojqJ7eJgqd5ShPiEww_Hl1-mFaHcjtEeQg5f2uV-gQEULYoN_1xFK46aFDttgvk92_xjpXpNZm4D3g"
+          },
+          "outcome": "FAILED_NOT_EXECUTED",
+          "reason": "TARGET_NOT_FOUND",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "attestation-before-the-grant": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "fault": "An attestation dated a second before the second the grant was issued in.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDg6NTk6NTlaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "JEOGcrZP9scvXEJdXNXJsVPLssJi_ojhKUYRo2KouXEU77XgqeqK-YvNsaQVTcN965nPPaD2-3hpxM0W0QDb4g"
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "attestation-contradicts-the-body": {
+        "check": "agreement",
+        "code": "INVALID_RECORD",
+        "fault": "The body says the executor cancelled and its attestation says the vendor executed.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "mvdvjG3qPLAnn2ulnwObgX5W1o3FWAMp3y4Bru4fZChItPBqmqSsJFtL-ikFd06H44KnjZWM2xKyteVZfu8khQ"
+          },
+          "outcome": "FAILED_NOT_EXECUTED",
+          "reason": "CANCELLED_NOT_EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "attestation-for-another-operation": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "fault": "An attestation that binds another operation than the grant's.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzZmYiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "9Nk71gEZrG0irYjlQBEK2iPbggrdnLirzclgbAEsIMJQOqFGo-H1NvETqbF5vjRVUHuDjTTGcioTqStPOPMOoA"
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "attestation-outside-the-ring": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "An attestation signed by a key the ring does not hold, under a key id it does.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "_MNP-yUcJ6_u1BsOe6QkGPVsyz0Mfcm9BSlXdMZ4RK-65QqKyBsnYGZemQ5Of4hOCZqkjn5jfrxTwOlAAI7msw"
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "attestation-under-the-ed25519-key": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "An attestation naming the ring's Ed25519 key, which verifies only its own scheme.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVkMjU1MTkifQ",
+            "signature": "GzyXNFWSci51Xq_Hy8TAO7R3XEtecA3Pui3ZUp6CxzV4skU2mfythonWIS7gKIGN0a6tGhw58gCvRhkXIhuBWA"
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "fractional-number": {
+        "check": "body",
+        "code": "INVALID_REQUEST",
+        "fault": "The body writes a number with a fraction.",
+        "report_text": "{\"outcome\":\"UNKNOWN\",\"report_secret\":\"vector-128-report-secret-000000000000000000000000\",\"reported_at\":1792054920.5}"
+      },
+      "journal-as-a-record": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "A provider's journal presented as the executor's own record.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-journal",
+            "record": {
+              "command": {
+                "account_id": "00000000-0000-4000-8000-000000000202",
+                "action": "endpoint.isolate",
+                "arguments": {},
+                "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+                "execution_id": "00000000-0000-4000-8000-000000000480",
+                "expected_version": "resource-v7",
+                "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+                "operation_id": "00000000-0000-4000-8000-000000000380",
+                "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+                "provider": "mock_crowdstrike",
+                "provider_operation": "contain",
+                "resource_provider_id": "conformance-device-01",
+                "tenant_id": "00000000-0000-4000-8000-000000000201",
+                "version": 1
+              },
+              "command_hash": "bd64da3d14e0d4f5c3989caec4974b0933ec119e6189d62af267a7595d59b60b",
+              "mutation_count": 1,
+              "occurred_at": "2026-10-15T09:01:00Z",
+              "outcome": "EXECUTED",
+              "resulting_version": "resource-v8",
+              "version": 1
+            },
+            "signature": "5a4cc72a87f1fa01c987386f4856bed1c1a2d29842c91e0a0cb31ad6f869d540",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "journal-before-the-grant": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "fault": "A journal dated a microsecond before the grant, inside the second it was issued in: a journal is compared with the grant's exact instant, not its second.",
+        "report": {
+          "journal": {
+            "key_id": "conformance-journal",
+            "record": {
+              "command": {
+                "account_id": "00000000-0000-4000-8000-000000000202",
+                "action": "endpoint.isolate",
+                "arguments": {},
+                "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+                "execution_id": "00000000-0000-4000-8000-000000000480",
+                "expected_version": "resource-v7",
+                "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+                "operation_id": "00000000-0000-4000-8000-000000000380",
+                "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+                "provider": "mock_crowdstrike",
+                "provider_operation": "contain",
+                "resource_provider_id": "conformance-device-01",
+                "tenant_id": "00000000-0000-4000-8000-000000000201",
+                "version": 1
+              },
+              "command_hash": "bd64da3d14e0d4f5c3989caec4974b0933ec119e6189d62af267a7595d59b60b",
+              "mutation_count": 1,
+              "occurred_at": "2026-10-15T09:00:00.249999Z",
+              "outcome": "EXECUTED",
+              "resulting_version": "resource-v8",
+              "version": 1
+            },
+            "signature": "2c98dec0979f5d74729b7418a69424800315c6754349df05c73d5eeba63bfa30",
+            "version": 1
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "journal-contradicts-the-body": {
+        "check": "agreement",
+        "code": "INVALID_RECORD",
+        "fault": "The body says EXECUTED and the provider's journal says the target was not found.",
+        "report": {
+          "journal": {
+            "key_id": "conformance-journal",
+            "record": {
+              "command": {
+                "account_id": "00000000-0000-4000-8000-000000000202",
+                "action": "endpoint.isolate",
+                "arguments": {},
+                "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+                "execution_id": "00000000-0000-4000-8000-000000000480",
+                "expected_version": "resource-v7",
+                "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+                "operation_id": "00000000-0000-4000-8000-000000000380",
+                "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+                "provider": "mock_crowdstrike",
+                "provider_operation": "contain",
+                "resource_provider_id": "conformance-device-01",
+                "tenant_id": "00000000-0000-4000-8000-000000000201",
+                "version": 1
+              },
+              "command_hash": "bd64da3d14e0d4f5c3989caec4974b0933ec119e6189d62af267a7595d59b60b",
+              "mutation_count": 0,
+              "occurred_at": "2026-10-15T09:01:00Z",
+              "outcome": "TARGET_NOT_FOUND",
+              "resulting_version": null,
+              "version": 1
+            },
+            "signature": "32e8358a62b385a4b76faff3439ff7ed9831f8bdb5788e090a849c0cdc110df0",
+            "version": 1
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "journal-for-another-command": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "fault": "A journal of a command at another expected version than the grant's.",
+        "report": {
+          "journal": {
+            "key_id": "conformance-journal",
+            "record": {
+              "command": {
+                "account_id": "00000000-0000-4000-8000-000000000202",
+                "action": "endpoint.isolate",
+                "arguments": {},
+                "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+                "execution_id": "00000000-0000-4000-8000-000000000480",
+                "expected_version": "resource-v6",
+                "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+                "operation_id": "00000000-0000-4000-8000-000000000380",
+                "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+                "provider": "mock_crowdstrike",
+                "provider_operation": "contain",
+                "resource_provider_id": "conformance-device-01",
+                "tenant_id": "00000000-0000-4000-8000-000000000201",
+                "version": 1
+              },
+              "command_hash": "309e726e98108c3f6cf957d4ff58bf59da29bde4b0f9f4886dc212b747119d85",
+              "mutation_count": 1,
+              "occurred_at": "2026-10-15T09:01:00Z",
+              "outcome": "EXECUTED",
+              "resulting_version": "resource-v8",
+              "version": 1
+            },
+            "signature": "53067f4c78cf58c4122618283dcc1df49693e66465199c5fcf4533e318e09931",
+            "version": 1
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "journal-under-an-unavailable-grant": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "execution_id": "00000000-0000-4000-8000-000000000490",
+        "fault": "A provider's journal of the command ExecBound would have sent, for a grant under UNAVAILABLE: such a grant carries no provider command, so no journal binds it.",
+        "grant": {
+          "act_expires_at": "2026-10-15T09:15:00.250000Z",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "binding": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "970b4f3f23db3649726ec845726a872c9dd833dd968902590ce9a63d1908df7b",
+            "operation_id": "00000000-0000-4000-8000-000000000390",
+            "plan_hash": "4eb3f8e01ddc6e4271f1a53d35366d082749b5136d00de413ca4f37c4458acde"
+          },
+          "expected_version": null,
+          "operation_id": "00000000-0000-4000-8000-000000000390",
+          "precondition_class": "UNAVAILABLE",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "regranted": false,
+          "report_expires_at": "2026-10-16T09:00:00.250000Z",
+          "report_secret": "vector-144-report-secret-000000000000000000000000",
+          "resource_provider_id": "conformance-device-01"
+        },
+        "granted_at": "2026-10-15T09:00:00.250000Z",
+        "report": {
+          "journal": {
+            "key_id": "conformance-journal",
+            "record": {
+              "command": {
+                "account_id": "00000000-0000-4000-8000-000000000202",
+                "action": "endpoint.isolate",
+                "arguments": {},
+                "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+                "execution_id": "00000000-0000-4000-8000-000000000490",
+                "expected_version": "resource-v7",
+                "intent_hash": "970b4f3f23db3649726ec845726a872c9dd833dd968902590ce9a63d1908df7b",
+                "operation_id": "00000000-0000-4000-8000-000000000390",
+                "plan_hash": "4eb3f8e01ddc6e4271f1a53d35366d082749b5136d00de413ca4f37c4458acde",
+                "provider": "mock_crowdstrike",
+                "provider_operation": "contain",
+                "resource_provider_id": "conformance-device-01",
+                "tenant_id": "00000000-0000-4000-8000-000000000201",
+                "version": 1
+              },
+              "command_hash": "7e66971aecd0d4f9539f1645da5f82ea588ad5483dad54d257a620710f5bee62",
+              "mutation_count": 1,
+              "occurred_at": "2026-10-15T09:01:00Z",
+              "outcome": "EXECUTED",
+              "resulting_version": "resource-v8",
+              "version": 1
+            },
+            "signature": "2045f0866c92a9b09f3945bba4d3ed82dfb4e56f80edbda0347399caa13923b7",
+            "version": 1
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-144-report-secret-000000000000000000000000"
+        }
+      },
+      "journal-under-another-key": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "A journal signed under a journal key nobody configured.",
+        "report": {
+          "journal": {
+            "key_id": "conformance-unregistered",
+            "record": {
+              "command": {
+                "account_id": "00000000-0000-4000-8000-000000000202",
+                "action": "endpoint.isolate",
+                "arguments": {},
+                "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+                "execution_id": "00000000-0000-4000-8000-000000000480",
+                "expected_version": "resource-v7",
+                "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+                "operation_id": "00000000-0000-4000-8000-000000000380",
+                "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+                "provider": "mock_crowdstrike",
+                "provider_operation": "contain",
+                "resource_provider_id": "conformance-device-01",
+                "tenant_id": "00000000-0000-4000-8000-000000000201",
+                "version": 1
+              },
+              "command_hash": "bd64da3d14e0d4f5c3989caec4974b0933ec119e6189d62af267a7595d59b60b",
+              "mutation_count": 1,
+              "occurred_at": "2026-10-15T09:01:00Z",
+              "outcome": "EXECUTED",
+              "resulting_version": "resource-v8",
+              "version": 1
+            },
+            "signature": "3b731ec34cf01dd35ad296e8c5ea75e880dc6ab0e7e50157b6f6d6bdd569669b",
+            "version": 1
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "no-evidence": {
+        "check": "evidence",
+        "code": "INVALID_REQUEST",
+        "fault": "A terminal outcome with neither a reported time nor signed evidence.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-altered-after-signing": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "A record whose statement was changed after it was signed.",
+        "report": {
+          "outcome": "FAILED_NOT_EXECUTED",
+          "reason": "TARGET_NOT_FOUND",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "FAILED_NOT_EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "TARGET_NOT_FOUND",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "e1cd6870930f7e4a5e984d0b5d5714063f45e0060a0577fab37a3c6799b3660528c0f07394f973863b52d13a7e4788713eac23937501ca2f3619e014f8d96104",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-as-a-journal": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "The executor's own record presented as a provider's journal.",
+        "report": {
+          "journal": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "829b0beed13335609c20a4f34153160c3a7324e8faf134e77fa6e794db731167bc12cd8a468bf0aa52290ab65ff3bd72d2ac3453ed3358c606539ca76f1f2c02",
+            "version": 1
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-before-the-grant": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "fault": "A record dated a second before the second the grant was issued in.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T08:59:59Z",
+              "version": 1
+            },
+            "signature": "81f1c875cd4ec95a0ab52cfd1d9a1fa75c84ef6c92a02d1edb6bb41d554959d226f33aa24807e1b7a11ba164554c9af3c685b777e43b9d7e93cd3eced2cbaf08",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-contradicts-the-body": {
+        "check": "agreement",
+        "code": "INVALID_RECORD",
+        "fault": "The body says EXECUTED and its signed record says the target was not found.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "FAILED_NOT_EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "TARGET_NOT_FOUND",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "296e7f17ce0c3f4c12401fd9c2245f90e0d4d9d6fe8a59a4827bedcf085f129dfd4bfe71b51b1b81f35ade4e1feda4e0fcd70c91f2ac488d8319681f22c6ce0a",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-for-another-operation": {
+        "check": "binding",
+        "code": "INVALID_RECORD",
+        "fault": "A record that binds another operation than the grant's.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-0000000003ff",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "692103cb8af931a887f62c43896ee97a762d3569649b8a7b01c6c3c846f1e6f731d0e5451201037af238627732809effd660b9ea4856d64ec7e423147c99600e",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-outside-the-ring": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "A record signed by a key the ring does not hold, under a key id it does.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "8dd279c14c61a53255c531ca99d50c5d1e3868ba6a6c679d398e9a1e9954d38da286fc0a700572284f3ef00cf8d9d96ae24a6b7cd629e8a6ea2c51e8c3185d0a",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-under-the-es256-key": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "An Ed25519 record naming the ring's ES256 key, which verifies only its own scheme.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-es256",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "16439b3c065eeb5a674a41d4236f904ff51f8e2de68ca255b7c8adacf03be70c5a8a53cbe56dc0e02bed4d46f39de0c748170dafda2f91154760b373e0455e06",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "record-unregistered-key-id": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "A record signed under a key id the ring does not hold.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-unregistered",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "4390ebe07649c6cc5ebb8e7483769fb5164841c4d00afa0954a208b1d4d1716f08465131c3611ebb7e977c19ddb82d2026708787917ad73f3f45674825ba590f",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "repeated-key": {
+        "check": "body",
+        "code": "INVALID_REQUEST",
+        "fault": "The body repeats a key.",
+        "report_text": "{\"outcome\":\"UNKNOWN\",\"outcome\":\"UNKNOWN\",\"report_secret\":\"vector-128-report-secret-000000000000000000000000\",\"reported_at\":\"2026-10-15T09:02:00Z\"}"
+      },
+      "reported-failure-refunding": {
+        "check": "pairing",
+        "code": "INVALID_REQUEST",
+        "fault": "REPORTED_FAILURE beside FAILED_NOT_EXECUTED, the outcome that refunds.",
+        "report": {
+          "outcome": "FAILED_NOT_EXECUTED",
+          "reason": "REPORTED_FAILURE",
+          "report_secret": "vector-128-report-secret-000000000000000000000000",
+          "reported_at": "2026-10-15T09:02:00Z"
+        }
+      },
+      "signed-reported-failure": {
+        "check": "pairing",
+        "code": "INVALID_REQUEST",
+        "fault": "REPORTED_FAILURE beside signed evidence, which can state no such reason.",
+        "report": {
+          "outcome": "FAILED_EFFECT_UNKNOWN",
+          "reason": "REPORTED_FAILURE",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "829b0beed13335609c20a4f34153160c3a7324e8faf134e77fa6e794db731167bc12cd8a468bf0aa52290ab65ff3bd72d2ac3453ed3358c606539ca76f1f2c02",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "stored-attestation-as-a-record": {
+        "check": "signature",
+        "code": "INVALID_RECORD",
+        "fault": "An ES256 attestation in the flattened form a settlement stores, presented as a record: a record is an Ed25519 signed outcome, and ES256 arrives only as an attestation.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "format": "jws-es256",
+            "key_id": "conformance-es256",
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "mvdvjG3qPLAnn2ulnwObgX5W1o3FWAMp3y4Bru4fZChItPBqmqSsJFtL-ikFd06H44KnjZWM2xKyteVZfu8khQ",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "time-beside-evidence": {
+        "check": "evidence",
+        "code": "INVALID_REQUEST",
+        "fault": "A reported time beside a signed record.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "829b0beed13335609c20a4f34153160c3a7324e8faf134e77fa6e794db731167bc12cd8a468bf0aa52290ab65ff3bd72d2ac3453ed3358c606539ca76f1f2c02",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000",
+          "reported_at": "2026-10-15T09:02:00Z"
+        }
+      },
+      "two-pieces-of-evidence": {
+        "check": "evidence",
+        "code": "INVALID_REQUEST",
+        "fault": "A signed record and an attestation of the same statement, together.",
+        "report": {
+          "attestation": {
+            "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjlmMjI1OTc2YzRlY2E0M2YwZDY4NjQ0ODMyYjE5NmZiMzE1NTMwNWQ5MTE0NTAwYjEzN2M3MzA4ODVlNzVmZDQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzODAiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI2YTI3MjQ1MGUyYzY2MTJhNTc3MTYxODUyMDM1MWQ4MDQxMWNiZjZhZGU3NmIzMWYxYjcxMzU2NGFmYjc1NGJjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+            "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+            "signature": "mvdvjG3qPLAnn2ulnwObgX5W1o3FWAMp3y4Bru4fZChItPBqmqSsJFtL-ikFd06H44KnjZWM2xKyteVZfu8khQ"
+          },
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "829b0beed13335609c20a4f34153160c3a7324e8faf134e77fa6e794db731167bc12cd8a468bf0aa52290ab65ff3bd72d2ac3453ed3358c606539ca76f1f2c02",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      },
+      "unknown-field": {
+        "check": "model",
+        "code": "INVALID_REQUEST",
+        "fault": "The body names a field the report does not, a tier of its own choosing.",
+        "report": {
+          "outcome": "EXECUTED",
+          "reason": "EXECUTED",
+          "report_secret": "vector-128-report-secret-000000000000000000000000",
+          "reported_at": "2026-10-15T09:02:00Z",
+          "tier": "ATTESTED"
+        }
+      },
+      "unknown-with-a-reason": {
+        "check": "pairing",
+        "code": "INVALID_REQUEST",
+        "fault": "UNKNOWN reported as though it were terminal, with a reason.",
+        "report": {
+          "outcome": "UNKNOWN",
+          "reason": "REPORTED_FAILURE",
+          "report_secret": "vector-128-report-secret-000000000000000000000000",
+          "reported_at": "2026-10-15T09:02:00Z"
+        }
+      },
+      "unknown-with-evidence": {
+        "check": "pairing",
+        "code": "INVALID_REQUEST",
+        "fault": "UNKNOWN beside a signed record.",
+        "report": {
+          "outcome": "UNKNOWN",
+          "record": {
+            "key_id": "conformance-ed25519",
+            "record": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "intent_hash": "9f225976c4eca43f0d68644832b196fb3155305d9114500b137c730885e75fd4",
+              "operation_id": "00000000-0000-4000-8000-000000000380",
+              "outcome": "EXECUTED",
+              "plan_hash": "6a272450e2c6612a5771618520351d80411cbf6ade76b31f1b713564afb754bc",
+              "reason": "EXECUTED",
+              "reported_at": "2026-10-15T09:02:00Z",
+              "version": 1
+            },
+            "signature": "829b0beed13335609c20a4f34153160c3a7324e8faf134e77fa6e794db731167bc12cd8a468bf0aa52290ab65ff3bd72d2ac3453ed3358c606539ca76f1f2c02",
+            "version": 1
+          },
+          "report_secret": "vector-128-report-secret-000000000000000000000000"
+        }
+      }
+    }
+  },
+  "vectors": {
+    "asserted-cancelled": {
+      "execution_id": "00000000-0000-4000-8000-000000000410",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "924da6072b982ca295468d501de3cb52c26da2f38f9f27687bbb1644b8effa5e",
+          "operation_id": "00000000-0000-4000-8000-000000000310",
+          "plan_hash": "59031bdf6e697103cf2e9d9790b7e2bf25c0596f15001b88a32e3a48745e2ef6"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000310",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000410",
+          "expected_version": "resource-v7",
+          "intent_hash": "924da6072b982ca295468d501de3cb52c26da2f38f9f27687bbb1644b8effa5e",
+          "operation_id": "00000000-0000-4000-8000-000000000310",
+          "plan_hash": "59031bdf6e697103cf2e9d9790b7e2bf25c0596f15001b88a32e3a48745e2ef6",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-16-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "CANCELLED_NOT_EXECUTED",
+        "report_secret": "vector-16-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned non-execution",
+      "scenario": "The executor decided not to act and never called the vendor, and the executor says so without signing.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CHARGED",
+        "state": "INDETERMINATE",
+        "tier": null
+      }
+    },
+    "asserted-executed": {
+      "execution_id": "00000000-0000-4000-8000-00000000040d",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "2a7cbcaa1fab1220fdf832d81d9f4c6abef7418d257448efa5397fbce847adfb",
+          "operation_id": "00000000-0000-4000-8000-00000000030d",
+          "plan_hash": "c545bc5ae463b5e8b320c6e0c9d3704d03974ffeaf449b4ddd58abfb5f1fbc2f"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-00000000030d",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-00000000040d",
+          "expected_version": "resource-v7",
+          "intent_hash": "2a7cbcaa1fab1220fdf832d81d9f4c6abef7418d257448efa5397fbce847adfb",
+          "operation_id": "00000000-0000-4000-8000-00000000030d",
+          "plan_hash": "c545bc5ae463b5e8b320c6e0c9d3704d03974ffeaf449b4ddd58abfb5f1fbc2f",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-13-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "report_secret": "vector-13-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned EXECUTED",
+      "scenario": "The vendor performed the action, and the executor says so without signing.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ASSERTED"
+      }
+    },
+    "asserted-reported-failure": {
+      "execution_id": "00000000-0000-4000-8000-00000000040e",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "d826c96f850b8427c801bdf6b88b4344a8aad3449faa99a97a20b83825087d2b",
+          "operation_id": "00000000-0000-4000-8000-00000000030e",
+          "plan_hash": "8853fa3867db03eb1b77fac2be17167ba72037f2e61860b92a3ed008817f5c07"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-00000000030e",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-00000000040e",
+          "expected_version": "resource-v7",
+          "intent_hash": "d826c96f850b8427c801bdf6b88b4344a8aad3449faa99a97a20b83825087d2b",
+          "operation_id": "00000000-0000-4000-8000-00000000030e",
+          "plan_hash": "8853fa3867db03eb1b77fac2be17167ba72037f2e61860b92a3ed008817f5c07",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-14-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_EFFECT_UNKNOWN",
+        "reason": "REPORTED_FAILURE",
+        "report_secret": "vector-14-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned REPORTED_FAILURE",
+      "scenario": "The vendor call failed, and whether the vendor acted is not established.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CONFIRMED",
+        "state": "FAILED_EFFECT_UNKNOWN",
+        "tier": "ASSERTED"
+      }
+    },
+    "asserted-target-not-found": {
+      "execution_id": "00000000-0000-4000-8000-000000000411",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "edaf127be8085296405fe3e703a872efb430a1d66f226f21b01d69fd7be3b490",
+          "operation_id": "00000000-0000-4000-8000-000000000311",
+          "plan_hash": "588a2436e710c3774c235e9dd761d6761b79bea8abf0ff9e754a7049e22f83e6"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000311",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000411",
+          "expected_version": "resource-v7",
+          "intent_hash": "edaf127be8085296405fe3e703a872efb430a1d66f226f21b01d69fd7be3b490",
+          "operation_id": "00000000-0000-4000-8000-000000000311",
+          "plan_hash": "588a2436e710c3774c235e9dd761d6761b79bea8abf0ff9e754a7049e22f83e6",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-17-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "TARGET_NOT_FOUND",
+        "report_secret": "vector-17-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned non-execution",
+      "scenario": "The vendor holds no such target, and the executor says so without signing.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CHARGED",
+        "state": "INDETERMINATE",
+        "tier": null
+      }
+    },
+    "asserted-version-mismatch": {
+      "execution_id": "00000000-0000-4000-8000-00000000040f",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "de169a1c540f6452336c43a2cee6b0a9bfd14060cae7d4ec6dfce004176236e1",
+          "operation_id": "00000000-0000-4000-8000-00000000030f",
+          "plan_hash": "81fed762a2fce1136925c9d210fd5cf3c9ac662da4425f2937ba844eed9913ec"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-00000000030f",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-00000000040f",
+          "expected_version": "resource-v7",
+          "intent_hash": "de169a1c540f6452336c43a2cee6b0a9bfd14060cae7d4ec6dfce004176236e1",
+          "operation_id": "00000000-0000-4000-8000-00000000030f",
+          "plan_hash": "81fed762a2fce1136925c9d210fd5cf3c9ac662da4425f2937ba844eed9913ec",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-15-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "VERSION_MISMATCH",
+        "report_secret": "vector-15-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned non-execution",
+      "scenario": "The vendor refused the conditional write: the target was no longer at the expected version, and the executor says so without signing.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CHARGED",
+        "state": "INDETERMINATE",
+        "tier": null
+      }
+    },
+    "attestation-cancelled": {
+      "execution_id": "00000000-0000-4000-8000-000000000407",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "fb1d9f60867e29d34af028db614638cfaf7a1a4a593803495fb7eee35d60baf5",
+          "operation_id": "00000000-0000-4000-8000-000000000307",
+          "plan_hash": "1108aa70823e786f063add784036e0c38f78f036c6a2b6699a94b1830afe4424"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000307",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000407",
+          "expected_version": "resource-v7",
+          "intent_hash": "fb1d9f60867e29d34af028db614638cfaf7a1a4a593803495fb7eee35d60baf5",
+          "operation_id": "00000000-0000-4000-8000-000000000307",
+          "plan_hash": "1108aa70823e786f063add784036e0c38f78f036c6a2b6699a94b1830afe4424",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-07-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "attestation": {
+          "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6ImZiMWQ5ZjYwODY3ZTI5ZDM0YWYwMjhkYjYxNDYzOGNmYWY3YTFhNGE1OTM4MDM0OTVmYjdlZWUzNWQ2MGJhZjUiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzMDciLCJvdXRjb21lIjoiRkFJTEVEX05PVF9FWEVDVVRFRCIsInBsYW5faGFzaCI6IjExMDhhYTcwODIzZTc4NmYwNjNhZGQ3ODQwMzZlMGMzOGY3OGYwMzZjNmEyYjY2OTlhOTRiMTgzMGFmZTQ0MjQiLCJyZWFzb24iOiJDQU5DRUxMRURfTk9UX0VYRUNVVEVEIiwicmVwb3J0ZWRfYXQiOiIyMDI2LTEwLTE1VDA5OjAyOjAwWiIsInZlcnNpb24iOjF9",
+          "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+          "signature": "9wGJmglkCt78rrut10kRr_OnZPH4L77sZFgB2E44fYofVRV3qNrn2dP6-UZrapniDOZhysPZlRZnrw78BZvIpw"
+        },
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "CANCELLED_NOT_EXECUTED",
+        "report_secret": "vector-07-report-secret-000000000000000000000000"
+      },
+      "row": "Signed CANCELLED_NOT_EXECUTED or TARGET_NOT_FOUND",
+      "scenario": "The executor decided not to act and never called the vendor, and the executor signs an ES256 attestation.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "FAILED_NOT_EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "attestation-executed": {
+      "execution_id": "00000000-0000-4000-8000-000000000405",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "1daaf80f4d477dfb55e3960353e55dc37421560cbc48f7a4b78fe37f047d572f",
+          "operation_id": "00000000-0000-4000-8000-000000000305",
+          "plan_hash": "c9544b3dd2a4359f8e0ea4da8078fd450c08f9fd836bdb77d33995420a95ce49"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000305",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000405",
+          "expected_version": "resource-v7",
+          "intent_hash": "1daaf80f4d477dfb55e3960353e55dc37421560cbc48f7a4b78fe37f047d572f",
+          "operation_id": "00000000-0000-4000-8000-000000000305",
+          "plan_hash": "c9544b3dd2a4359f8e0ea4da8078fd450c08f9fd836bdb77d33995420a95ce49",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-05-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "attestation": {
+          "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjFkYWFmODBmNGQ0NzdkZmI1NWUzOTYwMzUzZTU1ZGMzNzQyMTU2MGNiYzQ4ZjdhNGI3OGZlMzdmMDQ3ZDU3MmYiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzMDUiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiJjOTU0NGIzZGQyYTQzNTlmOGUwZWE0ZGE4MDc4ZmQ0NTBjMDhmOWZkODM2YmRiNzdkMzM5OTU0MjBhOTVjZTQ5IiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+          "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+          "signature": "5wBe9dYqDFRYmzpkrJNFZ8nmACzRk05owAJozPgf2WrgKiV9-yUFj47qhkK_E3S-2iFJ5vISi2QdL8k3XCPLGg"
+        },
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "report_secret": "vector-05-report-secret-000000000000000000000000"
+      },
+      "row": "Signed EXECUTED",
+      "scenario": "The vendor performed the action, and the executor signs an ES256 attestation.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "attestation-executed-in-the-grants-second": {
+      "execution_id": "00000000-0000-4000-8000-000000000414",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "5bb35187891aead5ee6797622e5a4f4b2f90e506e1ddb4eafa27ac94917fe266",
+          "operation_id": "00000000-0000-4000-8000-000000000314",
+          "plan_hash": "c0faf9c6d009aaccdd4ea8a29d234c12acdca34c80018b0513601290f0683342"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000314",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000414",
+          "expected_version": "resource-v7",
+          "intent_hash": "5bb35187891aead5ee6797622e5a4f4b2f90e506e1ddb4eafa27ac94917fe266",
+          "operation_id": "00000000-0000-4000-8000-000000000314",
+          "plan_hash": "c0faf9c6d009aaccdd4ea8a29d234c12acdca34c80018b0513601290f0683342",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-20-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "attestation": {
+          "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjViYjM1MTg3ODkxYWVhZDVlZTY3OTc2MjJlNWE0ZjRiMmY5MGU1MDZlMWRkYjRlYWZhMjdhYzk0OTE3ZmUyNjYiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzMTQiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiJjMGZhZjljNmQwMDlhYWNjZGQ0ZWE4YTI5ZDIzNGMxMmFjZGNhMzRjODAwMThiMDUxMzYwMTI5MGYwNjgzMzQyIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDA6MDBaIiwidmVyc2lvbiI6MX0",
+          "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+          "signature": "f2NcOMLcBtHcPIAyN43INRiLyThQMgu1kH7MIn0iYIxwVz9i6pMcxr26wAegTUYakTeVmoLAn3_TcrSWpMF6IQ"
+        },
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "report_secret": "vector-20-report-secret-000000000000000000000000"
+      },
+      "row": "Signed EXECUTED",
+      "scenario": "The vendor performed the action, and the executor, which signs whole seconds only, signs an ES256 attestation dated at the start of the second the grant was issued in, before the grant's exact instant.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "attestation-target-not-found": {
+      "execution_id": "00000000-0000-4000-8000-000000000408",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "f2e7d08b22486e44c40127515a8e749cb44fb442f25bd3d2a7179cdf0f9b1fbf",
+          "operation_id": "00000000-0000-4000-8000-000000000308",
+          "plan_hash": "e22a9714e812bbb979af4d28ecf4c92ac922531a1aabc1e27f7063a2927b3420"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000308",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000408",
+          "expected_version": "resource-v7",
+          "intent_hash": "f2e7d08b22486e44c40127515a8e749cb44fb442f25bd3d2a7179cdf0f9b1fbf",
+          "operation_id": "00000000-0000-4000-8000-000000000308",
+          "plan_hash": "e22a9714e812bbb979af4d28ecf4c92ac922531a1aabc1e27f7063a2927b3420",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-08-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "attestation": {
+          "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6ImYyZTdkMDhiMjI0ODZlNDRjNDAxMjc1MTVhOGU3NDljYjQ0ZmI0NDJmMjViZDNkMmE3MTc5Y2RmMGY5YjFmYmYiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzMDgiLCJvdXRjb21lIjoiRkFJTEVEX05PVF9FWEVDVVRFRCIsInBsYW5faGFzaCI6ImUyMmE5NzE0ZTgxMmJiYjk3OWFmNGQyOGVjZjRjOTJhYzkyMjUzMWExYWFiYzFlMjdmNzA2M2EyOTI3YjM0MjAiLCJyZWFzb24iOiJUQVJHRVRfTk9UX0ZPVU5EIiwicmVwb3J0ZWRfYXQiOiIyMDI2LTEwLTE1VDA5OjAyOjAwWiIsInZlcnNpb24iOjF9",
+          "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+          "signature": "s5UwHDAyzfy6Hkw6ubmz42BKwxkZ-f25VrlBzlf7x8iKSaPVmcJcfZHl_JPfwujh6bzPj1VkRrgB6AA4SqJi6Q"
+        },
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "TARGET_NOT_FOUND",
+        "report_secret": "vector-08-report-secret-000000000000000000000000"
+      },
+      "row": "Signed CANCELLED_NOT_EXECUTED or TARGET_NOT_FOUND",
+      "scenario": "The vendor holds no such target, and the executor signs an ES256 attestation.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "FAILED_NOT_EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "attestation-version-mismatch": {
+      "execution_id": "00000000-0000-4000-8000-000000000406",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "60eed72d0fbb4450d1e0bf2cbdccd02eb8b5ae0449671ebb387507a057879b7f",
+          "operation_id": "00000000-0000-4000-8000-000000000306",
+          "plan_hash": "5ff1354ea9f290153ab98645fd329aff140a52143b5f723d42abcc4d9e4148e4"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000306",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000406",
+          "expected_version": "resource-v7",
+          "intent_hash": "60eed72d0fbb4450d1e0bf2cbdccd02eb8b5ae0449671ebb387507a057879b7f",
+          "operation_id": "00000000-0000-4000-8000-000000000306",
+          "plan_hash": "5ff1354ea9f290153ab98645fd329aff140a52143b5f723d42abcc4d9e4148e4",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-06-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "attestation": {
+          "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjYwZWVkNzJkMGZiYjQ0NTBkMWUwYmYyY2JkY2NkMDJlYjhiNWFlMDQ0OTY3MWViYjM4NzUwN2EwNTc4NzliN2YiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzMDYiLCJvdXRjb21lIjoiRkFJTEVEX05PVF9FWEVDVVRFRCIsInBsYW5faGFzaCI6IjVmZjEzNTRlYTlmMjkwMTUzYWI5ODY0NWZkMzI5YWZmMTQwYTUyMTQzYjVmNzIzZDQyYWJjYzRkOWU0MTQ4ZTQiLCJyZWFzb24iOiJWRVJTSU9OX01JU01BVENIIiwicmVwb3J0ZWRfYXQiOiIyMDI2LTEwLTE1VDA5OjAyOjAwWiIsInZlcnNpb24iOjF9",
+          "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+          "signature": "lflDO7eymThuhWFVgfsKBGbz1heNXJhvlgUcJS9QZmYI1WkzoCCXorPTo9iop8iycLkFXNfwcsvfBRF4LSpR5g"
+        },
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "VERSION_MISMATCH",
+        "report_secret": "vector-06-report-secret-000000000000000000000000"
+      },
+      "row": "Signed VERSION_MISMATCH",
+      "scenario": "The vendor refused the conditional write: the target was no longer at the expected version, and the executor signs an ES256 attestation.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "STALE_AUTHORIZATION",
+        "tier": "ATTESTED"
+      }
+    },
+    "class-asserted-by-executor-asserted-version-mismatch": {
+      "execution_id": "00000000-0000-4000-8000-000000000418",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "38a939440907ab8a3fa441edbeefb09aa13366b609304704ba937bb6e62bf0fc",
+          "operation_id": "00000000-0000-4000-8000-000000000318",
+          "plan_hash": "33a776ffd30e21024a533933d7fa167e80f382130910c42d8d98f02e21e8b5dc"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000318",
+        "precondition_class": "ASSERTED_BY_EXECUTOR",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000418",
+          "expected_version": "resource-v7",
+          "intent_hash": "38a939440907ab8a3fa441edbeefb09aa13366b609304704ba937bb6e62bf0fc",
+          "operation_id": "00000000-0000-4000-8000-000000000318",
+          "plan_hash": "33a776ffd30e21024a533933d7fa167e80f382130910c42d8d98f02e21e8b5dc",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-24-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "VERSION_MISMATCH",
+        "report_secret": "vector-24-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned non-execution",
+      "scenario": "The grant's class is ASSERTED_BY_EXECUTOR: the executor found the target no longer at the expected version and did not act, and says so without signing.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CHARGED",
+        "state": "INDETERMINATE",
+        "tier": null
+      }
+    },
+    "class-asserted-by-executor-record-version-mismatch": {
+      "execution_id": "00000000-0000-4000-8000-000000000417",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "f2de7b66a2310a1773d1e728ef1c535ff707fcef883fdd9d748f2dc3264f4c11",
+          "operation_id": "00000000-0000-4000-8000-000000000317",
+          "plan_hash": "d85dc2d32e050eed48c894bd2041cd874df15d0e3f67b2b4b89e29985131d9a0"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000317",
+        "precondition_class": "ASSERTED_BY_EXECUTOR",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000417",
+          "expected_version": "resource-v7",
+          "intent_hash": "f2de7b66a2310a1773d1e728ef1c535ff707fcef883fdd9d748f2dc3264f4c11",
+          "operation_id": "00000000-0000-4000-8000-000000000317",
+          "plan_hash": "d85dc2d32e050eed48c894bd2041cd874df15d0e3f67b2b4b89e29985131d9a0",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-23-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "VERSION_MISMATCH",
+        "record": {
+          "key_id": "conformance-ed25519",
+          "record": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "f2de7b66a2310a1773d1e728ef1c535ff707fcef883fdd9d748f2dc3264f4c11",
+            "operation_id": "00000000-0000-4000-8000-000000000317",
+            "outcome": "FAILED_NOT_EXECUTED",
+            "plan_hash": "d85dc2d32e050eed48c894bd2041cd874df15d0e3f67b2b4b89e29985131d9a0",
+            "reason": "VERSION_MISMATCH",
+            "reported_at": "2026-10-15T09:02:00Z",
+            "version": 1
+          },
+          "signature": "201e12a26f4b3ad6bbc0fe8b1856ea33dbc756eab2323aea07559df7fe0f8683fb2f844fdd1de53fbe5759c364d4a796f34e5d5d8c1f78922ed7810a4027450a",
+          "version": 1
+        },
+        "report_secret": "vector-23-report-secret-000000000000000000000000"
+      },
+      "row": "Signed VERSION_MISMATCH",
+      "scenario": "The grant's class is ASSERTED_BY_EXECUTOR: the executor read the target, found it no longer at the expected version and did not act, and signs that with its Ed25519 key.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "STALE_AUTHORIZATION",
+        "tier": "ATTESTED"
+      }
+    },
+    "class-unavailable-asserted-executed": {
+      "execution_id": "00000000-0000-4000-8000-000000000416",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "011a8a0feed676754a3863889f820428bae13ee000e1f0b0521587c33d20b8c9",
+          "operation_id": "00000000-0000-4000-8000-000000000316",
+          "plan_hash": "aeefd63ab1b3cf313acbbd4b2d6fe1dbaeb3b038158d12c9062dee85905840ab"
+        },
+        "expected_version": null,
+        "operation_id": "00000000-0000-4000-8000-000000000316",
+        "precondition_class": "UNAVAILABLE",
+        "provider": "mock_crowdstrike",
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-22-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "report_secret": "vector-22-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "Unsigned EXECUTED",
+      "scenario": "The grant's class is UNAVAILABLE; the vendor performed the action, and the executor says so without signing.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ASSERTED"
+      }
+    },
+    "class-unavailable-attestation-executed": {
+      "execution_id": "00000000-0000-4000-8000-000000000415",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "66fe336e64e2ffb57f3654d2e21e96744c074c7a9a0c55c90ef2e25fe47c0d1d",
+          "operation_id": "00000000-0000-4000-8000-000000000315",
+          "plan_hash": "0444d6e96405dd993a968e13a39ed1793a6f2e35cdf95565d3211279b9491bdc"
+        },
+        "expected_version": null,
+        "operation_id": "00000000-0000-4000-8000-000000000315",
+        "precondition_class": "UNAVAILABLE",
+        "provider": "mock_crowdstrike",
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-21-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "attestation": {
+          "payload": "eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMjAyIiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjY2ZmUzMzZlNjRlMmZmYjU3ZjM2NTRkMmUyMWU5Njc0NGMwNzRjN2E5YTBjNTVjOTBlZjJlMjVmZTQ3YzBkMWQiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAzMTUiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiIwNDQ0ZDZlOTY0MDVkZDk5M2E5NjhlMTNhMzllZDE3OTNhNmYyZTM1Y2RmOTU1NjVkMzIxMTI3OWI5NDkxYmRjIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMTVUMDk6MDI6MDBaIiwidmVyc2lvbiI6MX0",
+          "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNvbmZvcm1hbmNlLWVzMjU2In0",
+          "signature": "d1dv5mqMm8rx9NSNS-HYGRf6qc__LJDH1xcGjfPN4-QiKCS-yAGTFKSqjUA73me584NY8T_qHd9rg3JiyENJow"
+        },
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "report_secret": "vector-21-report-secret-000000000000000000000000"
+      },
+      "row": "Signed EXECUTED",
+      "scenario": "The grant's class is UNAVAILABLE, so it carries no version and no provider command; the vendor performed the action, and the executor signs an ES256 attestation.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "journal-cancelled": {
+      "execution_id": "00000000-0000-4000-8000-00000000040b",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "d9a028e491604bf562386d01a634d679f465de4cd83a39c624fc33b596597bc9",
+          "operation_id": "00000000-0000-4000-8000-00000000030b",
+          "plan_hash": "a8c92de0c3ac698b08ba2fb922ae51a8f5390ee022c633343919de53b83e8da4"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-00000000030b",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-00000000040b",
+          "expected_version": "resource-v7",
+          "intent_hash": "d9a028e491604bf562386d01a634d679f465de4cd83a39c624fc33b596597bc9",
+          "operation_id": "00000000-0000-4000-8000-00000000030b",
+          "plan_hash": "a8c92de0c3ac698b08ba2fb922ae51a8f5390ee022c633343919de53b83e8da4",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-11-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "journal": {
+          "key_id": "conformance-journal",
+          "record": {
+            "command": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "action": "endpoint.isolate",
+              "arguments": {},
+              "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+              "execution_id": "00000000-0000-4000-8000-00000000040b",
+              "expected_version": "resource-v7",
+              "intent_hash": "d9a028e491604bf562386d01a634d679f465de4cd83a39c624fc33b596597bc9",
+              "operation_id": "00000000-0000-4000-8000-00000000030b",
+              "plan_hash": "a8c92de0c3ac698b08ba2fb922ae51a8f5390ee022c633343919de53b83e8da4",
+              "provider": "mock_crowdstrike",
+              "provider_operation": "contain",
+              "resource_provider_id": "conformance-device-01",
+              "tenant_id": "00000000-0000-4000-8000-000000000201",
+              "version": 1
+            },
+            "command_hash": "afedc325512cf20269f1643ffdf33871427376a6909a65adfa9151c6c061cc03",
+            "mutation_count": 0,
+            "occurred_at": "2026-10-15T09:01:00Z",
+            "outcome": "CANCELLED_NOT_EXECUTED",
+            "resulting_version": null,
+            "version": 1
+          },
+          "signature": "3140ccdce73267f33fe36b341c9a909304d8292d8b5cdb214fca27d7b7476e5a",
+          "version": 1
+        },
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "CANCELLED_NOT_EXECUTED",
+        "report_secret": "vector-11-report-secret-000000000000000000000000"
+      },
+      "row": "A provider's journal",
+      "scenario": "The executor cancelled the operation at the vendor before dispatching it, and relays the provider's cancellation tombstone: its signed journal of the grant's provider command, recording that nothing was executed.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "FAILED_NOT_EXECUTED",
+        "tier": "PROVIDER_VERIFIED"
+      }
+    },
+    "journal-executed": {
+      "execution_id": "00000000-0000-4000-8000-000000000409",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "61728bb4d460e4c275ba8421d5fc63157e3d4c7a194640106621f5078fc63406",
+          "operation_id": "00000000-0000-4000-8000-000000000309",
+          "plan_hash": "8930752b1bdd395681aa34bf5750da4a251c23abfe9a40fcda7074d44cf38b61"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000309",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000409",
+          "expected_version": "resource-v7",
+          "intent_hash": "61728bb4d460e4c275ba8421d5fc63157e3d4c7a194640106621f5078fc63406",
+          "operation_id": "00000000-0000-4000-8000-000000000309",
+          "plan_hash": "8930752b1bdd395681aa34bf5750da4a251c23abfe9a40fcda7074d44cf38b61",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-09-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "journal": {
+          "key_id": "conformance-journal",
+          "record": {
+            "command": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "action": "endpoint.isolate",
+              "arguments": {},
+              "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+              "execution_id": "00000000-0000-4000-8000-000000000409",
+              "expected_version": "resource-v7",
+              "intent_hash": "61728bb4d460e4c275ba8421d5fc63157e3d4c7a194640106621f5078fc63406",
+              "operation_id": "00000000-0000-4000-8000-000000000309",
+              "plan_hash": "8930752b1bdd395681aa34bf5750da4a251c23abfe9a40fcda7074d44cf38b61",
+              "provider": "mock_crowdstrike",
+              "provider_operation": "contain",
+              "resource_provider_id": "conformance-device-01",
+              "tenant_id": "00000000-0000-4000-8000-000000000201",
+              "version": 1
+            },
+            "command_hash": "27ecb204efdec9051ba6b65d46491612e4c5b907154d47a270e3b0e120644cdc",
+            "mutation_count": 1,
+            "occurred_at": "2026-10-15T09:01:00Z",
+            "outcome": "EXECUTED",
+            "resulting_version": "resource-v8",
+            "version": 1
+          },
+          "signature": "2e4c15fbad87852f7748fd8e6491de401de2e1e654f35beb079b7c6b7de3ba49",
+          "version": 1
+        },
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "report_secret": "vector-09-report-secret-000000000000000000000000"
+      },
+      "row": "A provider's journal",
+      "scenario": "The vendor performed the action, and the vendor speaks chapter 1 and answered the grant's provider command with its signed journal, which the executor relays.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "PROVIDER_VERIFIED"
+      }
+    },
+    "journal-target-not-found": {
+      "execution_id": "00000000-0000-4000-8000-00000000040c",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "2b6b5ba216b752dc8daeaec215d4e37a432754cbe8ce1a713c401bb63e5626fa",
+          "operation_id": "00000000-0000-4000-8000-00000000030c",
+          "plan_hash": "59d20f0ecb09d984eaeaac9d45bc4483a24456eb6461a44057fd415558e61180"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-00000000030c",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-00000000040c",
+          "expected_version": "resource-v7",
+          "intent_hash": "2b6b5ba216b752dc8daeaec215d4e37a432754cbe8ce1a713c401bb63e5626fa",
+          "operation_id": "00000000-0000-4000-8000-00000000030c",
+          "plan_hash": "59d20f0ecb09d984eaeaac9d45bc4483a24456eb6461a44057fd415558e61180",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-12-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "journal": {
+          "key_id": "conformance-journal",
+          "record": {
+            "command": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "action": "endpoint.isolate",
+              "arguments": {},
+              "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+              "execution_id": "00000000-0000-4000-8000-00000000040c",
+              "expected_version": "resource-v7",
+              "intent_hash": "2b6b5ba216b752dc8daeaec215d4e37a432754cbe8ce1a713c401bb63e5626fa",
+              "operation_id": "00000000-0000-4000-8000-00000000030c",
+              "plan_hash": "59d20f0ecb09d984eaeaac9d45bc4483a24456eb6461a44057fd415558e61180",
+              "provider": "mock_crowdstrike",
+              "provider_operation": "contain",
+              "resource_provider_id": "conformance-device-01",
+              "tenant_id": "00000000-0000-4000-8000-000000000201",
+              "version": 1
+            },
+            "command_hash": "191194dfcf21707eed12d97f6af99b0c041d7306e4beb19d508ec1d12e11ddaf",
+            "mutation_count": 0,
+            "occurred_at": "2026-10-15T09:01:00Z",
+            "outcome": "TARGET_NOT_FOUND",
+            "resulting_version": null,
+            "version": 1
+          },
+          "signature": "3a418e7dbcd6f552ff172f6f097a15dc0597d578ba64342d490a35719530f3a6",
+          "version": 1
+        },
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "TARGET_NOT_FOUND",
+        "report_secret": "vector-12-report-secret-000000000000000000000000"
+      },
+      "row": "A provider's journal",
+      "scenario": "The vendor holds no such target, and the vendor speaks chapter 1 and answered the grant's provider command with its signed journal, which the executor relays.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "FAILED_NOT_EXECUTED",
+        "tier": "PROVIDER_VERIFIED"
+      }
+    },
+    "journal-version-mismatch": {
+      "execution_id": "00000000-0000-4000-8000-00000000040a",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "69ce6f7718e8ac72e6aaabb391403a1a98fd7d2f94095e8dbf7c6f631db11307",
+          "operation_id": "00000000-0000-4000-8000-00000000030a",
+          "plan_hash": "7d28bc979b1a67fabb0c5e0f03e044d16db21c30c9a3f6462c878776595c84d7"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-00000000030a",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-00000000040a",
+          "expected_version": "resource-v7",
+          "intent_hash": "69ce6f7718e8ac72e6aaabb391403a1a98fd7d2f94095e8dbf7c6f631db11307",
+          "operation_id": "00000000-0000-4000-8000-00000000030a",
+          "plan_hash": "7d28bc979b1a67fabb0c5e0f03e044d16db21c30c9a3f6462c878776595c84d7",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-10-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "journal": {
+          "key_id": "conformance-journal",
+          "record": {
+            "command": {
+              "account_id": "00000000-0000-4000-8000-000000000202",
+              "action": "endpoint.isolate",
+              "arguments": {},
+              "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+              "execution_id": "00000000-0000-4000-8000-00000000040a",
+              "expected_version": "resource-v7",
+              "intent_hash": "69ce6f7718e8ac72e6aaabb391403a1a98fd7d2f94095e8dbf7c6f631db11307",
+              "operation_id": "00000000-0000-4000-8000-00000000030a",
+              "plan_hash": "7d28bc979b1a67fabb0c5e0f03e044d16db21c30c9a3f6462c878776595c84d7",
+              "provider": "mock_crowdstrike",
+              "provider_operation": "contain",
+              "resource_provider_id": "conformance-device-01",
+              "tenant_id": "00000000-0000-4000-8000-000000000201",
+              "version": 1
+            },
+            "command_hash": "68e41f8fc0619f62ccefb4387a0e8bc16a2bc6498ce6f174b1c4e955c7146360",
+            "mutation_count": 0,
+            "occurred_at": "2026-10-15T09:01:00Z",
+            "outcome": "VERSION_MISMATCH",
+            "resulting_version": "resource-v9",
+            "version": 1
+          },
+          "signature": "a16db4c6b82ba0782c559742f1dd611f504c39e942a3498b6fd730367b369a21",
+          "version": 1
+        },
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "VERSION_MISMATCH",
+        "report_secret": "vector-10-report-secret-000000000000000000000000"
+      },
+      "row": "A provider's journal",
+      "scenario": "The vendor refused the conditional write: the target was no longer at the expected version, and the vendor speaks chapter 1 and answered the grant's provider command with its signed journal, which the executor relays.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "STALE_AUTHORIZATION",
+        "tier": "PROVIDER_VERIFIED"
+      }
+    },
+    "record-cancelled": {
+      "execution_id": "00000000-0000-4000-8000-000000000403",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "ccbdda27d96b909a4e4ae91fb781a46bca002c1c058d7269abeee8c970764f81",
+          "operation_id": "00000000-0000-4000-8000-000000000303",
+          "plan_hash": "a3f8c17c98fe382b61e1da052f67dcaf041c1496572be3e54b82712c3bf314c9"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000303",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000403",
+          "expected_version": "resource-v7",
+          "intent_hash": "ccbdda27d96b909a4e4ae91fb781a46bca002c1c058d7269abeee8c970764f81",
+          "operation_id": "00000000-0000-4000-8000-000000000303",
+          "plan_hash": "a3f8c17c98fe382b61e1da052f67dcaf041c1496572be3e54b82712c3bf314c9",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-03-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "CANCELLED_NOT_EXECUTED",
+        "record": {
+          "key_id": "conformance-ed25519",
+          "record": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "ccbdda27d96b909a4e4ae91fb781a46bca002c1c058d7269abeee8c970764f81",
+            "operation_id": "00000000-0000-4000-8000-000000000303",
+            "outcome": "FAILED_NOT_EXECUTED",
+            "plan_hash": "a3f8c17c98fe382b61e1da052f67dcaf041c1496572be3e54b82712c3bf314c9",
+            "reason": "CANCELLED_NOT_EXECUTED",
+            "reported_at": "2026-10-15T09:02:00Z",
+            "version": 1
+          },
+          "signature": "86325cb7f698bc374b8feb96d4d573437a0457b9dcd45041d8f011f414e25052a17dcec7545ca9ba2f7dde396e9b516d88f16b39c334e4ed9f84c56df53e1902",
+          "version": 1
+        },
+        "report_secret": "vector-03-report-secret-000000000000000000000000"
+      },
+      "row": "Signed CANCELLED_NOT_EXECUTED or TARGET_NOT_FOUND",
+      "scenario": "The executor decided not to act and never called the vendor, and the executor signs a record with its Ed25519 key.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "FAILED_NOT_EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "record-executed": {
+      "execution_id": "00000000-0000-4000-8000-000000000401",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "400b1303305c891206de48d8c0341dd46b814eeabc0bb164510d88cccda53b46",
+          "operation_id": "00000000-0000-4000-8000-000000000301",
+          "plan_hash": "ff13b564702bb81e0fec2fa7ea1f5d03f5ad26c2de92a699bee0e7fc0e851c9b"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000301",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000401",
+          "expected_version": "resource-v7",
+          "intent_hash": "400b1303305c891206de48d8c0341dd46b814eeabc0bb164510d88cccda53b46",
+          "operation_id": "00000000-0000-4000-8000-000000000301",
+          "plan_hash": "ff13b564702bb81e0fec2fa7ea1f5d03f5ad26c2de92a699bee0e7fc0e851c9b",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-01-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "record": {
+          "key_id": "conformance-ed25519",
+          "record": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "400b1303305c891206de48d8c0341dd46b814eeabc0bb164510d88cccda53b46",
+            "operation_id": "00000000-0000-4000-8000-000000000301",
+            "outcome": "EXECUTED",
+            "plan_hash": "ff13b564702bb81e0fec2fa7ea1f5d03f5ad26c2de92a699bee0e7fc0e851c9b",
+            "reason": "EXECUTED",
+            "reported_at": "2026-10-15T09:02:00Z",
+            "version": 1
+          },
+          "signature": "a97a2b6a99d05f426c236dde62f3627bc5e82ae481e8943f17350a1fae3be1f3dfc191971894114f57e52235d6da1dc4551f1e7bc35b31ece27c141d3705cc03",
+          "version": 1
+        },
+        "report_secret": "vector-01-report-secret-000000000000000000000000"
+      },
+      "row": "Signed EXECUTED",
+      "scenario": "The vendor performed the action, and the executor signs a record with its Ed25519 key.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "record-executed-in-the-grants-second": {
+      "execution_id": "00000000-0000-4000-8000-000000000413",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "28be1bad5f124e4ccf92c0075b54d8c6ba4a802f09636fdd6646cbd7fb2ab3ca",
+          "operation_id": "00000000-0000-4000-8000-000000000313",
+          "plan_hash": "1c36028d8e7ed1e5b6aaf804768e060402b847cc5f60c2e0c7c15cb1120344b3"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000313",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000413",
+          "expected_version": "resource-v7",
+          "intent_hash": "28be1bad5f124e4ccf92c0075b54d8c6ba4a802f09636fdd6646cbd7fb2ab3ca",
+          "operation_id": "00000000-0000-4000-8000-000000000313",
+          "plan_hash": "1c36028d8e7ed1e5b6aaf804768e060402b847cc5f60c2e0c7c15cb1120344b3",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-19-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "record": {
+          "key_id": "conformance-ed25519",
+          "record": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "28be1bad5f124e4ccf92c0075b54d8c6ba4a802f09636fdd6646cbd7fb2ab3ca",
+            "operation_id": "00000000-0000-4000-8000-000000000313",
+            "outcome": "EXECUTED",
+            "plan_hash": "1c36028d8e7ed1e5b6aaf804768e060402b847cc5f60c2e0c7c15cb1120344b3",
+            "reason": "EXECUTED",
+            "reported_at": "2026-10-15T09:00:00Z",
+            "version": 1
+          },
+          "signature": "33bd030f1d5574764b401a28748c838b9596b1d547788b1adcbd40c21de12e7319d970b84a31304f0d5d3763257fc8cf7c3f2acdacdfa40910c31eb0c2d3e10b",
+          "version": 1
+        },
+        "report_secret": "vector-19-report-secret-000000000000000000000000"
+      },
+      "row": "Signed EXECUTED",
+      "scenario": "The vendor performed the action, and the executor, which signs whole seconds only, signs a record with its Ed25519 key dated at the start of the second the grant was issued in, before the grant's exact instant.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "CONFIRMED",
+        "state": "EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "record-target-not-found": {
+      "execution_id": "00000000-0000-4000-8000-000000000404",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "a8220da7a9eec93541748c9a48e02a65ac80d576ec88e4bba35b9acc4d5f766c",
+          "operation_id": "00000000-0000-4000-8000-000000000304",
+          "plan_hash": "098304b9a0981c56ec03c5d07bb7a34f0cda5f3a331347df5aad37f64f557a5e"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000304",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000404",
+          "expected_version": "resource-v7",
+          "intent_hash": "a8220da7a9eec93541748c9a48e02a65ac80d576ec88e4bba35b9acc4d5f766c",
+          "operation_id": "00000000-0000-4000-8000-000000000304",
+          "plan_hash": "098304b9a0981c56ec03c5d07bb7a34f0cda5f3a331347df5aad37f64f557a5e",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-04-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "TARGET_NOT_FOUND",
+        "record": {
+          "key_id": "conformance-ed25519",
+          "record": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "a8220da7a9eec93541748c9a48e02a65ac80d576ec88e4bba35b9acc4d5f766c",
+            "operation_id": "00000000-0000-4000-8000-000000000304",
+            "outcome": "FAILED_NOT_EXECUTED",
+            "plan_hash": "098304b9a0981c56ec03c5d07bb7a34f0cda5f3a331347df5aad37f64f557a5e",
+            "reason": "TARGET_NOT_FOUND",
+            "reported_at": "2026-10-15T09:02:00Z",
+            "version": 1
+          },
+          "signature": "892b5d77c42aafa3fbb85bd50facedc82cc764dbafac84c123a82a3e8b3f1f5eb6a0442c47c8cd4f8fc73195ceaf784c0653fc01a324142902dbc87871f84a0b",
+          "version": 1
+        },
+        "report_secret": "vector-04-report-secret-000000000000000000000000"
+      },
+      "row": "Signed CANCELLED_NOT_EXECUTED or TARGET_NOT_FOUND",
+      "scenario": "The vendor holds no such target, and the executor signs a record with its Ed25519 key.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "FAILED_NOT_EXECUTED",
+        "tier": "ATTESTED"
+      }
+    },
+    "record-version-mismatch": {
+      "execution_id": "00000000-0000-4000-8000-000000000402",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "614d54a892c5c198bfda74635cf51b1ca89914377f3f4b66ce0042a6c7313118",
+          "operation_id": "00000000-0000-4000-8000-000000000302",
+          "plan_hash": "7bb842f855f4c6e1a2799106cb3d447fd736567893182dc2eaf3bff6f93a8dce"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000302",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000402",
+          "expected_version": "resource-v7",
+          "intent_hash": "614d54a892c5c198bfda74635cf51b1ca89914377f3f4b66ce0042a6c7313118",
+          "operation_id": "00000000-0000-4000-8000-000000000302",
+          "plan_hash": "7bb842f855f4c6e1a2799106cb3d447fd736567893182dc2eaf3bff6f93a8dce",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-02-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "FAILED_NOT_EXECUTED",
+        "reason": "VERSION_MISMATCH",
+        "record": {
+          "key_id": "conformance-ed25519",
+          "record": {
+            "account_id": "00000000-0000-4000-8000-000000000202",
+            "intent_hash": "614d54a892c5c198bfda74635cf51b1ca89914377f3f4b66ce0042a6c7313118",
+            "operation_id": "00000000-0000-4000-8000-000000000302",
+            "outcome": "FAILED_NOT_EXECUTED",
+            "plan_hash": "7bb842f855f4c6e1a2799106cb3d447fd736567893182dc2eaf3bff6f93a8dce",
+            "reason": "VERSION_MISMATCH",
+            "reported_at": "2026-10-15T09:02:00Z",
+            "version": 1
+          },
+          "signature": "20f75e3788fb8941c11f6900bc594910287c581b6c7b647f06f2fdcf0fc6811c7b120f8ecb9857a099d22c1912c77ebf83b7580f9280bccf4e2fae9c88e78905",
+          "version": 1
+        },
+        "report_secret": "vector-02-report-secret-000000000000000000000000"
+      },
+      "row": "Signed VERSION_MISMATCH",
+      "scenario": "The vendor refused the conditional write: the target was no longer at the expected version, and the executor signs a record with its Ed25519 key.",
+      "settles": {
+        "claim": "RELEASED",
+        "impact": "RELEASED",
+        "state": "STALE_AUTHORIZATION",
+        "tier": "ATTESTED"
+      }
+    },
+    "unknown": {
+      "execution_id": "00000000-0000-4000-8000-000000000412",
+      "grant": {
+        "act_expires_at": "2026-10-15T09:15:00.250000Z",
+        "action": "endpoint.isolate",
+        "arguments": {},
+        "binding": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "intent_hash": "360e19baaf629425bba837058531e58fc6d318918aa387fbbb2fd2c93ef3e7e7",
+          "operation_id": "00000000-0000-4000-8000-000000000312",
+          "plan_hash": "becbeda29bf32de01f2ec6cd21f8bbead37e0e43c96f08c2ad2c4aef6db64609"
+        },
+        "expected_version": "resource-v7",
+        "operation_id": "00000000-0000-4000-8000-000000000312",
+        "precondition_class": "ENFORCED_BY_PROVIDER",
+        "provider": "mock_crowdstrike",
+        "provider_command": {
+          "account_id": "00000000-0000-4000-8000-000000000202",
+          "action": "endpoint.isolate",
+          "arguments": {},
+          "canonical_target_id": "00000000-0000-4000-8000-000000000203",
+          "execution_id": "00000000-0000-4000-8000-000000000412",
+          "expected_version": "resource-v7",
+          "intent_hash": "360e19baaf629425bba837058531e58fc6d318918aa387fbbb2fd2c93ef3e7e7",
+          "operation_id": "00000000-0000-4000-8000-000000000312",
+          "plan_hash": "becbeda29bf32de01f2ec6cd21f8bbead37e0e43c96f08c2ad2c4aef6db64609",
+          "provider": "mock_crowdstrike",
+          "provider_operation": "contain",
+          "resource_provider_id": "conformance-device-01",
+          "tenant_id": "00000000-0000-4000-8000-000000000201",
+          "version": 1
+        },
+        "provider_operation": "contain",
+        "regranted": false,
+        "report_expires_at": "2026-10-16T09:00:00.250000Z",
+        "report_secret": "vector-18-report-secret-000000000000000000000000",
+        "resource_provider_id": "conformance-device-01"
+      },
+      "granted_at": "2026-10-15T09:00:00.250000Z",
+      "report": {
+        "outcome": "UNKNOWN",
+        "report_secret": "vector-18-report-secret-000000000000000000000000",
+        "reported_at": "2026-10-15T09:02:00Z"
+      },
+      "row": "UNKNOWN",
+      "scenario": "The vendor call timed out, and the executor does not know whether the vendor acted.",
+      "settles": {
+        "claim": "HELD",
+        "impact": "CHARGED",
+        "state": "INDETERMINATE",
+        "tier": null
+      }
+    }
+  },
+  "version": 1
+}

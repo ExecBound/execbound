@@ -1,0 +1,26 @@
+[
+  {
+    "case": "dns failure",
+    "execute": {
+      "status": 0,
+      "connection_error": "Unable to resolve IP for execbound-fault.invalid: getaddrinfo: Name or service not known"
+    },
+    "expected_code": "TRANSPORT_UNCERTAIN"
+  },
+  {
+    "case": "exhausted 429 retries",
+    "execute": {
+      "status": 0,
+      "retries_exhausted": "This action has failed to run after 6 attempts. No further attempts will be made."
+    },
+    "expected_code": "RETRIES_EXHAUSTED"
+  },
+  {
+    "case": "502 after a committed mock-provider effect",
+    "execute": {
+      "status": 502,
+      "body": "<html><body>Bad Gateway</body></html>"
+    },
+    "expected_code": "HTTP_RESPONSE_UNCERTAIN"
+  }
+]

@@ -1,0 +1,1277 @@
+{
+  "action_runtime_version": 88,
+  "agents": [
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "1dfceb799af455bd63b10e918aafc796",
+      "monitoring": null,
+      "name": "Entry",
+      "options": {
+        "include_headers": false,
+        "path": "",
+        "secret": "",
+        "verbs": "post"
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::WebhookAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "f9f8f485a7532caf3e82413ddbdcbd64",
+      "monitoring": null,
+      "name": "Prepare",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "arguments": "=DEFAULT(DEFAULT(entry.body.arguments, entry.arguments), JSON_PARSE(\"{}\"))",
+          "attempt": 0,
+          "external_case": "=DEFAULT(DEFAULT(entry.body.external_case, entry.external_case), null)",
+          "incident_id": "=DEFAULT(entry.body.incident_id, entry.incident_id)",
+          "operation_ref": "=DEFAULT(DEFAULT(entry.body.operation_ref, entry.operation_ref), \"endpoint.isolate\")",
+          "reference": "=STRIP(DEFAULT(entry.body.reference, entry.reference))",
+          "started_at": "=NOW()",
+          "target_kind": "=DEFAULT(DEFAULT(entry.body.target_kind, entry.target_kind), \"hostname\")",
+          "target_value": "=SWITCH(DEFAULT(DEFAULT(entry.body.target_kind, entry.target_kind), \"hostname\"), \"hostname\", DOWNCASE(STRIP(DEFAULT(entry.body.target_value, entry.target_value))), STRIP(DEFAULT(entry.body.target_value, entry.target_value)))",
+          "wait_seconds": "=DEFAULT(DEFAULT(entry.body.wait_seconds, entry.wait_seconds), RESOURCE.execbound_wait_seconds)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "1d68d9d8d3f50e8799732d843c95d00a",
+      "monitoring": null,
+      "name": "Has reference?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<prepare.reference>>",
+            "type": "regex",
+            "value": "^.+$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "daafc2645567cf6b810344cb05d3d853",
+      "monitoring": null,
+      "name": "No reference?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<prepare.reference>>",
+            "type": "!regex",
+            "value": "^.+$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "17b6e56c980002740f1da8b06ac35c9f",
+      "monitoring": null,
+      "name": "Pending?",
+      "options": {
+        "must_match": "2",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^202$"
+          },
+          {
+            "path": "<<execute.body.state>>",
+            "type": "regex",
+            "value": "^PENDING_APPROVAL$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "6401d4cfdd1a528b5c9267ccbaa4c69c",
+      "monitoring": null,
+      "name": "Within deadline?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "=JOIN([IF(GET(DATE_DIFF(prepare.started_at, NOW()), \"seconds\") < prepare.wait_seconds, \"yes\", \"no\")], \"\")",
+            "type": "regex",
+            "value": "^yes$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "6c984071eb512beeb61ff30991efb1d0",
+      "monitoring": null,
+      "name": "Deadline passed?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "=JOIN([IF(GET(DATE_DIFF(prepare.started_at, NOW()), \"seconds\") < prepare.wait_seconds, \"yes\", \"no\")], \"\")",
+            "type": "regex",
+            "value": "^no$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "c46fb18fb3c96c11f5cbbff898f375da",
+      "monitoring": null,
+      "name": "Wait",
+      "options": {
+        "mode": "delay",
+        "seconds": "<<RESOURCE.execbound_poll_seconds>>"
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "858bf14efcbb4d6055db53587a3c5884",
+      "monitoring": null,
+      "name": "Next attempt",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "attempt": "=DEFAULT(next_attempt.attempt, prepare.attempt) + 1"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "ba02e675eff78fb6115da7c41969de5f",
+      "monitoring": null,
+      "name": "Same key again?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "=JOIN([DEFAULT(next_attempt.attempt, prepare.attempt)], \"\")",
+            "type": "regex",
+            "value": "^[0-2]$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "ac348def8aaafa674381995dade65bd7",
+      "monitoring": null,
+      "name": "Give up as uncertain?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "=JOIN([DEFAULT(next_attempt.attempt, prepare.attempt)], \"\")",
+            "type": "!regex",
+            "value": "^[0-2]$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "36438dcdf0f470d86255c71b7a9fb839",
+      "monitoring": null,
+      "name": "Unavailable?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^(503)?$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "1740a3188eab705f8c8eae30bf4d496f",
+      "monitoring": null,
+      "name": "Refused?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "!regex",
+            "value": "^(0|200|202|5[0-9][0-9])?$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "7bc5e99e8b0ef474cbb021c19e82516f",
+      "monitoring": null,
+      "name": "Transport uncertain?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^(0|50[012456789]|5[1-9][0-9])$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "3438f286c663e0ad9f365414bc58e04d",
+      "monitoring": null,
+      "name": "Execute",
+      "options": {
+        "disable_redirect_follow": true,
+        "emit_failure_event": true,
+        "fail_on_status": false,
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.execbound_gate>>",
+          "Content-Type": "application/json"
+        },
+        "log_error_on_status": [
+          400,
+          401,
+          403,
+          404,
+          409,
+          422,
+          423,
+          500,
+          503
+        ],
+        "method": "post",
+        "payload": "=TO_JSON(OBJECT(\"arguments\", prepare.arguments, \"claimed_context\", OBJECT(\"incident_id\", prepare.incident_id), \"operation_ref\", prepare.operation_ref, \"reference\", prepare.reference, \"target\", OBJECT(\"kind\", prepare.target_kind, \"value\", prepare.target_value), \"external_case\", prepare.external_case))",
+        "retries": 5,
+        "retry_on_status": [
+          429
+        ],
+        "url": "<<RESOURCE.execbound_origin>>/v1/execute"
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::HTTPRequestAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "b4a90df8d6d32d2552b4c07941abcc19",
+      "monitoring": null,
+      "name": "Refused: no reference",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": "MISSING_REFERENCE",
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "Refused before any call: a reference (the ticket, case or alert id) is required, and this story never invents one.",
+          "outcome": "refused",
+          "path": "gate",
+          "reference": "",
+          "request_ref": null,
+          "state": null
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "6452ea89ed265731702fbd849f6f3674",
+      "monitoring": null,
+      "name": "Final?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^200$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "c5f553b846ecba5ac5fa9bd844ef17e2",
+      "monitoring": null,
+      "name": "Uncertain?",
+      "options": {
+        "must_match": "2",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^202$"
+          },
+          {
+            "path": "<<execute.body.state>>",
+            "type": "regex",
+            "value": "^INDETERMINATE$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "d2a459ad68294b01e39eea0d0dd1c7d1",
+      "monitoring": null,
+      "name": "Granted?",
+      "options": {
+        "must_match": "3",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^202$"
+          },
+          {
+            "path": "<<execute.body.state>>",
+            "type": "regex",
+            "value": "^DISPATCH_COMMITTED$"
+          },
+          {
+            "path": "<<execute.body.checkpoint.grant.report_secret>>",
+            "type": "regex",
+            "value": "^[A-Za-z0-9_-]{32,}$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "9da71ea28ecf599b876297ca451729b7",
+      "monitoring": null,
+      "name": "Regranted?",
+      "options": {
+        "must_match": "3",
+        "rules": [
+          {
+            "path": "<<execute.status>>",
+            "type": "regex",
+            "value": "^202$"
+          },
+          {
+            "path": "<<execute.body.state>>",
+            "type": "regex",
+            "value": "^DISPATCH_COMMITTED$"
+          },
+          {
+            "path": "<<execute.body.checkpoint.grant.report_secret>>",
+            "type": "!regex",
+            "value": "^[A-Za-z0-9_-]{32,}$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "a92893fdde9c36f62ee2fe92fceaef0c",
+      "monitoring": null,
+      "name": "Grant",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "act_open": "=IF(GET(DATE_DIFF(NOW(), execute.body.checkpoint.grant.act_expires_at), \"seconds\") > 30, \"yes\", \"no\")",
+          "binding": "=execute.body.checkpoint.grant.binding",
+          "execution_id": "=execute.body.execution_id",
+          "has_command": "=IF(IS_PRESENT(execute.body.checkpoint.grant.provider_command), \"yes\", \"no\")",
+          "provider_command": "=DEFAULT(execute.body.checkpoint.grant.provider_command, null)",
+          "provider_operation": "=execute.body.checkpoint.grant.provider_operation",
+          "report_secret": "=execute.body.checkpoint.grant.report_secret"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "74018598a7f1445ed9df2a1e5e46abf0",
+      "monitoring": null,
+      "name": "Act?",
+      "options": {
+        "must_match": "2",
+        "rules": [
+          {
+            "path": "<<grant.act_open>>",
+            "type": "regex",
+            "value": "^yes$"
+          },
+          {
+            "path": "<<grant.has_command>>",
+            "type": "regex",
+            "value": "^yes$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "09915f9019207a13c2a667e87a2b0cff",
+      "monitoring": null,
+      "name": "Act window closed?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<grant.act_open>>",
+            "type": "regex",
+            "value": "^no$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "8ab10c13699abab84f2597f860d126ca",
+      "monitoring": null,
+      "name": "No provider command?",
+      "options": {
+        "must_match": "2",
+        "rules": [
+          {
+            "path": "<<grant.act_open>>",
+            "type": "regex",
+            "value": "^yes$"
+          },
+          {
+            "path": "<<grant.has_command>>",
+            "type": "regex",
+            "value": "^no$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "3ed7676d5b9bf114377b96f31b4bb7e0",
+      "monitoring": null,
+      "name": "Vendor call",
+      "options": {
+        "disable_redirect_follow": true,
+        "emit_failure_event": true,
+        "fail_on_status": false,
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.execbound_gate_vendor>>",
+          "Content-Type": "application/json"
+        },
+        "method": "post",
+        "payload": "=TO_JSON(grant.provider_command)",
+        "retries": 0,
+        "retry_on_status": [],
+        "url": "<<RESOURCE.execbound_vendor_origin>>/v1/<<grant.provider_operation>>"
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::HTTPRequestAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "191a12650b16362b8f4e7b9842323724",
+      "monitoring": null,
+      "name": "Vendor journal?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<vendor_call.status>>",
+            "type": "regex",
+            "value": "^200$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "f4f5ebc537bcf23a728b0e1f999ba0ed",
+      "monitoring": null,
+      "name": "Vendor refused?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<vendor_call.status>>",
+            "type": "regex",
+            "value": "^(400|401|403)$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "3120f3c63431c596f1109af9d8441317",
+      "monitoring": null,
+      "name": "Vendor conflict?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<vendor_call.status>>",
+            "type": "regex",
+            "value": "^409$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "4324d49ff83a67ca0dc87ed743880c4d",
+      "monitoring": null,
+      "name": "Vendor uncertain?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<vendor_call.status>>",
+            "type": "!regex",
+            "value": "^(200|400|401|403|409)$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "bc7137b1ea5bfb8d169f5b27e84ccb13",
+      "monitoring": null,
+      "name": "Lookup journal",
+      "options": {
+        "disable_redirect_follow": true,
+        "emit_failure_event": true,
+        "fail_on_status": false,
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.execbound_gate_vendor>>",
+          "Content-Type": "application/json"
+        },
+        "method": "post",
+        "payload": "=TO_JSON(grant.provider_command)",
+        "retries": 3,
+        "retry_on_status": [
+          429,
+          503
+        ],
+        "url": "<<RESOURCE.execbound_vendor_origin>>/v1/journal"
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::HTTPRequestAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "d94ee3a8ba8e05daa466222c12539cf7",
+      "monitoring": null,
+      "name": "Found?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<lookup_journal.status>>",
+            "type": "regex",
+            "value": "^200$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "351b0559d12f8ad2102223828678d510",
+      "monitoring": null,
+      "name": "Not found?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<lookup_journal.status>>",
+            "type": "!regex",
+            "value": "^200$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "9c8af8ce61cc1b487dd912fd77f1e56b",
+      "monitoring": null,
+      "name": "Report journal",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "body": "=OBJECT(\"report_secret\", grant.report_secret, \"outcome\", IF(vendor_call.body.record.outcome = \"EXECUTED\", \"EXECUTED\", \"FAILED_NOT_EXECUTED\"), \"reason\", vendor_call.body.record.outcome, \"journal\", vendor_call.body)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "e0d42b5bd6a5519ca939644372e121f8",
+      "monitoring": null,
+      "name": "Report lookup",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "body": "=OBJECT(\"report_secret\", grant.report_secret, \"outcome\", IF(lookup_journal.body.record.outcome = \"EXECUTED\", \"EXECUTED\", \"FAILED_NOT_EXECUTED\"), \"reason\", lookup_journal.body.record.outcome, \"journal\", lookup_journal.body)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "a70cde11ce0e49420dfe8ca6706c74ee",
+      "monitoring": null,
+      "name": "Sign non-execution",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "attestation": "=JWT_SIGN(OBJECT(\"domain\", \"execbound.executor.outcome\", \"version\", 1, \"operation_id\", grant.binding.operation_id, \"account_id\", grant.binding.account_id, \"intent_hash\", grant.binding.intent_hash, \"plan_hash\", grant.binding.plan_hash, \"outcome\", \"FAILED_NOT_EXECUTED\", \"reason\", \"CANCELLED_NOT_EXECUTED\", \"reported_at\", DATE(NOW(), \"%Y-%m-%dT%H:%M:%S%:z\")), CREDENTIAL.execbound_gate_signing, \"ES256\", OBJECT(\"kid\", RESOURCE.execbound_gate_key_id))"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "35996ac6d4431ebe986aa4794b96b7b9",
+      "monitoring": null,
+      "name": "Report attestation",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "body": "=OBJECT(\"report_secret\", grant.report_secret, \"outcome\", \"FAILED_NOT_EXECUTED\", \"reason\", \"CANCELLED_NOT_EXECUTED\", \"attestation\", sign_non_execution.attestation)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "f11999e5552dad87b1e1e8beae9eccec",
+      "monitoring": null,
+      "name": "Report unknown",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "body": "=OBJECT(\"report_secret\", grant.report_secret, \"outcome\", \"UNKNOWN\", \"reported_at\", DATE(NOW(), \"%Y-%m-%dT%H:%M:%S%:z\"))"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "9c2f9cd423ec079a51add225be522e34",
+      "monitoring": null,
+      "name": "Report",
+      "options": {
+        "disable_redirect_follow": true,
+        "emit_failure_event": true,
+        "fail_on_status": false,
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.execbound_gate>>",
+          "Content-Type": "application/json"
+        },
+        "method": "post",
+        "payload": "=TO_JSON(DEFAULT(report_journal.body, DEFAULT(report_lookup.body, DEFAULT(report_attestation.body, report_unknown.body))))",
+        "retries": 3,
+        "retry_on_status": [
+          429,
+          500,
+          502,
+          503,
+          504
+        ],
+        "url": "<<RESOURCE.execbound_origin>>/v1/executions/<<grant.execution_id>>/outcome"
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::HTTPRequestAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "12761e468ca6a2c4f9a9226a713b82d9",
+      "monitoring": null,
+      "name": "Reported?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<report.status>>",
+            "type": "regex",
+            "value": "^200$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "dfa713e0fb113963a4aadace9f58f72a",
+      "monitoring": null,
+      "name": "Report refused?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<report.status>>",
+            "type": "!regex",
+            "value": "^200$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "0514293c26a5181f5e6acc4ba156796c",
+      "monitoring": null,
+      "name": "Outcome",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "approval_state": "=DEFAULT(execute.body.approval_state, null)",
+          "approval_url": "=DEFAULT(execute.body.approval_url, null)",
+          "code": "=IF(IS_PRESENT(report.status), IF(report.body.state = \"INDETERMINATE\", \"VENDOR_OUTCOME_UNKNOWN\", DEFAULT(report.body.code, null)), DEFAULT(execute.body.code, null))",
+          "execution_id": "=DEFAULT(execute.body.execution_id, null)",
+          "message": "=IF(IS_PRESENT(report.status), IF(report.body.state = \"INDETERMINATE\", \"Stop. Hand this execution to an ExecBound administrator; never resend under a new reference and never repeat the vendor call.\", IF(IS_PRESENT(vendor_call.status), \"The vendor was called once and ExecBound settled the report.\", \"The vendor was not called: the act window had closed, and ExecBound settled the signed non-execution.\")), SWITCH(DEFAULT(execute.body.state, \"\"), \"EXECUTED\", \"This reference already has a recorded result; this run did not call the vendor.\", \"FAILED_NOT_EXECUTED\", \"This reference already has a recorded result; this run did not call the vendor.\", \"FAILED_EFFECT_UNKNOWN\", \"This reference already has a recorded result; this run did not call the vendor.\", \"The vendor was not called.\"))",
+          "outcome": "=IF(IS_PRESENT(report.status), IF(report.body.state = \"INDETERMINATE\", \"needs_administrator\", \"final\"), IF(DEFAULT(execute.status, 0) >= 500, \"uncertain\", SWITCH(DEFAULT(execute.body.state, \"\"), \"PENDING_APPROVAL\", \"pending\", \"STALE_AUTHORIZATION\", \"expired\", \"INDETERMINATE\", \"uncertain\", \"DENIED\", \"final\", \"OBSERVED\", \"final\", \"EXECUTED\", \"final\", \"FAILED_NOT_EXECUTED\", \"final\", \"FAILED_EFFECT_UNKNOWN\", \"uncertain\", \"refused\")))",
+          "path": "gate",
+          "reference": "=prepare.reference",
+          "request_ref": "=DEFAULT(execute.body.request_ref, null)",
+          "state": "=DEFAULT(report.body.state, DEFAULT(execute.body.state, null))",
+          "tier": "=IF(DEFAULT(report.status, 0) = 200, IF(OR(IS_PRESENT(report_journal.body), IS_PRESENT(report_lookup.body)), \"PROVIDER_VERIFIED\", IF(IS_PRESENT(report_attestation.body), \"ATTESTED\", null)), null)",
+          "vendor_status": "=DEFAULT(vendor_call.status, null)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "8d0da6da4ef38f9c2045aea8c2995551",
+      "monitoring": null,
+      "name": "Needs administrator",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "approval_state": "=DEFAULT(execute.body.approval_state, null)",
+          "approval_url": "=DEFAULT(execute.body.approval_url, null)",
+          "code": "=DEFAULT(report.body.code, IF(IS_PRESENT(report.status), \"REPORT_NOT_ACCEPTED\", IF(IS_PRESENT(grant.execution_id), \"NO_PROVIDER_COMMAND\", \"REGRANTED_WITHOUT_SECRET\")))",
+          "execution_id": "=DEFAULT(execute.body.execution_id, null)",
+          "message": "Stop. Hand this execution to an ExecBound administrator; never resend under a new reference and never repeat the vendor call.",
+          "outcome": "needs_administrator",
+          "path": "gate",
+          "reference": "=prepare.reference",
+          "request_ref": "=DEFAULT(execute.body.request_ref, null)",
+          "state": "=DEFAULT(report.body.state, DEFAULT(execute.body.state, null))",
+          "tier": "=IF(DEFAULT(report.status, 0) = 200, IF(OR(IS_PRESENT(report_journal.body), IS_PRESENT(report_lookup.body)), \"PROVIDER_VERIFIED\", IF(IS_PRESENT(report_attestation.body), \"ATTESTED\", null)), null)",
+          "vendor_status": "=DEFAULT(vendor_call.status, null)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:gate",
+      "reporting": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    }
+  ],
+  "api_entry_action_guids": [
+    "1dfceb799af455bd63b10e918aafc796"
+  ],
+  "api_exit_action_guids": [
+    "0514293c26a5181f5e6acc4ba156796c",
+    "8d0da6da4ef38f9c2045aea8c2995551",
+    "b4a90df8d6d32d2552b4c07941abcc19"
+  ],
+  "app_endpoints": [],
+  "description": "Ask ExecBound for a decision, act once at your own vendor with your own credential, and report what the vendor answered.",
+  "diagram_layout": "{}",
+  "diagram_notes": [],
+  "entry_agent_guid": "1dfceb799af455bd63b10e918aafc796",
+  "exit_agent_guids": [
+    "0514293c26a5181f5e6acc4ba156796c",
+    "8d0da6da4ef38f9c2045aea8c2995551",
+    "b4a90df8d6d32d2552b4c07941abcc19"
+  ],
+  "exported_at": "2026-09-23T00:00:00Z",
+  "guid": "d68aeb71e87472440f5c4960d7e61e14",
+  "icon": ":adhesive_bandage:",
+  "integration_product": null,
+  "integration_vendor": null,
+  "integrations": [],
+  "keep_events_for": 3600,
+  "links": [
+    {
+      "receiver": 1,
+      "source": 0
+    },
+    {
+      "receiver": 2,
+      "source": 1
+    },
+    {
+      "receiver": 3,
+      "source": 1
+    },
+    {
+      "receiver": 14,
+      "source": 2
+    },
+    {
+      "receiver": 15,
+      "source": 3
+    },
+    {
+      "receiver": 13,
+      "source": 14
+    },
+    {
+      "receiver": 12,
+      "source": 14
+    },
+    {
+      "receiver": 16,
+      "source": 14
+    },
+    {
+      "receiver": 4,
+      "source": 14
+    },
+    {
+      "receiver": 11,
+      "source": 14
+    },
+    {
+      "receiver": 17,
+      "source": 14
+    },
+    {
+      "receiver": 18,
+      "source": 14
+    },
+    {
+      "receiver": 19,
+      "source": 14
+    },
+    {
+      "receiver": 40,
+      "source": 13
+    },
+    {
+      "receiver": 40,
+      "source": 12
+    },
+    {
+      "receiver": 40,
+      "source": 16
+    },
+    {
+      "receiver": 40,
+      "source": 17
+    },
+    {
+      "receiver": 5,
+      "source": 4
+    },
+    {
+      "receiver": 6,
+      "source": 4
+    },
+    {
+      "receiver": 7,
+      "source": 5
+    },
+    {
+      "receiver": 40,
+      "source": 6
+    },
+    {
+      "receiver": 8,
+      "source": 7
+    },
+    {
+      "receiver": 14,
+      "source": 8
+    },
+    {
+      "receiver": 9,
+      "source": 11
+    },
+    {
+      "receiver": 10,
+      "source": 11
+    },
+    {
+      "receiver": 7,
+      "source": 9
+    },
+    {
+      "receiver": 40,
+      "source": 10
+    },
+    {
+      "receiver": 41,
+      "source": 19
+    },
+    {
+      "receiver": 20,
+      "source": 18
+    },
+    {
+      "receiver": 21,
+      "source": 20
+    },
+    {
+      "receiver": 22,
+      "source": 20
+    },
+    {
+      "receiver": 23,
+      "source": 20
+    },
+    {
+      "receiver": 34,
+      "source": 22
+    },
+    {
+      "receiver": 41,
+      "source": 23
+    },
+    {
+      "receiver": 24,
+      "source": 21
+    },
+    {
+      "receiver": 25,
+      "source": 24
+    },
+    {
+      "receiver": 26,
+      "source": 24
+    },
+    {
+      "receiver": 27,
+      "source": 24
+    },
+    {
+      "receiver": 28,
+      "source": 24
+    },
+    {
+      "receiver": 32,
+      "source": 25
+    },
+    {
+      "receiver": 34,
+      "source": 26
+    },
+    {
+      "receiver": 36,
+      "source": 27
+    },
+    {
+      "receiver": 29,
+      "source": 28
+    },
+    {
+      "receiver": 30,
+      "source": 29
+    },
+    {
+      "receiver": 31,
+      "source": 29
+    },
+    {
+      "receiver": 33,
+      "source": 30
+    },
+    {
+      "receiver": 36,
+      "source": 31
+    },
+    {
+      "receiver": 35,
+      "source": 34
+    },
+    {
+      "receiver": 37,
+      "source": 32
+    },
+    {
+      "receiver": 37,
+      "source": 33
+    },
+    {
+      "receiver": 37,
+      "source": 35
+    },
+    {
+      "receiver": 37,
+      "source": 36
+    },
+    {
+      "receiver": 38,
+      "source": 37
+    },
+    {
+      "receiver": 39,
+      "source": 37
+    },
+    {
+      "receiver": 40,
+      "source": 38
+    },
+    {
+      "receiver": 41,
+      "source": 39
+    }
+  ],
+  "llm_product_instructions": "",
+  "monitor_failures": false,
+  "name": "ExecBound: Gate an action",
+  "origin_story_identifier": null,
+  "pages": [],
+  "parent_only_send_to_story": false,
+  "recipients": [],
+  "reporting_status": true,
+  "schema_version": 30,
+  "sections": [],
+  "send_to_stories": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": "OFF",
+  "send_to_story_enabled": false,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "send_to_story_timeout_duration_seconds": null,
+  "send_to_story_timeout_enabled": false,
+  "slug": "execbound_gate_an_action",
+  "standard_lib_version": 95,
+  "start_reference": null,
+  "story_library_metadata": {},
+  "synchronous_webhooks_enabled": false,
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0
+}

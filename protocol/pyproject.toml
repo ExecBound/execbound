@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["hatchling==1.30.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "execbound-protocol"
+version = "0.1.0"
+description = "The provider protocol ExecBound's server and its connectors share"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+# Only the Python versions CI runs are claimed; widen this when a CI leg tests an older one.
+requires-python = ">=3.13"
+dependencies = ["pydantic>=2.13,<3"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/execbound_protocol"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/execbound_protocol", "/README.md", "/pyproject.toml", "/LICENSE"]

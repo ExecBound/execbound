@@ -1,0 +1,1592 @@
+{
+  "components": {
+    "schemas": {
+      "ActionListing": {
+        "additionalProperties": false,
+        "description": "What `list_actions` and `GET /v1/actions` answer: never a target, a rule or a limit.",
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ListedAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "actions"
+        ],
+        "title": "ActionListing",
+        "type": "object"
+      },
+      "ActionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "$ref": "#/components/schemas/Arguments"
+          },
+          "claimed_context": {
+            "$ref": "#/components/schemas/ClaimedContext"
+          },
+          "external_case": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalCase"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Source-reported case metadata; not retry identity or authority."
+          },
+          "idempotency_key": {
+            "default": "",
+            "description": "Your own key for this intent, reused on every retry. Omit it and pass reference instead to have the gateway derive one.",
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "operation_ref": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_.-]{0,79}$",
+            "title": "Operation Ref",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The ticket, case or run id this action responds to; the idempotency key is derived from it, so the same reference always means the same intent.",
+            "title": "Reference"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Run Id"
+          },
+          "synthetic_demo": {
+            "default": false,
+            "description": "Restrict this request to an entirely synthetic fixture workspace. Never grants authority.",
+            "title": "Synthetic Demo",
+            "type": "boolean"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ResourceSelector"
+          }
+        },
+        "required": [
+          "operation_ref",
+          "target",
+          "arguments"
+        ],
+        "title": "ActionRequest",
+        "type": "object"
+      },
+      "Arguments": {
+        "description": "Bounded scalar options; the resolved action's catalog spec decides which are valid.",
+        "patternProperties": {
+          "^[a-z][a-z0-9_]{0,62}$": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        },
+        "title": "Arguments",
+        "type": "object"
+      },
+      "Checkpoint": {
+        "description": "Present only on the answer that granted an external executor the act. ExecBound dispatched nothing: the executor performs the act and reports its outcome.",
+        "properties": {
+          "act": {
+            "description": "A signed token for the act window, or null once it has closed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grant": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckpointGrant"
+              }
+            ],
+            "description": "The one act the executor may perform. When the vendor has a checkable version it also carries `provider_command`, the command ExecBound would have sent."
+          }
+        },
+        "required": [
+          "grant",
+          "act"
+        ],
+        "title": "Checkpoint",
+        "type": "object"
+      },
+      "CheckpointBinding": {
+        "additionalProperties": false,
+        "description": "The four fields an executor's record binds, copied from the frozen command.\n\nAn executor signs these into its record and the verifier checks them against the\nfrozen command, so handing them over is what lets an executor that holds only the grant\nproduce a record that can settle this execution and no other.",
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "intent_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Intent Hash",
+            "type": "string"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "plan_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Plan Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "account_id",
+          "intent_hash",
+          "plan_hash"
+        ],
+        "title": "CheckpointBinding",
+        "type": "object"
+      },
+      "CheckpointGrant": {
+        "additionalProperties": false,
+        "description": "One act an external executor may perform, and the only way it may settle it.\n\nA grant confers no authority to execute, approve, dispatch or reconcile through\nExecBound: its whole power is to settle the one execution it names. It is minted only\nafter the reservation and the canonical claim are committed, so there is no state in\nwhich a caller has been told it may act without the budget having been charged.\n\nThe secret is minted exactly once per execution, which is what makes \"one report secret\nper execution\" literally true. A re-grant describes the same act under the same decision\nand carries no secret at all: it says so with ``regranted``, and the holder of the\noriginal secret keeps the only thing that can settle the execution. A caller that lost\nits secret has no re-mint; the administrator exit is its remedy.",
+        "properties": {
+          "act_expires_at": {
+            "format": "date-time",
+            "title": "Act Expires At",
+            "type": "string"
+          },
+          "action": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}\\.[a-z][a-z0-9_]{0,31}$",
+            "title": "Action",
+            "type": "string"
+          },
+          "arguments": {
+            "$ref": "#/components/schemas/Arguments"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CheckpointBinding"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Version"
+          },
+          "operation_id": {
+            "format": "uuid",
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "precondition_class": {
+            "enum": [
+              "ENFORCED_BY_PROVIDER",
+              "ASSERTED_BY_EXECUTOR",
+              "CHECKED_BY_CONNECTOR",
+              "UNAVAILABLE"
+            ],
+            "title": "Precondition Class",
+            "type": "string"
+          },
+          "provider": {
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_operation": {
+            "pattern": "^[a-z][a-z0-9_]{0,62}$",
+            "title": "Provider Operation",
+            "type": "string"
+          },
+          "regranted": {
+            "default": false,
+            "title": "Regranted",
+            "type": "boolean"
+          },
+          "report_expires_at": {
+            "format": "date-time",
+            "title": "Report Expires At",
+            "type": "string"
+          },
+          "report_secret": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 32,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Report Secret"
+          },
+          "resource_provider_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Resource Provider Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "provider",
+          "provider_operation",
+          "resource_provider_id",
+          "action",
+          "arguments",
+          "precondition_class",
+          "act_expires_at",
+          "report_expires_at",
+          "binding"
+        ],
+        "title": "CheckpointGrant",
+        "type": "object"
+      },
+      "ClaimedContext": {
+        "additionalProperties": false,
+        "properties": {
+          "criticality": {
+            "anyOf": [
+              {
+                "maximum": 4,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Criticality"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "enum": [
+                  "development",
+                  "staging",
+                  "production"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Environment"
+          },
+          "incident_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Incident Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "workstation",
+                  "server",
+                  "domain_controller"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "CRITICAL"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity"
+          }
+        },
+        "title": "ClaimedContext",
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "code": {
+            "description": "Present on execution errors; absent on authentication errors.",
+            "enum": [
+              "BUSY",
+              "CONNECTOR_UNAVAILABLE",
+              "DEMO_UNAVAILABLE",
+              "EXECUTION_UNAVAILABLE",
+              "IDEMPOTENCY_CONFLICT",
+              "INVALID_APPROVAL",
+              "INVALID_BUNDLE",
+              "INVALID_CLOCK",
+              "INVALID_CONTINUATION",
+              "INVALID_EVIDENCE",
+              "INVALID_IDENTITY",
+              "INVALID_KEY_RING",
+              "INVALID_OWNER",
+              "INVALID_RECORD",
+              "INVALID_REPORT",
+              "INVALID_REQUEST",
+              "INVALID_STATE",
+              "NOT_FOUND",
+              "NO_ACTIVE_BUNDLE",
+              "RATE_LIMITED",
+              "REPORT_WINDOW_CLOSED",
+              "SPACE_ARCHIVED",
+              "TENANT_STOPPED",
+              "TOO_MANY_GRANTS"
+            ],
+            "type": "string"
+          },
+          "detail": {
+            "examples": [
+              "Execution unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "Error",
+        "type": "object"
+      },
+      "ExecutionView": {
+        "additionalProperties": false,
+        "description": "The state of one execution. 202 accompanies PENDING_APPROVAL, DISPATCH_COMMITTED and INDETERMINATE, which are not final; every other state is answered 200.",
+        "properties": {
+          "approval_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Approval Id"
+          },
+          "approval_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "PENDING",
+                  "APPROVED",
+                  "DENIED",
+                  "EXPIRED",
+                  "INVALIDATED",
+                  "CONSUMED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Approval State"
+          },
+          "approval_url": {
+            "description": "Present only while an approval is pending: where a reviewer decides.",
+            "type": "string"
+          },
+          "checkpoint": {
+            "$ref": "#/components/schemas/Checkpoint"
+          },
+          "continuation": {
+            "description": "Present only while an approval is pending. Send it as `X-Execution-Continuation` to read the status; it lasts at most two minutes, and re-sending the identical request renews it.",
+            "type": "string"
+          },
+          "denial": {
+            "description": "Present only on a DENIED execution: `busy` when another request holds the target, `limit` when a shared limit covering the request is spent, whatever else denied it, and `withheld` for every other denial. For `busy` and `limit` a new request after the other request settles or the limit resets is decided afresh; re-sending this request returns the same answer. It never names the rule, the limit, a fact or another execution.",
+            "enum": [
+              "busy",
+              "limit",
+              "withheld"
+            ],
+            "type": "string"
+          },
+          "execution_id": {
+            "format": "uuid",
+            "title": "Execution Id",
+            "type": "string"
+          },
+          "notice": {
+            "description": "Present only on a DENIED execution: one fixed sentence naming the category and the request's reference and nothing else. The reason is recorded for a person and never sent to the agent; relay `request_ref` to a person rather than guessing why.",
+            "examples": [
+              "Denied because another request holds this target. Re-sending this request returns this same answer; a new request after that one settles may be decided differently. A person can find it by searching the console for EB-12.",
+              "Denied because a shared limit is spent. Re-sending this request returns this same answer; a new request after the limit resets is decided afresh. A person can find it by searching the console for EB-12.",
+              "Denied. The reason is recorded for a person, who can find it by searching the console for EB-12. Re-sending this request returns this same answer."
+            ],
+            "type": "string"
+          },
+          "observed": {
+            "$ref": "#/components/schemas/ObservedResult",
+            "description": "Present only on an OBSERVED execution: what would have been decided."
+          },
+          "plan_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Plan Hash",
+            "type": "string"
+          },
+          "request_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Request Ref"
+          },
+          "state": {
+            "enum": [
+              "ATTEMPTED",
+              "DENIED",
+              "PENDING_APPROVAL",
+              "RESERVED",
+              "DISPATCH_COMMITTED",
+              "EXECUTED",
+              "FAILED_NOT_EXECUTED",
+              "INDETERMINATE",
+              "STALE_AUTHORIZATION",
+              "OBSERVED",
+              "FAILED_EFFECT_UNKNOWN"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "tenant_stopped": {
+            "const": true,
+            "description": "Present when the answer was given during an emergency stop.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "execution_id",
+          "state",
+          "plan_hash"
+        ],
+        "title": "Execution",
+        "type": "object"
+      },
+      "ExternalCase": {
+        "additionalProperties": false,
+        "description": "Unverified caller-supplied navigation, never trusted incident context.",
+        "properties": {
+          "case_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._:/()-]*$",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "source": {
+            "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+            "title": "Source",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          }
+        },
+        "required": [
+          "source",
+          "case_id"
+        ],
+        "title": "ExternalCase",
+        "type": "object"
+      },
+      "Identity": {
+        "description": "The agent the API key authenticates.",
+        "properties": {
+          "credential_id": {
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "AGENT",
+              "HUMAN_APPROVER",
+              "ADMIN"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "principal_id": {
+            "format": "uuid",
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "principal_id",
+          "credential_id",
+          "kind",
+          "expires_at"
+        ],
+        "title": "Identity",
+        "type": "object"
+      },
+      "ListedAction": {
+        "additionalProperties": false,
+        "description": "One operation the agent's space offers. A listed action is not permission.",
+        "properties": {
+          "action": {
+            "description": "The catalog action it performs.",
+            "title": "Action",
+            "type": "string"
+          },
+          "arguments": {
+            "description": "Every argument it takes; send exactly these, each within its domain.",
+            "items": {
+              "$ref": "#/components/schemas/ListedArgument"
+            },
+            "title": "Arguments",
+            "type": "array"
+          },
+          "incident_required": {
+            "description": "Whether `claimed_context.incident_id` must name an incident on the target.",
+            "title": "Incident Required",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "The catalog action's one-line name.",
+            "title": "Label",
+            "type": "string"
+          },
+          "operation_ref": {
+            "description": "What to send as `operation_ref`.",
+            "title": "Operation Ref",
+            "type": "string"
+          },
+          "target_kinds": {
+            "description": "The `target.kind` values it accepts.",
+            "items": {
+              "enum": [
+                "canonical",
+                "hostname",
+                "provider_id"
+              ],
+              "type": "string"
+            },
+            "title": "Target Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operation_ref",
+          "action",
+          "label",
+          "arguments",
+          "target_kinds",
+          "incident_required"
+        ],
+        "title": "ListedAction",
+        "type": "object"
+      },
+      "ListedArgument": {
+        "additionalProperties": false,
+        "description": "One argument the action takes, with the values or range it accepts.",
+        "properties": {
+          "maximum": {
+            "description": "Present for an integer argument: the greatest value it accepts.",
+            "title": "Maximum",
+            "type": "integer"
+          },
+          "minimum": {
+            "description": "Present for an integer argument: the least value it accepts.",
+            "title": "Minimum",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "integer",
+              "boolean"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "values": {
+            "description": "Present for a string argument: every value it accepts.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "ListedArgument",
+        "type": "object"
+      },
+      "ObservedResult": {
+        "additionalProperties": false,
+        "description": "What an observed request would have decided; never authority for anything.",
+        "properties": {
+          "effect": {
+            "enum": [
+              "DENY",
+              "REQUIRE_APPROVAL",
+              "ELIGIBLE"
+            ],
+            "title": "Effect",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "tenant",
+              "mapping"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "obligation_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Obligation Ids",
+            "type": "array"
+          },
+          "reasons": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "effect",
+          "mode"
+        ],
+        "title": "ObservedResult",
+        "type": "object"
+      },
+      "OutcomeReport": {
+        "additionalProperties": false,
+        "description": "What an external executor states about the one act its grant described.\n\nThe report itself names no operation, account or hash: the execution it settles is the\none the route was addressed to and the one whose secret it presents, and the bound\nfields of the retained evidence are taken from that execution's frozen command. Signed\nevidence (a record, an attestation or a journal) does state them, and the verifier\nchecks them against the same command.\n\nThe report secret is the whole of its authority. An act grant is not presented here\nand cannot be: extra fields are refused, so a caller can add nothing to this that\nstands in for the secret the execution retains the digest of.",
+        "properties": {
+          "attestation": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "minLength": 5,
+                "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attestation"
+          },
+          "journal": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Journal"
+          },
+          "outcome": {
+            "enum": [
+              "EXECUTED",
+              "FAILED_NOT_EXECUTED",
+              "UNKNOWN",
+              "FAILED_EFFECT_UNKNOWN"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "EXECUTED",
+                  "VERSION_MISMATCH",
+                  "CANCELLED_NOT_EXECUTED",
+                  "TARGET_NOT_FOUND",
+                  "REPORTED_FAILURE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Record"
+          },
+          "report_secret": {
+            "maxLength": 128,
+            "minLength": 32,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Report Secret",
+            "type": "string"
+          },
+          "reported_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reported At"
+          }
+        },
+        "required": [
+          "report_secret",
+          "outcome"
+        ],
+        "title": "OutcomeReport",
+        "type": "object"
+      },
+      "ResourceSelector": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "canonical",
+              "hostname",
+              "provider_id"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 254,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "ResourceSelector",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "apiKey": {
+        "bearerFormat": "eb1.<tenant>.<credential>.<secret>",
+        "description": "An agent's API key, shown once when it is issued.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "The agent API is how an agent asks to perform a consequential action. The agent proposes one action on one target; ExecBound checks who the agent is, the trusted context and the workspace's policy, asks a person when a rule says to, and only then performs the action with a credential the agent never holds. Every decision is recorded.\n\nThe hosted service answers at `https://app.execbound.ai`, and a self-hosted deployment serves the same routes at its own address. An MCP host reaches the same API as three tools; see [MCP](#description/mcp). The [quickstart](https://docs.execbound.ai/start-here/quickstart) and [Connect an agent host](https://docs.execbound.ai/guides/connect-an-agent) walk through a first request.\n\nBefore a first request, `GET /v1/actions` (or the MCP tool `list_actions`) lists the actions the agent's space offers: each `operation_ref`, its arguments and their values, the target kinds it accepts and whether an incident is required. A listed action is not permission, every request is still decided, and targets are never listed.\n\n## Authentication\n\nEvery request carries the agent's API key in one header:\n\n```http\nAuthorization: Bearer <API key>\n```\n\nA key looks like `eb1.<tenant>.<credential>.<secret>`. It identifies one agent in one workspace, and it is all the gateway reads to decide who is asking: an identity header such as `X-Tenant-Id` or `X-Principal-Id` is refused rather than trusted.\n\n### Get an API key\n\nAn administrator issues keys in the console of the deployment the agent will call.\n\n1. Open **Agent connections** and **Add agent**, naming the agent after the tool that will use the key. Or open **API keys**, choose **Issue an API key** and **New agent\u2026** to create the agent and its key together.\n2. On the agent's page, under **Connect this agent**, choose a lifetime, from one hour to 90 days or **Never**, and **Issue API key**.\n3. Copy the key into the tool's secret configuration. It is shown once and never again; ExecBound keeps only its hash.\n\nGive each tool its own agent and key, so its activity is its own and its key can be revoked alone.\n\n### Check a key\n\n`GET /v1/me` proposes nothing and records nothing. With `<gateway>` standing for the deployment's address:\n\n```sh\ncurl https://<gateway>/v1/me -H \"Authorization: Bearer $EXECBOUND_CREDENTIAL\"\n```\n\nIt answers with the agent the key belongs to. A 401 means the key is missing, malformed, unknown, revoked or expired.\n\n### Rotate or revoke a key\n\nTo replace a key, issue a new one, update the tool, then revoke the old one under **API keys**. Issuing a key never revokes another. A revoked or expired key can be deleted from the list; the audit history keeps it.\n\nAn API key opens only the routes below. It cannot sign in to the console, and it can never approve a request: approvals are a signed-in person's decision.\n\n## Requests\n\n- **Bodies** are exactly `application/json`, at most 16 KiB, with no unknown fields, duplicate keys or floating-point numbers. A query string or a `Content-Encoding` header is refused.\n- **Idempotency.** Send exactly one of `reference`, the ticket, case or run the action answers, or `idempotency_key`. ExecBound derives the key from a reference. Re-sending the identical request returns the same execution and never acts twice; reusing a reference for a different action is refused.\n- **Correlation.** Send a UUID as `X-Request-Id` to match a call with your logs. Every answer echoes one.\n\n## Responses\n\nA final or observed state is answered 200; a state that is not final yet is answered 202.\n\n| State | Status | What the agent should do |\n| --- | --- | --- |\n| `EXECUTED` | 200 | Done. |\n| `DENIED` | 200 | Stop and tell a person the `request_ref`; the reason is recorded for them and is not sent to the agent. Re-sending the same request returns the same answer. When `denial` is `busy` or `limit`, a new request after the other request settles or the limit resets is decided afresh, and whether to make one is the person's call. |\n| `OBSERVED` | 200 | Nothing ran: the workspace or mapping is observe-only. `observed` says what would have been decided. |\n| `PENDING_APPROVAL` | 202 | Wait for a person. Read the status with the `continuation`, then re-send the identical request once it is approved. |\n| `DISPATCH_COMMITTED` | 202 | The action may have happened. Re-send the identical request or read the status until it settles; never propose it again under a new reference. |\n| `INDETERMINATE` | 202 | As `DISPATCH_COMMITTED`: the outcome is not established yet. |\n| `STALE_AUTHORIZATION` | 200 | The approval or the trusted context expired first. Propose it again if it is still needed. |\n| `FAILED_NOT_EXECUTED` | 200 | The provider refused; nothing changed. |\n| `FAILED_EFFECT_UNKNOWN` | 200 | The call failed and whether the change happened is not known. Put it in front of a person. |\n\n**Approvals.** A request a rule sends for review answers 202 with `PENDING_APPROVAL`, a `continuation` and the approval page's address. Read its status with `X-Execution-Continuation: <continuation>`; a status read never acts. Once a person approves it, re-send the identical execute request, before the approval's deadline, and that is what runs it. A continuation lasts at most two minutes, and re-sending the request renews it.\n\n**Why a request was denied.** An agent is told that a request was denied, the request's reference and one of three categories, and never the reason itself. The reason is recorded for a person, who finds the record by searching the console for that reference. This is deliberate: the agent is the party being governed, and one that is mistaken, prompt-injected or compromised gets no map of the policy from its denials, neither the rule that matched, the fact that put the target out of bounds nor the budget that is spent, and a reviewer's words stay with people. A `DENIED` answer carries `denial` and `notice`, one fixed sentence built from the category and the reference alone:\n\n```json\n{\n  \"request_ref\": \"EB-12\",\n  \"execution_id\": \"\u2026\",\n  \"state\": \"DENIED\",\n  \"plan_hash\": \"\u2026\",\n  \"approval_id\": null,\n  \"approval_state\": null,\n  \"denial\": \"withheld\",\n  \"notice\": \"Denied. The reason is recorded for a person, who can find it by searching the console for EB-12. Re-sending this request returns this same answer.\"\n}\n```\n\n| `denial` | When | `notice` |\n| --- | --- | --- |\n| `busy` | Another request holds the target. The policy otherwise allowed this one, because a busy target is found after the decision. | \"Denied because another request holds this target. Re-sending this request returns this same answer; a new request after that one settles may be decided differently. A person can find it by searching the console for EB-12.\" |\n| `limit` | A shared limit covering this request is spent. Given whenever a spent limit is among the recorded reasons, whatever else is, so it says nothing about whether the policy allows this target. | \"Denied because a shared limit is spent. Re-sending this request returns this same answer; a new request after the limit resets is decided afresh. A person can find it by searching the console for EB-12.\" |\n| `withheld` | Every other denial: a rule, a reviewer, stale context or anything the decision could not read. | \"Denied. The reason is recorded for a person, who can find it by searching the console for EB-12. Re-sending this request returns this same answer.\" |\n\n`busy` and `limit` tell the agent when waiting is worth a new request: when another request holds the target, a new request after that one settles may be decided differently, and when a shared limit is spent, a new request after the limit resets is decided afresh. `busy` is decided after the policy, so it also says the policy otherwise allowed the request. `limit` is given whenever a spent limit is among the recorded reasons, whatever else is, because every limit that covers a request is checked whatever the policy decides; so it says nothing about whether a rule would allow the target, and its sentence does not promise a different decision. The category never names the rule, the limit, its window, a count, a fact or the other execution.\n\nThe view has always shown whether a person was involved, and still does: `approval_state` is `DENIED` when a reviewer refused the request, `INVALIDATED` when a request that held an approval was then denied, and null when the first decision denied it. The reviewer's comment never reaches the agent.\n\nOn a denial, stop and give the person the `request_ref` rather than guessing why. Re-sending the same request returns the same answer. A new request may be decided differently, for example once a busy target is released, a budget's window moves on or someone changes the policy, and whether to make one is the person's call. A target another execution still holds is answered the same way, as a `DENIED` with `denial` `busy` whose recorded reason is `RESOURCE_BUSY`, and never as an error. Observe mode is the one exception, whether the whole workspace observes or only the mapping an action goes through: nothing runs, and `observed.reasons` shows what enforcement would have decided, because showing that is what observe mode is for.\n\nThe reasons a denial records, which a person reads on its record in the console:\n\n| Reason | Meaning |\n| --- | --- |\n| `NOT_AUTHORIZED` | No rule in the active policy permits this action for this plan, or a deny rule matched it. |\n| `HARD_LIMIT:<rule id>` | The named budget is spent, and it denies rather than asking for approval. |\n| `INVALID_CONTEXT` | The trusted context expired before the decision was made. |\n| `INVALID_ARGUMENTS` | The arguments are not the ones the action accepts. |\n| `INVALID_IDENTITY` | The agent's identity or key did not hold. |\n| `INVALID_BUNDLE` | The active policy cannot authorize this request: it names the action at a mapping that has since changed, or it is not this workspace's. |\n| `INVALID_USAGE` | The shared impact counters could not be read. |\n| `POLICY_ERROR` | The policy could not be evaluated. |\n| `DEPENDENCY_UNAVAILABLE` | Something the decision needs could not be reached. |\n| `RESOURCE_BUSY` | Another operation still holds this target. |\n| `HUMAN_DENIED` | A reviewer refused it. The reviewer's comment stays with people. |\n\n## Errors\n\nAn execution error is JSON with a stable code:\n\n```json\n{\"detail\": \"Execution unavailable\", \"code\": \"IDEMPOTENCY_CONFLICT\"}\n```\n\nAn authentication or header error carries `detail` only: `Invalid credentials` (401, with `WWW-Authenticate: Bearer`), `Invalid request` (400) or `Forbidden` (403). A denial is not an error: it is answered 200 with `\"state\": \"DENIED\"`.\n\nA 4xx is the caller's to fix. A 503 invites a retry later, and one that persists needs a person, because stale trusted facts do not fix themselves. A 503 or a dropped connection after a request may have been committed is not proof that nothing happened: re-send the identical request, which returns the same execution rather than acting twice.\n\n| Status | Code | What it means | What to do |\n| --- | --- | --- | --- |\n| 400 | `INVALID_CONTINUATION` | The continuation is malformed, belongs to another execution, or has expired. It also means the approval was decided. | Re-send the identical execute request. |\n| 400 | `INVALID_RECORD` | An outcome report's signed evidence did not verify against the grant, or verified but is not accepted for it: an attestation in the form a settlement stores it, sent as a `record` or a `journal`, or a provider's journal for a grant whose precondition class is `UNAVAILABLE`. | Report again with a record signed for this execution. |\n| 400 | `INVALID_REQUEST` | The body, path or headers are malformed: an unknown field, a missing `reference` or `idempotency_key`, a query string, an identity header, the wrong content type, or a body over the size limit. | Fix the request. |\n| 403 | `INVALID_IDENTITY` | The key is not an agent's, or the agent is deactivated. | Use an agent's API key, or reactivate the agent. |\n| 403 | `INVALID_REPORT` | An outcome report's secret did not match the grant. | Report with the secret the grant carried. |\n| 404 | `NOT_FOUND` | No execution with this id belongs to this agent. | Check the id; an agent reads only its own executions. |\n| 409 | `DEMO_UNAVAILABLE` | `synthetic_demo` was set in a workspace that holds real data. | Leave `synthetic_demo` out. |\n| 409 | `IDEMPOTENCY_CONFLICT` | The same `reference` or `idempotency_key` was used for a different action, target or arguments. | Use a new reference for a new intent. |\n| 409 | `INVALID_BUNDLE` | The active policy cannot authorize requests in this deployment, for example a Gate mapping on an account ExecBound also executes for. | An administrator corrects the policy or the mapping. |\n| 409 | `INVALID_KEY_RING` | The workspace's executor key ring cannot be read, so no record can be attested. | An administrator repairs the key ring. |\n| 409 | `INVALID_STATE` | The execution is not in a state that allows this, such as reporting on one that holds no grant. | Read the execution's status first. |\n| 409 | `REPORT_WINDOW_CLOSED` | The grant's report window has closed. | An administrator settles it from the console. |\n| 423 | `SPACE_ARCHIVED` | The agent's space is archived and takes no new work. | Move the agent to an active space. |\n| 423 | `TENANT_STOPPED` | The workspace is under an emergency stop; the body also carries `\"tenant_stopped\": true`. | Wait for an administrator to lift the stop. |\n| 429 | `BUSY` | The gateway is at its concurrency limit. No `Retry-After` is sent. | Retry with backoff. |\n| 429 | `RATE_LIMITED` | This API key has used its request allowance for the window. | Wait for the `Retry-After` seconds. |\n| 503 | `CONNECTOR_UNAVAILABLE` | The provider account the action needs is not connected. | An administrator connects the account. |\n| 503 | `EXECUTION_UNAVAILABLE` | Execution is unavailable. An action your space does not offer, an unknown target, run or context all get this same answer on purpose, so it reveals nothing about what exists beyond what `GET /v1/actions` lists. | Check the action against `GET /v1/actions` and the target. If they are right, retry later; if the answer persists, stop and tell a person, because stale trusted facts do not fix themselves. |\n| 503 | `INVALID_APPROVAL` | The approval does not match the plan it was given for. | Re-send the request; a changed plan needs a new approval. |\n| 503 | `INVALID_CLOCK` | The decision could not read a trustworthy time. | Retry later. |\n| 503 | `INVALID_EVIDENCE` | Evidence from a provider or executor did not verify. | Retry later, and report the request id if it persists. |\n| 503 | `INVALID_OWNER` | An internal ownership check failed. | Retry later, and report the request id if it persists. |\n| 503 | `NO_ACTIVE_BUNDLE` | The agent's space has no active policy, so every request is refused. | An administrator activates a policy. |\n| 503 | `TOO_MANY_GRANTS` | This agent already holds the maximum of eight unsettled checkpoint grants. | Report the outcomes of the grants it holds. |\n\n## Rate limits\n\n| Limit | Value | Answer when exceeded |\n| --- | --- | --- |\n| Requests per API key | 300 per 60 seconds, across HTTP and MCP | 429 `RATE_LIMITED` with `Retry-After` |\n| Requests per client address | 1,000 per 60 seconds | 429 `RATE_LIMITED` with `Retry-After` |\n| Requests in flight | 32 per gateway process, and at most as many executions at once as the database pool serves | 429 `BUSY`, or `Service busy` |\n| Action and outcome body | 16 KiB, read within 5 seconds | 400 `INVALID_REQUEST` |\n| MCP message | 24 KiB | 400 `Invalid request` |\n| Unsettled checkpoint grants | 8 per agent | 503 `TOO_MANY_GRANTS` |\n| Continuation lifetime | At most 2 minutes, and never past the approval's or the key's expiry | 400 `INVALID_CONTINUATION` |\n\nA refusal for a rate limit happens before anything is read or written, so it uses no impact budget, approval or audit record. `GET /v1/me` is not rate limited, so it is the safe way to check a key.\n\n## MCP\n\nThe same key opens a Streamable HTTP MCP server at `/mcp/`, stateless and answering in JSON. It authenticates with the same static header and does not offer OAuth.\n\n| Tool | Arguments | What it does |\n| --- | --- | --- |\n| `execute` | `{\"request\": <the execute body>}` | Proposes one action; answers as `POST /v1/execute` does. |\n| `execution_status` | `{\"execution_id\": \"<uuid>\", \"continuation\": \"<optional>\"}` | Reads the agent's own execution. |\n| `list_actions` | `{}` | Lists the actions the agent's space offers; answers as `GET /v1/actions` does. |\n\nThe `execute` tool's description tells the model to call `list_actions` for the operation_ref values its space offers, and on a denial to stop and give the person the `request_ref` rather than guess why.\n\n[Connect an agent host](https://docs.execbound.ai/guides/connect-an-agent) has the configuration for each MCP host.\n",
+    "title": "ExecBound agent API",
+    "version": "1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/actions": {
+      "get": {
+        "description": "Each operation_ref this agent's space offers, with the catalog action, its label, its arguments and their values, the target kinds it accepts and whether an incident is required. A listed action is not permission: every request is still decided. Targets, rules and limits are never listed. An operation that is not listed is refused as an unknown one.",
+        "operationId": "listActions",
+        "parameters": [
+          {
+            "description": "A UUID to correlate this call; any other value is replaced. Always echoed.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionListing"
+                }
+              }
+            },
+            "description": "The operations the agent's space offers. A listed action is not permission."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "A query string, an identity header or a body was sent. Codes: `INVALID_REQUEST`."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The API key is missing, malformed, unknown, revoked or expired.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The credential is not an agent's."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The policy the agent's space selects is not active. Codes: `INVALID_BUNDLE`."
+          },
+          "423": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The agent's space is archived. Codes: `SPACE_ARCHIVED`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many requests; wait for `Retry-After` when it is present. Codes: `RATE_LIMITED`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait. Sent with RATE_LIMITED.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The listing is unavailable; retry later. Codes: `EXECUTION_UNAVAILABLE`."
+          }
+        },
+        "summary": "List the actions your space offers",
+        "tags": [
+          "Execution"
+        ]
+      }
+    },
+    "/v1/execute": {
+      "post": {
+        "description": "Admission resolves the action and target, checks trusted context and policy, and either executes, denies, observes, asks for approval or grants an external executor the act.",
+        "operationId": "execute",
+        "parameters": [
+          {
+            "description": "A UUID to correlate this call; any other value is replaced. Always echoed.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "A final or observed state: EXECUTED, DENIED, OBSERVED and the rest."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Not final yet: PENDING_APPROVAL, DISPATCH_COMMITTED or INDETERMINATE."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request is malformed, or a continuation or record is not valid. Codes: `INVALID_CONTINUATION`, `INVALID_RECORD`, `INVALID_REQUEST`."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The API key is missing, malformed, unknown, revoked or expired.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The credential is not an agent's, or a report did not authenticate. Codes: `INVALID_IDENTITY`, `INVALID_REPORT`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No execution with this id belongs to this agent. Codes: `NOT_FOUND`."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request conflicts with the execution's state or the workspace's configuration. Codes: `DEMO_UNAVAILABLE`, `IDEMPOTENCY_CONFLICT`, `INVALID_BUNDLE`, `INVALID_KEY_RING`, `INVALID_STATE`, `REPORT_WINDOW_CLOSED`."
+          },
+          "423": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The workspace is stopped, or the agent's space takes no new work. Codes: `SPACE_ARCHIVED`, `TENANT_STOPPED`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many requests; wait for `Retry-After` when it is present. Codes: `BUSY`, `RATE_LIMITED`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait. Sent with RATE_LIMITED, not with BUSY.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Execution is unavailable. Unknown actions and targets are answered this way on purpose. Codes: `CONNECTOR_UNAVAILABLE`, `EXECUTION_UNAVAILABLE`, `INVALID_APPROVAL`, `INVALID_CLOCK`, `INVALID_EVIDENCE`, `INVALID_OWNER`, `NO_ACTIVE_BUNDLE`, `TOO_MANY_GRANTS`."
+          }
+        },
+        "summary": "Propose one action",
+        "tags": [
+          "Execution"
+        ]
+      }
+    },
+    "/v1/executions/{execution_id}": {
+      "get": {
+        "description": "Reads never dispatch. Only the agent that proposed it can read it.",
+        "operationId": "executionStatus",
+        "parameters": [
+          {
+            "description": "The execution id, in lowercase canonical UUID form.",
+            "in": "path",
+            "name": "execution_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The continuation from a pending approval's answer.",
+            "in": "header",
+            "name": "X-Execution-Continuation",
+            "required": false,
+            "schema": {
+              "maxLength": 4096,
+              "type": "string"
+            }
+          },
+          {
+            "description": "A UUID to correlate this call; any other value is replaced. Always echoed.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "A final or observed state: EXECUTED, DENIED, OBSERVED and the rest."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Not final yet: PENDING_APPROVAL, DISPATCH_COMMITTED or INDETERMINATE."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request is malformed, or a continuation or record is not valid. Codes: `INVALID_CONTINUATION`, `INVALID_RECORD`, `INVALID_REQUEST`."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The API key is missing, malformed, unknown, revoked or expired.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The credential is not an agent's, or a report did not authenticate. Codes: `INVALID_IDENTITY`, `INVALID_REPORT`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No execution with this id belongs to this agent. Codes: `NOT_FOUND`."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request conflicts with the execution's state or the workspace's configuration. Codes: `DEMO_UNAVAILABLE`, `IDEMPOTENCY_CONFLICT`, `INVALID_BUNDLE`, `INVALID_KEY_RING`, `INVALID_STATE`, `REPORT_WINDOW_CLOSED`."
+          },
+          "423": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The workspace is stopped, or the agent's space takes no new work. Codes: `SPACE_ARCHIVED`, `TENANT_STOPPED`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many requests; wait for `Retry-After` when it is present. Codes: `BUSY`, `RATE_LIMITED`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait. Sent with RATE_LIMITED, not with BUSY.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Execution is unavailable. Unknown actions and targets are answered this way on purpose. Codes: `CONNECTOR_UNAVAILABLE`, `EXECUTION_UNAVAILABLE`, `INVALID_APPROVAL`, `INVALID_CLOCK`, `INVALID_EVIDENCE`, `INVALID_OWNER`, `NO_ACTIVE_BUNDLE`, `TOO_MANY_GRANTS`."
+          }
+        },
+        "summary": "Read an execution's status",
+        "tags": [
+          "Execution"
+        ]
+      }
+    },
+    "/v1/executions/{execution_id}/outcome": {
+      "post": {
+        "description": "Settles the checkpoint grant this execution holds. The report secret names the grant; the API key is still required.",
+        "operationId": "reportOutcome",
+        "parameters": [
+          {
+            "description": "The execution id, in lowercase canonical UUID form.",
+            "in": "path",
+            "name": "execution_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A UUID to correlate this call; any other value is replaced. Always echoed.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutcomeReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "A final or observed state: EXECUTED, DENIED, OBSERVED and the rest."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            },
+            "description": "Not final yet: PENDING_APPROVAL, DISPATCH_COMMITTED or INDETERMINATE."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request is malformed, or a continuation or record is not valid. Codes: `INVALID_CONTINUATION`, `INVALID_RECORD`, `INVALID_REQUEST`."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The API key is missing, malformed, unknown, revoked or expired.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The credential is not an agent's, or a report did not authenticate. Codes: `INVALID_IDENTITY`, `INVALID_REPORT`."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "No execution with this id belongs to this agent. Codes: `NOT_FOUND`."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request conflicts with the execution's state or the workspace's configuration. Codes: `DEMO_UNAVAILABLE`, `IDEMPOTENCY_CONFLICT`, `INVALID_BUNDLE`, `INVALID_KEY_RING`, `INVALID_STATE`, `REPORT_WINDOW_CLOSED`."
+          },
+          "423": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The workspace is stopped, or the agent's space takes no new work. Codes: `SPACE_ARCHIVED`, `TENANT_STOPPED`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many requests; wait for `Retry-After` when it is present. Codes: `BUSY`, `RATE_LIMITED`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait. Sent with RATE_LIMITED, not with BUSY.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Execution is unavailable. Unknown actions and targets are answered this way on purpose. Codes: `CONNECTOR_UNAVAILABLE`, `EXECUTION_UNAVAILABLE`, `INVALID_APPROVAL`, `INVALID_CLOCK`, `INVALID_EVIDENCE`, `INVALID_OWNER`, `NO_ACTIVE_BUNDLE`, `TOO_MANY_GRANTS`."
+          }
+        },
+        "summary": "Report an external executor's outcome",
+        "tags": [
+          "Execution"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "description": "Proposes nothing and records nothing. Useful to test a key.",
+        "operationId": "me",
+        "parameters": [
+          {
+            "description": "A UUID to correlate this call; any other value is replaced. Always echoed.",
+            "in": "header",
+            "name": "X-Request-Id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            },
+            "description": "The authenticated agent."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "A query string, an identity header or a body was sent."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The API key is missing, malformed, unknown, revoked or expired.",
+            "headers": {
+              "WWW-Authenticate": {
+                "schema": {
+                  "const": "Bearer",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Check an API key",
+        "tags": [
+          "Identity"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "apiKey": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Hosted",
+      "url": "https://app.execbound.ai"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Propose an action and follow it to an outcome.",
+      "name": "Execution"
+    },
+    {
+      "description": "Check which agent an API key belongs to.",
+      "name": "Identity"
+    }
+  ]
+}

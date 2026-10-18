@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "execbound"
+version = "0.1.0"
+description = "Authority boundary for consequential agent actions"
+# PEP 639. The notices ride in the wheel because it carries the built console, whose
+# bundle includes third-party code; `scripts/check_wheel_licences.py` holds both there.
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.142.2",
+  "uvicorn==0.54.0",
+  "sqlalchemy==2.1.3",
+  "psycopg[binary]==3.3.6",
+  "alembic==1.20.0",
+  "pydantic-settings==2.15.0",
+  "cedarpy==4.12.1",
+  "httpx==0.28.1",
+  "mcp==2.3.0",
+  "jinja2==3.1.6",
+  "cryptography==50.0.2",
+  "webauthn==3.0.1",
+  "qrcode==8.2",
+  # libsodium's sealed box: the console seals a pasted monitoring key to the collector's key.
+  "pynacl==1.6.2",
+  # The provider protocol and the connectors, Apache-2.0 packages beside the server:
+  # ordinary path dependencies, never plugins.
+  "execbound-protocol",
+  "execbound-connectors[mock]",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-xdist==3.8.0",
+    "ruff==0.16.10",
+    "mypy==2.4.0",
+    "playwright==1.63.0",
+    "hypothesis==6.168.5",
+    "jsonschema==4.26.0",
+    "execbound-client[mcp]",
+    "execbound-mde-producer",
+    "aiosmtpd==1.4.6",
+]
+# What the image adds to the server's own dependencies: the client package, so the image
+# carries `execbound-demo` and an agent-side client. A group rather than a dependency, so the
+# server's metadata never names its own client.
+showcase = ["execbound-client[mcp]"]
+
+[tool.uv.sources]
+execbound-client = { path = "clients/python", editable = true }
+execbound-protocol = { path = "protocol", editable = true }
+execbound-connectors = { path = "connectors", editable = true }
+execbound-mde-producer = { path = "integrations/mde-producer", editable = true }
+
+[project.scripts]
+execbound = "execbound.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-ra --strict-markers --tb=short"
+markers = [
+    "integration: requires a dedicated real PostgreSQL test database",
+    "docs: reads a document (tests/document_paths.py), held true by tests/document_reads.py; `pytest -m docs` selects what a change to documents alone can break",
+    "timed: takes the machine-wide timing lock (timed_alone); a run that selects `not timed` leaves it out, and the full suite runs it",
+    "no_plugin_grants: a test under tests/<plugin>/ that runs with none of its plugin's grants and none of its claims honoured, unless it loads the plugin itself",
+]
+filterwarnings = [
+    # Starlette 1.6.0 evaluates the deprecated anyio.abc.BlockingPortal alias when
+    # starlette.testclient is imported. Both packages are current; ignore exactly this
+    # warning so that new warnings stand out.
+    'ignore:The anyio\.abc\.BlockingPortal alias is deprecated:DeprecationWarning:starlette\.testclient',
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+# Directories the development repository keeps beside the package hold helper scripts, not runtime code.
+# `.tools` holds installed tools, not this project's code. Ruff skips it through `.gitignore` only
+# inside a git repository, and a tree built for export is not one, so it is named here too.
+extend-exclude = ["docs/planning", "docs/solutions", "compliance", ".tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["src", "clients/python/src", "integrations/mde-producer/src", "protocol/src", "connectors/src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/execbound"]
+# The console build is written into the package by `pnpm build` and ignored by git; hatch
+# excludes ignored files unless they are named here, so the wheel and the image carry it.
+artifacts = ["src/execbound/surfaces/console_dist/**"]
+
+[tool.hatch.build.targets.sdist]
+# The same line for the source distribution. A plain `uv build` makes the sdist first and the
+# wheel from the sdist, so without it both came out with no console at all (the direct
+# `uv build --wheel` and the image were unaffected). Installing from an sdist needs no Node:
+# the console arrives built, as it does in the wheel. `scripts/check_console_packaged.py`
+# refuses a distribution that carries anything other than the build in the workspace.
+artifacts = ["src/execbound/surfaces/console_dist/**"]
+
+[tool.bandit]
+# B101: `assert x is not None` narrows a type after an explicit check. The gateway
+# never runs under -O, and the statement after a stripped assert still raises on None.
+skips = ["B101"]

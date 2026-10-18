@@ -1,0 +1,742 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+"""`/api/console/v1/monitor`: the monitoring pages as data (#333).
+
+Every route wraps the function the Jinja page calls today, for an administrator, under the
+monitoring store's own session check: `snapshot` for connections, sources, inventory, external
+activity, findings and alert delivery; `findings` for the findings in one state
+(`GET /monitor/findings?state=`) and `finding` for one finding by its identifier
+(`GET /monitor/findings/{finding_id}`), both under the reads' space predicate; `agents_snapshot`
+and `agent_detail` for the Scout agent views; `acknowledge` for a finding, with an optional
+note, answered with the fresh snapshot as the page re-renders after its redirect; and
+`acknowledge_many` for up to 50 at once, answered per finding and refused to tokens. Rows are
+the store's, bounded at 200 as the pages are; a source's coverage word and a story's coverage
+label are computed here exactly as `human.py` computes them for the template. Every string an
+external platform supplied (a label, a story name, a display name, a tag) travels as data and
+the client renders it as text.
+"""
+
+from datetime import datetime
+from typing import Any, Literal, cast
+from uuid import UUID
+
+from fastapi import APIRouter, Request
+from pydantic import BaseModel, ConfigDict, Field
+from starlette.concurrency import run_in_threadpool
+
+from execbound.monitoring import due
+from execbound.monitoring import store as monitor_store
+from execbound.monitoring.models import MonitorError
+from execbound.runtime import Runtime
+from execbound.surfaces.console_api.bodies import body
+from execbound.surfaces.console_api.errors import ApiError
+from execbound.surfaces.console_api.guards import ApiGuards
+from execbound.surfaces.console_api.principals import PrincipalRef, principal_ref
+from execbound.surfaces.human import COVERAGE_LABELS, HumanConfig
+from execbound.surfaces.names import PrincipalFacts
+from execbound.surfaces.sessions import Session
+
+FindingState = Literal["open", "acknowledged", "all"]
+FINDING_STATES: frozenset[str] = frozenset({"open", "acknowledged", "all"})
+
+
+class MonitorCapability(BaseModel):
+    state: str
+    at: datetime | None = None
+
+
+class MonitorConnection(BaseModel):
+    connection_id: UUID
+    kind: Literal["tines", "entra_agent_id"]
+    # How the connection authenticates: `key_file` is an operator's key file on the host that
+    # collects, with only its fingerprint in the database; `sealed` is a key pasted in the
+    # console and sealed for the collector, which this answer never carries in any form;
+    # `platform_app` is a directory whose administrator consented to the deployment's app.
+    credential_mode: Literal["key_file", "sealed", "platform_app"]
+    label: str
+    base_url: str
+    team_id: str | None
+    health_state: str
+    health_changed_at: datetime | None
+    audit_cursor: datetime | None
+    last_run_at: datetime | None
+    last_outcome: str | None
+    last_error_code: str | None
+    last_sync_at: datetime | None
+    retry_after_seconds: int | None
+    revoked_at: datetime | None
+    platform_tenant_ref: str | None
+    capabilities: dict[str, MonitorCapability]
+    # The one freshness rule (`collection_overdue_since`, `collection_reporting`): when the
+    # collection evidence went stale, and whether it shows collection running and complete.
+    overdue_since: datetime | None
+    reporting: bool
+    # The schedule (#678), each interval with its kind's default filled in: Entra's full
+    # collection, or Tines's inventory and its audit records (`activity_interval_seconds`,
+    # which Entra has none of). A waiting "Collect now", who asked for it, whether a run holds
+    # the connection now (never the run's lease), and when it is next due by the rule the
+    # scheduled collector itself reads (`due.due_at`).
+    collect_interval_seconds: int
+    activity_interval_seconds: int | None
+    collect_requested_at: datetime | None
+    collect_requested_by: PrincipalRef | None
+    collecting: bool
+    next_due_at: datetime | None
+    # A consented directory's consent: when and by whom it was last recorded, and whether a
+    # permission it granted is now refused, so the administrator should update it.
+    consented_at: datetime | None
+    consented_by: PrincipalRef | None
+    consent_needs_update: bool
+
+
+class MonitorSource(BaseModel):
+    source_id: UUID
+    label: str
+    story_id: str
+    coverage: str
+    health_state: str
+    health_changed_at: datetime | None
+    last_event_at: datetime | None
+    last_heartbeat_at: datetime | None
+    heartbeat_seconds: int
+    expires_at: datetime
+    previous_valid_until: datetime | None
+    revoked_at: datetime | None
+    last_refusal_code: str | None
+    accepted_count: int
+    # Whether this administrator may rotate or revoke it: an administrator narrowed to Spaces
+    # reads a source in a Space they only review and changes none there.
+    administered: bool
+
+
+class MonitorStory(BaseModel):
+    external_id: str
+    name: str
+    coverage_class: str | None
+    coverage: str
+    gap_opened_at: datetime | None
+    action_count: int
+    any_outbound: bool
+    any_unknown: bool
+    source_id: str | None
+    # Whether the source named beside the story is in a Space the reader sees and, only for one
+    # they see, whether its token has expired, so it does not report the story now; a source
+    # elsewhere is its identifier alone, and both are false when none is named. An open gap
+    # beside a source that can report means that no inventory pass has run since, or, where the
+    # story's connection was revoked (`connection_revoked`), that none ever will: a revoked
+    # connection is not collected again.
+    source_expired: bool
+    source_visible: bool
+    connection_revoked: bool
+    disabled: bool | None
+
+
+class MonitorCredential(BaseModel):
+    external_id: str
+    name: str
+    item_type: str | None
+    source_updated_at: datetime | None
+    gone_at: datetime | None
+
+
+class MonitorObservation(BaseModel):
+    observation_id: UUID
+    occurred_at: datetime
+    received_at: datetime
+    kind: str
+    story_id: str | None
+    action: str | None
+    evidence: str
+    operation_name: str | None
+    actor_ref: str | None
+    target_ref: str | None
+    outcome: str | None
+    evaluation_state: str
+    evaluation_result: str | None
+    integrity_conflict_at: datetime | None
+    # The findings raised on this observation, in the spaces the reader sees.
+    finding_ids: list[UUID]
+
+
+class MonitorFindingAgent(BaseModel):
+    """The directory agent a finding of an agent rule is about. The sponsors are counted, not
+    sent."""
+
+    agent_id: UUID
+    display_name: str
+    identity_class: str
+    sponsor_state: str
+    sponsor_count: int
+    owner_count: int | None
+    linked_principal_id: UUID | None
+
+
+class MonitorFinding(BaseModel):
+    finding_id: UUID
+    title: str
+    rule_version: str
+    profile_version: int | None
+    created_at: datetime
+    source_id: UUID | None
+    connection_id: UUID | None
+    observation_id: UUID | None
+    story_id: str | None
+    action: str | None
+    target_ref: str | None
+    outcome: str | None
+    acknowledged_at: datetime | None
+    acknowledged_by: UUID | None
+    # The person who acknowledged it, by kind and number (#678).
+    acknowledged_by_ref: PrincipalRef | None
+    # The acknowledging administrator's own note, screened at the write; rendered as text.
+    acknowledgement_note: str | None
+    # What the finding is about, by rule: the directory agent, the connection or the source.
+    agent: MonitorFindingAgent | None
+    connection_label: str | None
+    source_label: str | None
+
+
+class MonitorFindingCounts(BaseModel):
+    open: int
+    acknowledged: int
+
+
+class MonitorDelivery(BaseModel):
+    delivery_id: UUID
+    finding_id: UUID
+    created_at: datetime
+    state: str
+    attempts: int
+    last_error: str | None
+
+
+class MonitorProfile(BaseModel):
+    version: int
+    created_at: datetime
+
+
+class MonitorSnapshot(BaseModel):
+    connections: list[MonitorConnection]
+    sources: list[MonitorSource]
+    stories: list[MonitorStory]
+    credentials: list[MonitorCredential]
+    observations: list[MonitorObservation]
+    findings: list[MonitorFinding]
+    deliveries: list[MonitorDelivery]
+    profile: MonitorProfile | None
+    open_findings: int
+
+
+class MonitorFindings(BaseModel):
+    """The findings in one state, newest first and at most 200, with both totals counted in
+    SQL beyond the page, and the active detection profile."""
+
+    state: FindingState
+    findings: list[MonitorFinding]
+    counts: MonitorFindingCounts
+    profile: MonitorProfile | None
+
+
+class MonitorSponsor(BaseModel):
+    kind: str
+    ref: str
+
+
+class MonitorAgentRow(BaseModel):
+    agent_id: UUID
+    platform_ref: str
+    identity_class: str
+    display_name: str
+    enabled: bool | None
+    sponsor_state: str
+    sponsors: list[MonitorSponsor]
+    owner_count: int | None
+    tags: list[str]
+    linked_principal_id: UUID | None
+    linked_principal_ref: PrincipalRef | None
+    consequential: int
+    governed: int
+    lapsed: int
+    unresolved: int
+    open_findings: int
+
+
+class MonitorAgentsTenant(BaseModel):
+    enumerated: int
+    shown: int
+    with_reach: int
+    governed: int
+    unestablished: int
+
+
+class MonitorAgents(BaseModel):
+    agents: list[MonitorAgentRow]
+    consequential: list[str]
+    tenant: MonitorAgentsTenant
+
+
+class MonitorAgentIdentity(BaseModel):
+    agent_id: UUID
+    connection_id: UUID
+    platform_ref: str
+    identity_class: str
+    display_name: str
+    enabled: bool | None
+    sponsor_state: str
+    sponsors: list[MonitorSponsor]
+    owner_count: int | None
+    tags: list[str]
+    blueprint_ref: str | None
+    credential_kinds: list[str]
+    linked_principal_id: UUID | None
+    linked_principal_ref: PrincipalRef | None
+    first_seen_at: datetime
+    observed_at: datetime
+
+
+class MonitorGrant(BaseModel):
+    grant_kind: str
+    resource_ref: str
+    value: str
+    inherited: bool
+    path_ref: str
+    observed_at: datetime
+    gone_at: datetime | None
+    actions: list[str]
+    breadth: str | None
+
+
+class MonitorReach(BaseModel):
+    action: str
+    path_kind: str
+    path_ref: str
+    certainty: str
+    effective: str
+    enforcement_mode: str
+    catalog_version: str
+    valid_until: datetime
+    gone_at: datetime | None
+    reason_code: str | None
+    accepted_at: datetime | None
+
+
+class MonitorAgentFinding(BaseModel):
+    finding_id: UUID
+    rule_version: str
+    title: str
+    created_at: datetime
+    acknowledged_at: datetime | None
+
+
+class MonitorAgentObservation(BaseModel):
+    occurred_at: datetime
+    kind: str
+    action: str | None
+    outcome: str | None
+    operation_name: str | None
+
+
+class MonitorAgentDetail(BaseModel):
+    agent: MonitorAgentIdentity
+    grants: list[MonitorGrant]
+    reach: list[MonitorReach]
+    findings: list[MonitorAgentFinding]
+    observations: list[MonitorAgentObservation]
+    unresolved: int
+
+
+class AcknowledgeFinding(BaseModel):
+    """An optional note; `{}` acknowledges with none. The store trims and screens it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = Field(default=None, max_length=monitor_store.NOTE_LIMIT)
+
+
+class AcknowledgeFindings(BaseModel):
+    """One to 50 distinct canonical finding identifiers and one optional note for them all."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    finding_ids: list[str] = Field(min_length=1, max_length=monitor_store.BULK_LIMIT)
+    note: str | None = Field(default=None, max_length=monitor_store.NOTE_LIMIT)
+
+
+class MonitorAcknowledgement(BaseModel):
+    finding_id: UUID
+    # `unavailable` is a finding outside the spaces the reader sees or one that does not
+    # exist, which are not told apart.
+    outcome: Literal["acknowledged", "already_acknowledged", "unavailable"]
+
+
+class MonitorAcknowledgements(BaseModel):
+    """One answer per requested finding, in request order, as the server decided it."""
+
+    results: list[MonitorAcknowledgement]
+
+
+def coverage_word(source: dict[str, Any], now: datetime) -> str:
+    """The word the Connections page puts beside a source, computed as the page computes it."""
+    heartbeat = source["last_heartbeat_at"]
+    if not source["active"] or source["revoked_at"] is not None:
+        return "Disabled"
+    if now >= source["expires_at"]:
+        return "Expired"
+    if heartbeat is None:
+        return "No heartbeat"
+    if (now - heartbeat).total_seconds() > source["heartbeat_seconds"] * 2:
+        return "Stale"
+    return "Reporting"
+
+
+def _facts(rows: Any) -> dict[UUID, PrincipalFacts]:
+    return {
+        row["principal_id"]: PrincipalFacts(row["kind"], row["label"], row["number"])
+        for row in rows or []
+    }
+
+
+def _finding(row: dict[str, Any], facts: dict[UUID, PrincipalFacts]) -> MonitorFinding:
+    """One finding as every route answers it, so the snapshot, the list and the single read
+    cannot drift."""
+    agent = (
+        None
+        if row["agent_id"] is None or row["display_name"] is None
+        else MonitorFindingAgent(
+            agent_id=row["agent_id"],
+            display_name=row["display_name"],
+            identity_class=row["identity_class"],
+            sponsor_state=row["sponsor_state"],
+            sponsor_count=int(row["sponsor_count"] or 0),
+            owner_count=row["owner_count"],
+            linked_principal_id=row["linked_principal_id"],
+        )
+    )
+    return MonitorFinding(
+        **{
+            key: row[key]
+            for key in MonitorFinding.model_fields
+            if key not in {"acknowledged_by_ref", "agent"}
+        },
+        acknowledged_by_ref=principal_ref(row["acknowledged_by"], facts),
+        agent=agent,
+    )
+
+
+def _profile(rows: list[dict[str, Any]]) -> MonitorProfile | None:
+    profile = rows[0] if rows else None
+    if profile is None:
+        return None
+    return MonitorProfile(version=profile["version"], created_at=profile["created_at"])
+
+
+# Computed for each connection rather than read from its row.
+_CONNECTION_COMPUTED = frozenset(
+    {
+        "capabilities",
+        "overdue_since",
+        "reporting",
+        "collect_interval_seconds",
+        "activity_interval_seconds",
+        "collect_requested_by",
+        "consented_by",
+        "consent_needs_update",
+        "collecting",
+        "next_due_at",
+    }
+)
+
+
+def _connection(
+    row: dict[str, Any], facts: dict[UUID, PrincipalFacts], now: datetime
+) -> MonitorConnection:
+    collect, activity = due.intervals(row)
+    return MonitorConnection(
+        **{
+            key: row[key]
+            for key in MonitorConnection.model_fields
+            if key not in _CONNECTION_COMPUTED
+        },
+        capabilities={
+            str(name): MonitorCapability(**value)
+            for name, value in (row["capabilities"] or {}).items()
+            if isinstance(value, dict)
+        },
+        overdue_since=monitor_store.collection_overdue_since(row, now),
+        reporting=monitor_store.collection_reporting(row, now),
+        collect_interval_seconds=collect,
+        activity_interval_seconds=activity,
+        collect_requested_by=principal_ref(row["collect_requested_by"], facts),
+        consented_by=principal_ref(row["consented_by"], facts),
+        consent_needs_update=bool(row["consent_needs_update"]),
+        collecting=row["collecting_until"] is not None and row["collecting_until"] > now,
+        next_due_at=due.due_at(row, now),
+    )
+
+
+def read_snapshot(runtime: Runtime, session: Session) -> MonitorSnapshot:
+    rows = monitor_store.snapshot(runtime.db, session, clock=runtime.clock)
+    now = runtime.clock.now()
+    acknowledgers = _facts(rows.get("acknowledgers"))
+    requesters = _facts(rows.get("requesters"))
+    return MonitorSnapshot(
+        connections=[_connection(row, requesters, now) for row in rows["connections"]],
+        sources=[
+            MonitorSource(
+                **{key: row[key] for key in MonitorSource.model_fields if key != "coverage"},
+                coverage=coverage_word(row, now),
+            )
+            for row in rows["sources"]
+        ],
+        stories=[
+            MonitorStory(
+                **{key: row[key] for key in MonitorStory.model_fields if key != "coverage"},
+                coverage=COVERAGE_LABELS.get(row["coverage_class"], COVERAGE_LABELS[None]),
+            )
+            for row in rows["coverage"]
+        ],
+        credentials=[
+            MonitorCredential(**{key: row[key] for key in MonitorCredential.model_fields})
+            for row in rows["inventory"]
+            if row["item_kind"] == "credential"
+        ],
+        observations=[
+            MonitorObservation(
+                **{
+                    key: row[key] for key in MonitorObservation.model_fields if key != "finding_ids"
+                },
+                finding_ids=list(row["finding_ids"] or []),
+            )
+            for row in rows["observations"]
+        ],
+        findings=[_finding(row, acknowledgers) for row in rows["findings"]],
+        deliveries=[
+            MonitorDelivery(**{key: row[key] for key in MonitorDelivery.model_fields})
+            for row in rows["deliveries"]
+        ],
+        profile=_profile(rows["profile"]),
+        # Counted in SQL under the same predicate, so it is right beyond the 200 shown.
+        open_findings=int(rows["counts"]["open"]),
+    )
+
+
+def read_findings(runtime: Runtime, session: Session, state: str) -> MonitorFindings:
+    rows = monitor_store.findings(runtime.db, session, state, clock=runtime.clock)
+    facts = _facts(rows["principals"])
+    return MonitorFindings(
+        state=cast(FindingState, state),
+        findings=[_finding(row, facts) for row in rows["findings"]],
+        counts=MonitorFindingCounts(**rows["counts"]),
+        profile=_profile(rows["profile"]),
+    )
+
+
+def read_finding(runtime: Runtime, session: Session, finding_id: UUID) -> MonitorFinding:
+    found = monitor_store.finding(runtime.db, session, finding_id, clock=runtime.clock)
+    return _finding(found["finding"], _facts(found["principals"]))
+
+
+def _sponsors(value: Any) -> list[MonitorSponsor]:
+    if not isinstance(value, list):
+        return []
+    return [
+        MonitorSponsor(kind=str(item.get("kind", "")), ref=str(item.get("ref", "")))
+        for item in value
+        if isinstance(item, dict)
+    ]
+
+
+def _tags(value: Any) -> list[str]:
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
+def read_agents(runtime: Runtime, session: Session) -> MonitorAgents:
+    rows = monitor_store.agents_snapshot(runtime.db, session, clock=runtime.clock)
+    facts = _facts(rows.get("principals"))
+    return MonitorAgents(
+        agents=[
+            MonitorAgentRow(
+                **{
+                    key: row[key]
+                    for key in MonitorAgentRow.model_fields
+                    if key not in {"sponsors", "tags", "linked_principal_ref"}
+                },
+                sponsors=_sponsors(row["sponsors"]),
+                tags=_tags(row["tags"]),
+                linked_principal_ref=principal_ref(row["linked_principal_id"], facts),
+            )
+            for row in rows["agents"]
+        ],
+        consequential=list(rows["consequential"]),
+        tenant=MonitorAgentsTenant(**rows["tenant"]),
+    )
+
+
+def read_agent(runtime: Runtime, session: Session, agent_id: UUID) -> MonitorAgentDetail:
+    detail = monitor_store.agent_detail(runtime.db, session, agent_id, clock=runtime.clock)
+    agent = detail["agent"]
+    return MonitorAgentDetail(
+        agent=MonitorAgentIdentity(
+            **{
+                key: agent[key]
+                for key in MonitorAgentIdentity.model_fields
+                if key not in {"sponsors", "tags", "credential_kinds", "linked_principal_ref"}
+            },
+            sponsors=_sponsors(agent["sponsors"]),
+            tags=_tags(agent["tags"]),
+            credential_kinds=_tags(agent["credential_kinds"]),
+            linked_principal_ref=principal_ref(
+                agent["linked_principal_id"], _facts(detail.get("principals"))
+            ),
+        ),
+        grants=[
+            MonitorGrant(**{key: row[key] for key in MonitorGrant.model_fields})
+            for row in detail["grants"]
+        ],
+        reach=[
+            MonitorReach(**{key: row[key] for key in MonitorReach.model_fields})
+            for row in detail["reach"]
+        ],
+        findings=[
+            MonitorAgentFinding(**{key: row[key] for key in MonitorAgentFinding.model_fields})
+            for row in detail["findings"]
+        ],
+        observations=[
+            MonitorAgentObservation(
+                **{key: row[key] for key in MonitorAgentObservation.model_fields}
+            )
+            for row in detail["observations"]
+        ],
+        unresolved=int(detail["unresolved"]),
+    )
+
+
+def _identifier(raw: str) -> UUID:
+    """A path segment as one identifier; anything else is an address that does not exist."""
+    try:
+        parsed = UUID(raw)
+    except ValueError:
+        raise ApiError("NOT_FOUND") from None
+    if str(parsed) != raw:
+        raise ApiError("NOT_FOUND")
+    return parsed
+
+
+def _finding_ids(raw: list[str]) -> list[UUID]:
+    """A batch's identifiers, each canonical and none twice; anything else is the body's fault,
+    named, so a typo is never answered as a finding outside the reader's spaces."""
+    parsed: list[UUID] = []
+    for value in raw:
+        try:
+            identifier = UUID(value)
+        except ValueError:
+            raise ApiError("INVALID_BODY", fields=["finding_ids"]) from None
+        if str(identifier) != value:
+            raise ApiError("INVALID_BODY", fields=["finding_ids"])
+        parsed.append(identifier)
+    if len(set(parsed)) != len(parsed):
+        raise ApiError("INVALID_BODY", fields=["finding_ids"])
+    return parsed
+
+
+def _read(read: Any) -> Any:
+    try:
+        return read()
+    except MonitorError as exc:
+        if exc.code in {"AGENT_UNAVAILABLE", "FINDING_UNAVAILABLE"}:
+            raise ApiError("NOT_FOUND") from None
+        if exc.code == "INVALID_ADMIN":
+            raise ApiError("FORBIDDEN") from None
+        # The note is refused by name and never repeated.
+        if exc.code == "INVALID_NOTE":
+            raise ApiError("INVALID_BODY", fields=["note"]) from None
+        if exc.code == "INVALID_INPUT":
+            raise ApiError("INVALID_BODY", fields=["finding_ids"]) from None
+        # A note for a finding someone acknowledged first: it was not saved.
+        if exc.code == "ACKNOWLEDGED":
+            raise ApiError("CONFLICT") from None
+        raise ApiError("UNAVAILABLE") from None
+
+
+def monitoring_routes(
+    routes: APIRouter, runtime: Runtime, config: HumanConfig, guards: ApiGuards
+) -> None:
+    @routes.get("/monitor", response_model=MonitorSnapshot, operation_id="readMonitor")
+    async def read_monitor(request: Request) -> MonitorSnapshot:
+        current, _ = await guards.session(request, kind="ADMIN")
+        return await run_in_threadpool(_read, lambda: read_snapshot(runtime, current))
+
+    @routes.get("/monitor/agents", response_model=MonitorAgents, operation_id="readMonitorAgents")
+    async def read_monitor_agents(request: Request) -> MonitorAgents:
+        current, _ = await guards.session(request, kind="ADMIN")
+        return await run_in_threadpool(_read, lambda: read_agents(runtime, current))
+
+    @routes.get(
+        "/monitor/agents/{agent_id}",
+        response_model=MonitorAgentDetail,
+        operation_id="readMonitorAgent",
+    )
+    async def read_monitor_agent(request: Request, agent_id: str) -> MonitorAgentDetail:
+        current, _ = await guards.session(request, kind="ADMIN")
+        identifier = _identifier(agent_id)
+        return await run_in_threadpool(_read, lambda: read_agent(runtime, current, identifier))
+
+    @routes.get(
+        "/monitor/findings", response_model=MonitorFindings, operation_id="readMonitorFindings"
+    )
+    async def read_monitor_findings(request: Request, state: str = "open") -> MonitorFindings:
+        current, _ = await guards.session(request, query=frozenset({"state"}), kind="ADMIN")
+        if state not in FINDING_STATES:
+            raise ApiError("INVALID_REQUEST")
+        return await run_in_threadpool(_read, lambda: read_findings(runtime, current, state))
+
+    # Declared before the `{finding_id}` routes, so `acknowledge` is matched as itself.
+    @routes.post(
+        "/monitor/findings/acknowledge",
+        response_model=MonitorAcknowledgements,
+        operation_id="acknowledgeFindings",
+        openapi_extra=body(AcknowledgeFindings),
+    )
+    async def acknowledge_findings(request: Request) -> MonitorAcknowledgements:
+        current, values = await guards.mutation(request, AcknowledgeFindings, kind="ADMIN")
+        identifiers = _finding_ids(values.finding_ids)
+
+        def apply() -> MonitorAcknowledgements:
+            results = monitor_store.acknowledge_many(
+                runtime.db, current, identifiers, note=values.note, clock=runtime.clock
+            )
+            return MonitorAcknowledgements(
+                results=[
+                    MonitorAcknowledgement(finding_id=finding, outcome=cast(Any, outcome))
+                    for finding, outcome in results
+                ]
+            )
+
+        return await run_in_threadpool(_read, apply)
+
+    @routes.get(
+        "/monitor/findings/{finding_id}",
+        response_model=MonitorFinding,
+        operation_id="readMonitorFinding",
+    )
+    async def read_monitor_finding(request: Request, finding_id: str) -> MonitorFinding:
+        current, _ = await guards.session(request, kind="ADMIN")
+        identifier = _identifier(finding_id)
+        return await run_in_threadpool(_read, lambda: read_finding(runtime, current, identifier))
+
+    @routes.post(
+        "/monitor/findings/{finding_id}/acknowledge",
+        response_model=MonitorSnapshot,
+        operation_id="acknowledgeFinding",
+        openapi_extra=body(AcknowledgeFinding),
+    )
+    async def acknowledge_finding(request: Request, finding_id: str) -> MonitorSnapshot:
+        current, values = await guards.mutation(request, AcknowledgeFinding, kind="ADMIN")
+        identifier = _identifier(finding_id)
+
+        def apply() -> MonitorSnapshot:
+            monitor_store.acknowledge(
+                runtime.db, current, identifier, note=values.note, clock=runtime.clock
+            )
+            return read_snapshot(runtime, current)
+
+        return await run_in_threadpool(_read, apply)

@@ -1,0 +1,35 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The shell's surfaces that load on demand (#678): the keyboard list and its switch, the
+   palette's hints, the navigation sheet and the notifications panel. Each imports this sheet, so
+   its rules load with the first of them and never with a page's first frame. Tokens only; both
+   schemes come from the tokens on :root. */
+
+/* The keyboard list's pages and its switch; the switch also sits in My account's Appearance. */
+.keys-heading { margin: 16px 22px 4px; font-size: 13px; color: var(--eb-muted); font-weight: 600; }
+.keys-foot { padding: 12px 22px 18px; border-top: 1px solid var(--eb-line); margin-top: 8px; }
+/* The palette's matched word and a page's keys, after its label. */
+.palette-alias { margin-left: 8px; color: var(--eb-muted); font-size: 12px; }
+.palette-key { margin-left: auto; color: var(--eb-muted); font-size: 11px; }
+/* The breadcrumb's "…" disclosure and the ancestors it lists. */
+.crumb-more-button { border: 0; background: none; color: inherit; font: inherit; padding: 0 4px; border-radius: 4px; cursor: pointer; }
+.crumb-more-button:hover { color: var(--eb-text); }
+.crumb-more-list { position: absolute; top: calc(100% + 8px); left: 0; z-index: 80; list-style: none; margin: 0; padding: 6px; min-width: 200px; max-width: min(320px, 80vw); background: var(--eb-surface); border: 1px solid var(--eb-line); border-radius: 8px; box-shadow: var(--eb-shadow); }
+.crumb-more-list[hidden] { display: none; }
+.crumb-more-list li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs .crumb-more-list li::before { content: none; margin: 0; }
+.crumb-more-list a { display: block; padding: 6px 8px; border-radius: 6px; color: var(--eb-text); text-decoration: none; }
+.crumb-more-list a:hover, .crumb-more-list a:focus-visible { background: var(--eb-surface2); }
+/* The phone's navigation sheet: from the left, the full height, at most 85% of the width, with
+   the sidebar's ground and lines; it scrolls inside itself. */
+.nav-sheet { position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: min(320px, 85vw); display: flex; flex-direction: column; background: var(--eb-side); border-right: 1px solid var(--eb-line); box-shadow: var(--eb-shadow); overflow-y: auto; overscroll-behavior: contain; }
+.nav-sheet .drawer-head { position: sticky; top: 0; background: var(--eb-side); z-index: 1; }
+.nav-sheet-body { padding: 4px 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+.nav-sheet-body .search { width: 100%; }
+.nav-sheet-body .nav-link { min-height: 44px; }
+.nav-sheet-foot { border-top: 1px solid var(--eb-line); margin-top: 8px; padding-top: 8px; }
+.nav-sheet .account { padding: 12px 10px 0; border-top: 1px solid var(--eb-line); margin-top: 8px; }
+/* The bell's panel: what is waiting on this person, then the sign-in security log. */
+.notifications-heading { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--eb-muted); }
+.waiting-list { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 10px; }
+.waiting-row { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--eb-line); border-radius: 8px; }
+.waiting-row a { justify-self: start; margin-top: 4px; }

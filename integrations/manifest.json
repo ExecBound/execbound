@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "integrations": [
+    {
+      "id": "execbound-client-http",
+      "name": "execbound-client over HTTP (Python)",
+      "placement": "Execute",
+      "mode": "Native",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": "0.1.0", "protocol": "HTTP v1"},
+      "evidence": {
+        "tests": [
+          "tests/test_client_package.py::test_waits_for_approval_then_progresses_the_same_intent",
+          "tests/test_demo_command.py::test_the_beats_run_without_an_admin_credential_and_take_the_origin_from_the_environment"
+        ],
+        "trial": null
+      },
+      "recipe": "clients/python/README.md",
+      "limits": [
+        "The boundary beat is the bypass test: the agent holds the gateway credential and nothing else; a host that can reach the upstream credential is outside this row"
+      ],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "mcp-official-sdk",
+      "name": "MCP with the official Python SDK",
+      "placement": "Execute",
+      "mode": "Native",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": "2.3.0", "protocol": "2026-07-28"},
+      "evidence": {
+        "tests": [
+          "tests/test_mcp_surface.py::test_current_mcp_pending_identity_switch_and_http_retry",
+          "tests/test_examples.py::test_mcp_example_completes_the_same_flow_through_the_sdk"
+        ],
+        "trial": null
+      },
+      "recipe": "examples/README.md",
+      "limits": ["Static bearer credential per host; there is no MCP authorization server yet"],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "mcp-maintained-client",
+      "name": "MCP with the maintained 1.30 client",
+      "placement": "Execute",
+      "mode": "Native",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": "1.30.0", "protocol": "2025-11-25"},
+      "evidence": {
+        "tests": ["tests/test_mcp_surface.py::test_actual_maintained_mcp_client"],
+        "trial": null
+      },
+      "recipe": "examples/README.md",
+      "limits": ["Hash-locked legacy client environment (tests/mcp-legacy.txt); static bearer only"],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "placement": "Execute",
+      "mode": "Unknown",
+      "state": "research-only",
+      "versions": {"execbound": null, "host": null, "sdk": null, "protocol": null},
+      "evidence": {"tests": [], "trial": null},
+      "recipe": "src/execbound/surfaces/templates/recipes/claude_code.sh",
+      "limits": ["Promoted by its trial record under docs/trials/ (the named host trial)"],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "placement": "Execute",
+      "mode": "Unknown",
+      "state": "research-only",
+      "versions": {"execbound": null, "host": null, "sdk": null, "protocol": null},
+      "evidence": {"tests": [], "trial": null},
+      "recipe": "src/execbound/surfaces/templates/recipes/cursor.json",
+      "limits": ["Promoted by its trial record under docs/trials/, after the Claude Code trial"],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "openai-agents-sdk-tool",
+      "name": "OpenAI Agents SDK tool example",
+      "placement": "Execute",
+      "mode": "Native",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": "0.22.2", "protocol": "HTTP v1"},
+      "evidence": {
+        "tests": [
+          "tests/test_sdk_examples.py::test_the_sdk_tool_example_lists_then_waits_for_a_person_and_acts_once[openai-agents]",
+          "tests/test_demo_command.py::test_the_beats_run_without_an_admin_credential_and_take_the_origin_from_the_environment"
+        ],
+        "trial": null
+      },
+      "recipe": "clients/python/examples/openai_agents_tool.py",
+      "limits": [
+        "A scripted model stands in for the OpenAI model; the Runner, the function tools and the tools' results are the SDK's own",
+        "The scripted calls are fixed: the script lists the space's actions, then asks for the action the listing names; no model chooses from the listing",
+        "The boundary beat is the bypass test: the agent holds the gateway credential and nothing else; a host that gives the model another path to the provider is outside this row"
+      ],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "claude-agent-sdk-tool",
+      "name": "Claude Agent SDK tool example",
+      "placement": "Execute",
+      "mode": "Native",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": "0.2.153", "protocol": "HTTP v1"},
+      "evidence": {
+        "tests": [
+          "tests/test_sdk_examples.py::test_the_sdk_tool_example_lists_then_waits_for_a_person_and_acts_once[claude-agent-sdk]",
+          "tests/test_demo_command.py::test_the_beats_run_without_an_admin_credential_and_take_the_origin_from_the_environment"
+        ],
+        "trial": null
+      },
+      "recipe": "clients/python/examples/claude_agent_sdk_tool.py",
+      "limits": [
+        "A scripted caller stands in for Claude Code and reaches the tools over the SDK's in-process MCP server; the Claude Code CLI itself is not run",
+        "The scripted calls are fixed: the script lists the space's actions, then asks for the action the listing names; no model chooses from the listing",
+        "The boundary beat is the bypass test: the agent holds the gateway credential and nothing else; a host that gives the model another path to the provider is outside this row"
+      ],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "tines-governed-action",
+      "name": "Tines governed-action story",
+      "placement": "Execute",
+      "mode": "Advisory",
+      "state": "platform-validated",
+      "versions": {"execbound": "0.1.0", "host": "Tines schema 30, lib 96, runtime 88", "sdk": null, "protocol": null},
+      "evidence": {
+        "tests": [
+          "tests/test_tines_story.py::test_the_rendered_wire_body_is_one_the_gateway_accepts",
+          "tests/test_tines_story.py::test_pending_deadlines_read_cumulative_seconds_from_the_date_diff_object",
+          "tests/test_tines_story.py::test_pending_outcomes_preserve_the_gateways_flat_approval_fields",
+          "tests/test_tines_story.py::test_native_transport_failures_stop_as_uncertain_without_another_send",
+          "tests/test_tines_story.py::test_server_errors_never_claim_refusal_or_start_an_extra_retry_loop"
+        ],
+        "trial": "docs/trials/2026-09-22-tines-response-recovery.md"
+      },
+      "recipe": "integrations/tines/README.md",
+      "limits": [
+        "Recorded trial: allow, deny, approval/refusal, same-reference retry, pending polling and wait-boundary resume ran in Tines; the AI caller returned allow, deny and pending; independent protected-mock journals corroborated outcomes",
+        "Shared-impact follow-up: ten Tines and ten second-agent HTTP actions filled one tenant limit; both overflows were denied and retries retained twenty charges and one mock mutation per successful operation",
+        "Expiry and malformed-target rejection passed on the hosted pilot; controlled Tines 503, 429-exhaustion and DNS faults exercised bounded retries and the explicit-uncertainty correction",
+        "Recovery at a513c8f: dropped response after mock effect, corrected 502 uncertainty and same-reference recovery retained one mutation and charge; alternate-story provider calls returned 401 and its gateway call remained denied",
+        "Signed-in Android approval passed; cold signed-out return and gateway-to-provider loss remain separate; the endpoint provider is a protected mock, and the pilot has no declared dispatch precondition",
+        "Advisory rather than Native: the story calls ExecBound voluntarily and nothing forces the call, so a story that skips it is not governed by anything"
+      ],
+      "landscape": "#security-and-automation-platforms"
+    },
+    {
+      "id": "tines-gate",
+      "name": "Tines Gate story",
+      "placement": "Gate",
+      "mode": "Advisory",
+      "state": "platform-validated",
+      "versions": {"execbound": "0.1.0", "host": "Tines schema 30, lib 95, runtime 88", "sdk": null, "protocol": null},
+      "evidence": {
+        "tests": [
+          "tests/test_tines_gate_story.py::test_the_committed_story_is_what_the_generator_writes",
+          "tests/test_tines_gate_captured.py::test_the_captured_decision_body_parses_as_the_gates_action_request",
+          "tests/test_tines_gate_captured.py::test_the_reports_journal_is_a_signed_journal_for_a_contain_command"
+        ],
+        "trial": "docs/trials/2026-09-24-tines-gate.md"
+      },
+      "recipe": "integrations/tines/README.md",
+      "limits": [
+        "Cooperative: any Tines story holding execbound_gate_vendor can call the vendor directly, without asking ExecBound; the trial proved this bypass, which is the reason Gate is Advisory rather than Integrated",
+        "The signing credential cannot be host-restricted; any story in the team holding execbound_gate_signing can produce a valid attestation for any grant it can read",
+        "Principal separation is owner provisioning, not a control the seed ships with: the trial found the Gate credential reaching the Execute mapping until two Cedar forbids were activated by hand",
+        "Mock vendor only: the protected mock signs journals with an HMAC key in the gateway's own configuration; no real vendor was exercised"
+      ],
+      "landscape": "#security-and-automation-platforms"
+    },
+    {
+      "id": "claude-desktop-connectors",
+      "name": "Claude Desktop and claude.ai connectors",
+      "placement": "Execute",
+      "mode": "Unknown",
+      "state": "research-only",
+      "versions": {"execbound": null, "host": null, "sdk": null, "protocol": null},
+      "evidence": {"tests": [], "trial": null},
+      "recipe": null,
+      "limits": ["Waits for the MCP authorization server; these hosts accept OAuth only, not a static bearer credential"],
+      "landscape": null
+    },
+    {
+      "id": "checkpoint-protocol",
+      "name": "External execution checkpoint",
+      "placement": "Gate",
+      "mode": "Integrated",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": null, "protocol": "checkpoint v1"},
+      "evidence": {
+        "tests": [
+          "tests/test_checkpoint.py::test_gc1_a_deployed_checkpoint_answers_with_a_grant_and_dispatches_nothing",
+          "tests/test_checkpoint.py::test_gc5_a_denied_checkpoint_grants_nothing_and_replays_to_the_same_decision"
+        ],
+        "trial": null
+      },
+      "recipe": "docs/CHECKPOINT.md",
+      "limits": [
+        "Enforced only for the tested profile: the executor's own control point must block execution, bind the exact request and report; an unreported grant is swept to uncertainty and never refunded"
+      ],
+      "landscape": "#shared-integration-architecture"
+    },
+    {
+      "id": "arcade-logic-extension",
+      "name": "Arcade Logic Extension",
+      "placement": "Gate",
+      "mode": "Advisory",
+      "state": "platform-validated",
+      "versions": {"execbound": "0.1.0", "host": "arcade-cloud-2026-09-18", "sdk": "Github 5.0.0", "protocol": null},
+      "evidence": {
+        "tests": [
+          "tests/test_arcade.py::test_al1_a_governed_hook_is_granted_and_nothing_is_dispatched",
+          "tests/test_arcade_schema.py::test_al26_the_runtime_writes_a_correlation_row_and_settles_it",
+          "tests/test_arcade_workflow.py::test_al27_the_fixture_caller_walks_every_branch_the_contract_describes",
+          "tests/test_browser_surfaces.py::test_al28_the_pages_show_an_arcade_carried_execution_as_inert_text"
+        ],
+        "trial": "docs/trials/2026-09-18-arcade-logic-extension.md"
+      },
+      "recipe": "docs/ARCADE.md",
+      "limits": [
+        "Advisory, not the Integrated the design targets: failing closed is a customer setting the extension cannot read, and a post hook is a runtime report not a receipt, so no settlement rises above tier ASSERTED",
+        "One live playground call on 18 September ran the whole chain, so the grant, the report window, the asserted settlement and an administrator's attested correction are measured rather than claimed",
+        "A settlement from a vendor success ran only against the hook process on loopback: a claimed incident must occupy one of the tool's declared inputs and SetStarred has no spare one",
+        "Mode is kept per action path, so an ungoverned toolkit stays Unknown"
+      ],
+      "landscape": "#workflow-and-agent-builder-platforms"
+    },
+    {
+      "id": "tines-monitoring-intake",
+      "name": "Tines instrumented stories (intake)",
+      "placement": "Monitor",
+      "mode": "Observed",
+      "state": "platform-validated",
+      "versions": {"execbound": "0.1.0", "host": "Tines schema 30, lib 97, runtime 88", "sdk": null, "protocol": "monitor events v1"},
+      "evidence": {
+        "tests": [
+          "tests/test_monitoring_http.py::test_event_to_finding_and_admin_ack_preserves_execution_state",
+          "tests/test_tines_monitor_story.py::test_tm1_the_committed_story_is_what_the_generator_writes",
+          "tests/test_tines_monitor_story.py::test_tm3_every_request_sends_json_text_the_way_tines_leaves_it_alone",
+          "tests/test_tines_monitor_story.py::test_tm4_each_result_is_a_body_the_intake_accepts",
+          "tests/test_tines_monitor_captured.py::test_tm5_the_captured_result_is_deduplicated_and_heartbeats_only_refresh"
+        ],
+        "trial": "docs/trials/2026-09-26-tines-monitor.md"
+      },
+      "recipe": "integrations/tines/README.md",
+      "limits": [
+        "Recorded trial: success, error and unknown results, a duplicate retry, a heartbeat stopped until stale and resumed, an unreachable intake, rotation past the grace window, coverage and revocation, all from a real Tines story",
+        "Findings reach only the authenticated loopback receiver; email, Slack, Teams and HTTPS webhook delivery of findings is not built, and the scheduled monitor-process job evaluates without delivering",
+        "Sources are issued from the command line for at most 24 hours, so ongoing instrumentation needs a daily rotation; the trial ran for about forty minutes against a local intake behind a quick tunnel",
+        "Telemetry only: observations and findings never authorize, settle or consume limits; a reported result is the story's account of an effect, not evidence of it, and the trial's vendor was a loopback stub"
+      ],
+      "landscape": "#security-and-automation-platforms"
+    },
+    {
+      "id": "tines-collection",
+      "name": "Tines discovery and collection",
+      "placement": "Monitor",
+      "mode": "Observed",
+      "state": "fixture-tested",
+      "versions": {"execbound": "0.1.0", "host": null, "sdk": null, "protocol": "monitor events v1"},
+      "evidence": {
+        "tests": ["tests/test_tines_collection.py::test_td1_probe_records_every_capability_and_retains_nothing_else"],
+        "trial": "docs/trials/2026-09-26-tines-monitor.md"
+      },
+      "recipe": "docs/TINES_MONITORING.md",
+      "limits": [
+        "Allowlisted story, action and credential metadata; live inventory ran on September 16 and in the September 26 Monitor trial, which also reconciled coverage against a registered source",
+        "Audit and AI-audit collection lack the required account plan and remain fixture-tested"
+      ],
+      "landscape": "#security-and-automation-platforms"
+    },
+    {
+      "id": "entra-agent-id",
+      "name": "Entra Agent ID via Graph (Scout)",
+      "placement": "Monitor",
+      "mode": "Observed",
+      "state": "fixture-tested",
+      "versions": {
+        "execbound": "0.1.0",
+        "host": null,
+        "sdk": null,
+        "protocol": null
+      },
+      "evidence": {
+        "tests": [
+          "tests/test_scout_collection.py::test_a_run_acquires_one_token_and_then_only_reads",
+          "tests/test_scout_run.py::test_a_run_probes_records_and_retains_only_allowlisted_metadata"
+        ],
+        "trial": null
+      },
+      "recipe": "docs/SCOUT.md",
+      "limits": [
+        "The collector and Agents page are implemented; the Entra guide records a September 18 lab probe, but no complete versioned trial record promotes this row",
+        "Inherited allAllowed permissions, real-agent activity attribution and populated customer directories were not exercised by the lab probe; Azure RBAC and role-bearing group paths remain gaps",
+        "Directory reach is evidence of possible authority, not execution prevention; a principal binding governs only its path through ExecBound"
+      ],
+      "landscape": "#managed-cloud-and-developer-platforms"
+    },
+    {
+      "id": "falcon-feed",
+      "name": "CrowdStrike Falcon feed (Edge)",
+      "placement": "Monitor",
+      "mode": "Unknown",
+      "state": "research-only",
+      "versions": {"execbound": null, "host": null, "sdk": null, "protocol": null},
+      "evidence": {"tests": [], "trial": null},
+      "recipe": null,
+      "limits": ["Not built; planned"],
+      "landscape": "#security-and-automation-platforms"
+    },
+    {
+      "id": "coding-agent-proxy",
+      "name": "Coding-agent MCP proxy",
+      "placement": "Monitor",
+      "mode": "Unknown",
+      "state": "research-only",
+      "versions": {"execbound": null, "host": null, "sdk": null, "protocol": null},
+      "evidence": {"tests": [], "trial": null},
+      "recipe": null,
+      "limits": ["Spike: a local MCP proxy that turns a coding agent's tool calls into observations; not started"],
+      "landscape": "#frameworks-custom-hosting-and-adjacent-tools"
+    },
+    {
+      "id": "mde-signal-producer",
+      "name": "Microsoft Defender for Endpoint as a security signal producer",
+      "placement": "Execute",
+      "mode": "Integrated",
+      "state": "platform-validated",
+      "versions": {
+        "execbound": "0.1.0",
+        "host": "Defender for Endpoint API 2026-10-01/03; Tines schema 30, lib 97, runtime 88",
+        "sdk": "0.1.0",
+        "protocol": "security-signal v1"
+      },
+      "evidence": {
+        "tests": [
+          "tests/test_mde_producer_conformance.py::test_the_producers_envelope_is_accepted",
+          "tests/test_mde_producer_conformance.py::test_the_producers_envelope_meets_every_conformance_row",
+          "tests/test_mde_producer_conformance.py::test_the_producers_conflicting_duplicate_keeps_the_first",
+          "tests/test_mde_producer_conformance.py::test_the_producers_verdict_decides_through_the_mapping"
+        ],
+        "trial": "docs/trials/2026-09-30-mde-signal.md"
+      },
+      "recipe": "integrations/mde-producer/README.md",
+      "limits": [
+        "Evidence into Execute decisions, not a placement of its own: the gateway decides, through the operator's reviewed mapping of Defender's risk score",
+        "Integrated only in that a missing, stale, unmapped or revoked verdict fails closed and a changed one cancels an approval; a wrong verdict from Defender is enforced as given",
+        "The machines API supplies its current stored verdict but no sensor liveness, so the source never attests clean and a quiet host reads no_detection",
+        "Live lab trial: None and Medium scores, baseline and signal, hard deny, missing/stale/revoked evidence, approval re-attestation, console evidence, offline replay, and a resolved alert's Medium-to-None drop sending a request to review",
+        "The committed Tines story reached the hosted gateway for the baseline, quiet and compromised hosts, on a synthetic tenant with the protected mock endpoint; the High band, sensor liveness and real endpoint isolation are not established"
+      ],
+      "landscape": "#security-and-automation-platforms"
+    }
+  ]
+}

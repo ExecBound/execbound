@@ -1,0 +1,7 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The notice before a session's hard end (#678), in its own chunk so a cold approval link carries
+   none of it: it wraps under the top bar on a phone, and its one control keeps a 44 px target. */
+@media (max-width: 767px) {
+  .banner-ending { flex-wrap: wrap; padding: 8px 16px; }
+  .banner-ending .btn { min-height: 44px; }
+}

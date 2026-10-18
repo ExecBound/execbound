@@ -1,0 +1,66 @@
+{
+  "additionalProperties": false,
+  "description": "What the executor states about one authorized operation.\n\nIt binds the four fields settlement checks against the frozen command \u2014 the\noperation, the account, the intent hash and the plan hash \u2014 so a record can settle\nexactly the operation it names and no other, and it cannot be replayed onto a second\ngrant. `reported_at` is the executor's own clock and is retained as a reported time.",
+  "properties": {
+    "account_id": {
+      "format": "uuid",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "intent_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Intent Hash",
+      "type": "string"
+    },
+    "operation_id": {
+      "format": "uuid",
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "EXECUTED",
+        "FAILED_NOT_EXECUTED"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "plan_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "EXECUTED",
+        "VERSION_MISMATCH",
+        "CANCELLED_NOT_EXECUTED",
+        "TARGET_NOT_FOUND"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "reported_at": {
+      "format": "date-time",
+      "title": "Reported At",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "operation_id",
+    "account_id",
+    "intent_hash",
+    "plan_hash",
+    "outcome",
+    "reason",
+    "reported_at"
+  ],
+  "title": "ExecutorRecord",
+  "type": "object"
+}

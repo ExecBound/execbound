@@ -1,0 +1,577 @@
+{
+  "gateway_commit": "c1818de46a0e7c72dbe5a0258731fe84dab4daeb",
+  "bundle_id": "b8138742-1833-4935-94cc-5750172cb710",
+  "tenant_id": "<synthetic pilot tenant>",
+  "snapshots": [
+    {
+      "label": "before",
+      "at": "2026-09-21 23:39:56.343270+00:00",
+      "clock": "client",
+      "tenant_confirmed": 0,
+      "tenant_unresolved": 0,
+      "confirmed_by_principal": {}
+    },
+    {
+      "label": "after-b-10-server-time",
+      "at": "2026-09-21 23:41:18.250896+00:00",
+      "clock": "database",
+      "tenant_confirmed": 10,
+      "tenant_unresolved": 0,
+      "confirmed_by_principal": {
+        "5736047f-6077-46d9-9c95-9beda6bcfabe": 10
+      }
+    },
+    {
+      "label": "after-a-10",
+      "at": "2026-09-21 23:41:33.574083+00:00",
+      "clock": "database",
+      "tenant_confirmed": 20,
+      "tenant_unresolved": 0,
+      "confirmed_by_principal": {
+        "5736047f-6077-46d9-9c95-9beda6bcfabe": 10,
+        "b5de6d4f-34c4-4120-9ccc-c09fa53197ad": 10
+      }
+    },
+    {
+      "label": "after-overflow-retries",
+      "at": "2026-09-21 23:41:59.360372+00:00",
+      "clock": "database",
+      "tenant_confirmed": 20,
+      "tenant_unresolved": 0,
+      "confirmed_by_principal": {
+        "5736047f-6077-46d9-9c95-9beda6bcfabe": 10,
+        "b5de6d4f-34c4-4120-9ccc-c09fa53197ad": 10
+      }
+    }
+  ],
+  "executions": [
+    {
+      "execution_id": "9c46d0fd-43af-47e5-ae6a-1b629436e978",
+      "operation_id": "7136081a-b505-4216-a4d9-4abe43c38d6e",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "c939071f-673c-40e8-9eb6-1099640ebc2e",
+      "provider_target": "workstation-14",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:40.922410+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-14",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "832d79100c4441779101128dc0ae35906da90499bd5172a27ac28306177bd08d"
+    },
+    {
+      "execution_id": "a2fd59b9-219a-4a6c-a37c-2d244fc5800b",
+      "operation_id": "351b4c89-9a65-4871-abb2-d08e62320e3a",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "01a25d22-8f74-423a-8bbc-0c152f7fa163",
+      "provider_target": "workstation-15",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:42.205192+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-15",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "e724ccabe3a3fb49de345ed90d8569cda17ce04ced323a6391831013c6772c20"
+    },
+    {
+      "execution_id": "ffc71073-3507-4679-b883-c09d8091f8a8",
+      "operation_id": "64af7ef6-b49b-4eb2-8227-a26a09991dd3",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "1e1cad14-4bba-4760-87e1-c76ceedad861",
+      "provider_target": "workstation-16",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:43.211156+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-16",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "6a286eb41ec21e05ea3818205c751e3d4bbb1373ed4c0ddbef018d79c64cf155"
+    },
+    {
+      "execution_id": "e087837e-2fdb-4c66-bd42-e47ef62769ef",
+      "operation_id": "ac370370-2a29-4501-a292-7f6ccfa1d396",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "0debf6a2-49dd-4ef0-ac84-aa8306446841",
+      "provider_target": "workstation-17",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:44.204091+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-17",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "eb2160270ac9aa50c204ba5272fbb57064cd6c6429b9a9a184454c560f8b085c"
+    },
+    {
+      "execution_id": "09a3992d-7209-42f3-ba7f-94bca5954fd8",
+      "operation_id": "f2228fa2-cdb1-4b30-9a77-799b221efb52",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "c39cd644-d665-4cc2-a850-dfa014b1c915",
+      "provider_target": "workstation-18",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:44.968361+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-18",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "83a066af2b6ab2823420e6528694d7623118ba28aaf36028fd7a8855b987807d"
+    },
+    {
+      "execution_id": "882bad76-a6b4-4854-bd8e-6416d8106459",
+      "operation_id": "ac5c051b-7ba5-46cd-af3f-7ccad665042a",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "5d21c865-21ad-4d62-95f5-d783344aeb40",
+      "provider_target": "workstation-19",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:45.921587+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-19",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "86b5ddf1bf5a4b557fb0ba2fb4dda7b9847b86679a26e0cb1918827392762759"
+    },
+    {
+      "execution_id": "7df0b9e4-783e-4763-8352-10733e87a5a3",
+      "operation_id": "8d452488-7a71-4494-85c7-33003bfe62ac",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "7520768a-40a3-4280-8c59-71c93edc1cd1",
+      "provider_target": "workstation-20",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:46.739955+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-20",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "a3dc4553de7ee3702970c7808a771938aecd56fd03c7242e008b0379bd51e443"
+    },
+    {
+      "execution_id": "c5dfe977-1d53-481e-9677-4a5543abdbc4",
+      "operation_id": "92b687fa-b085-4a06-9f9e-9433563b322d",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "511983e3-709c-4449-b452-db48e681f118",
+      "provider_target": "workstation-21",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:47.514059+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-21",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "b856413d0d7b92796d5bf024aff4e23985226a15eec2edd126981dd2e9f0a877"
+    },
+    {
+      "execution_id": "63e07c8c-4244-4a4b-82ae-3e0d0196dcd4",
+      "operation_id": "79722312-a5b2-4cd3-b306-0fd82a00a9cd",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "178a732c-a52c-4ae5-9eb6-deb42e267525",
+      "provider_target": "workstation-22",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:48.237269+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-22",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "9dacb338f8f57e5f0b1da960a28c26afa202a5f3d4f860a7b41f3a8020bfe245"
+    },
+    {
+      "execution_id": "7fdc52d6-02a7-4d37-aee4-634a10e8bba9",
+      "operation_id": "9c9f1d0d-b374-4658-91b0-2225107872e4",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "33dd7e95-9533-4a2d-8a01-eb9965b658b0",
+      "provider_target": "workstation-23",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:40:48.995221+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-b-23",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "8d35238d9420a99b2bc7acb16b6ed2e5e01ce55556a4e61237c044d79812e986"
+    },
+    {
+      "execution_id": "dad05c55-ea0c-4329-9e52-a99d4c88ae30",
+      "operation_id": "aa3b9929-fa09-4e18-9145-92acf712b780",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "3c042e68-ad57-42a5-ae11-b75412f3a656",
+      "provider_target": "workstation-04",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:19.663021+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-04",
+        "event_id": 1310788561,
+        "story_run": "b0dcd73a-4f79-441a-ab18-dd093809887f",
+        "at": "2026-09-21T23:41:20.654Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "4c2e8a8473b8880a53f53b5503d7d2b25597e1b26f32f0c82e302927690717a3"
+    },
+    {
+      "execution_id": "bfa94079-e227-4a8a-b2b8-44dc79d882d7",
+      "operation_id": "082f6508-3332-4359-a81c-60db7cf82e0b",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "ae34488a-d4dd-4e14-97c6-2ab7258c27cd",
+      "provider_target": "workstation-05",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:20.482741+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-05",
+        "event_id": 1310788753,
+        "story_run": "1dc507eb-4ef3-4927-8c62-33d9796a1f94",
+        "at": "2026-09-21T23:41:22.574Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "2d422fcbd8a69bb9a1305b7c83357db3491df76f028ac5a22f82c01cf420e2d0"
+    },
+    {
+      "execution_id": "57358fe2-422d-4eef-bf1b-c05fd204eb7b",
+      "operation_id": "88078c9f-6a72-44b6-aabe-ebb72c512c4a",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "80f9b4db-7df9-474d-99dc-5d1ed558dc97",
+      "provider_target": "workstation-07",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:20.781195+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-07",
+        "event_id": 1310788727,
+        "story_run": "63c20388-0576-4788-bcd5-a2f4fb190876",
+        "at": "2026-09-21T23:41:22.216Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "2a54957e9b11b868166b64d329fe98802d97286aab1f2c391610e15acdeb0428"
+    },
+    {
+      "execution_id": "879a2c2e-5348-4583-a81f-8092a24a7c19",
+      "operation_id": "3be19b93-d5f3-4a69-8ac2-c016124090c6",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "372c492e-d313-4ca8-9f66-11bcd20e4f1c",
+      "provider_target": "workstation-06",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:21.067046+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-06",
+        "event_id": 1310788788,
+        "story_run": "33122135-6d3d-4b4f-9f13-88d31277490b",
+        "at": "2026-09-21T23:41:23.064Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "236edb84372887b61a4fe5f072e6ed0c69d5235a8405a0f1abd0726c82f80340"
+    },
+    {
+      "execution_id": "ef5f35cb-98e9-4b2c-8172-2626c7482872",
+      "operation_id": "9492477a-cd65-4194-8c7d-dee6d473700e",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "87a1d372-7640-4887-b004-2736e2316777",
+      "provider_target": "workstation-08",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:21.472729+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-08",
+        "event_id": 1310788807,
+        "story_run": "1dda3e5b-29a1-4668-9c3e-88eb103aaaa9",
+        "at": "2026-09-21T23:41:23.328Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "20cfd3676dc29400a73b560f504dcf7ea06ab3a7a8e9c83bc31225b8c97177cb"
+    },
+    {
+      "execution_id": "0e563f95-90c6-432d-a465-0df8c121170c",
+      "operation_id": "ad1429c4-00ec-4fe0-b52a-1e99956363a2",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "5a558c08-69ec-4cd5-aa14-8132e0f27753",
+      "provider_target": "workstation-09",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:21.975855+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-09",
+        "event_id": 1310788814,
+        "story_run": "c619fee9-967f-4593-91a8-52a26bc78a99",
+        "at": "2026-09-21T23:41:23.418Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "dbfad9be243793e7fc1ed2269d54022c25d8168556599183641a53c7958d80f6"
+    },
+    {
+      "execution_id": "278fa439-d4e1-4a96-98d4-bf1627e501c4",
+      "operation_id": "95ac2dcb-5216-4f55-9387-d52c6604fbfe",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "a775ef20-3cb5-4eee-8113-6fd3c862f4ca",
+      "provider_target": "workstation-12",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:22.406281+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-12",
+        "event_id": 1310788867,
+        "story_run": "f933c807-60f3-4f4b-9509-07ed554623a2",
+        "at": "2026-09-21T23:41:24.137Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "dce040648af26dcfc50f5bdf7a4034c2bc4bf5abbe373067ff76cf569245aee7"
+    },
+    {
+      "execution_id": "5d0a29ca-f325-41f3-8e32-151bc713cac4",
+      "operation_id": "5692c829-a0fe-4333-a658-7a56f5ede1da",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "16273da6-1619-4be9-aec3-068e8c90c826",
+      "provider_target": "workstation-10",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:22.750871+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-10",
+        "event_id": 1310788877,
+        "story_run": "195dbd82-db71-46b5-b172-9444247af0b4",
+        "at": "2026-09-21T23:41:24.305Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "85be627f24cb190f4e22b9f7366fc8a814ee181790e6e072e8884b83c7ecb877"
+    },
+    {
+      "execution_id": "fe94a844-a3b1-43bf-be1a-1bf205335d9a",
+      "operation_id": "a88e43c7-b662-46e0-8a5e-ceebdcd0dddd",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "c67fc0bd-49ca-42a1-9dc9-3ce1587498ec",
+      "provider_target": "workstation-11",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:23.153171+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-11",
+        "event_id": 1310788881,
+        "story_run": "ee744afc-d011-4a8b-b32a-b80be81877be",
+        "at": "2026-09-21T23:41:24.395Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "f0edac98f7e8573b510fa74c8b21c505efcb2b36708aa071920b262c2043eb0d"
+    },
+    {
+      "execution_id": "adbad2d5-2415-41d0-aec6-dc56ce34db0d",
+      "operation_id": "638d54c8-66de-44a0-916e-3d7ec7625c88",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "b36d46d6-cdb7-490a-b914-e69e53342936",
+      "provider_target": "workstation-13",
+      "state": "EXECUTED",
+      "created_at": "2026-09-21 23:41:23.464405+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-a-13",
+        "event_id": 1310788879,
+        "story_run": "05009104-ceed-4d30-8593-b9928af2e36c",
+        "at": "2026-09-21T23:41:24.361Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "RESERVED",
+        "DISPATCH_COMMITTED",
+        "EXECUTED"
+      ],
+      "denial_reasons": [],
+      "impact_rows": 1,
+      "journal_mutations": 1,
+      "journal_sha256": "922d06c5fbdfc347172f006e84444738e7af69246fbf6b3bb6fa317dedae9e9b"
+    },
+    {
+      "execution_id": "53a00809-7fc9-43f4-84ce-d1a1928fe103",
+      "operation_id": "678cf6a9-a3ca-4faa-949e-027aff3b5d9c",
+      "principal_id": "5736047f-6077-46d9-9c95-9beda6bcfabe",
+      "canonical_target_id": "382dfbf6-b866-44ab-b9f4-016e3a2fa88e",
+      "provider_target": "workstation-02",
+      "state": "DENIED",
+      "created_at": "2026-09-21 23:41:57.660241+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-overflow-b",
+        "transport": "HTTP"
+      },
+      "states": [
+        "ATTEMPTED",
+        "DENIED"
+      ],
+      "denial_reasons": [
+        "HARD_LIMIT:tenant-total-endpoint-isolate"
+      ],
+      "impact_rows": 0,
+      "journal_mutations": null,
+      "journal_sha256": null
+    },
+    {
+      "execution_id": "876ba16c-99f6-4a07-a4ed-5a715a6f2389",
+      "operation_id": "8cb6565c-17f4-4bce-ac56-819c458a5204",
+      "principal_id": "b5de6d4f-34c4-4120-9ccc-c09fa53197ad",
+      "canonical_target_id": "bd8980b8-d1bd-4cf0-98ec-cec26934fc7e",
+      "provider_target": "workstation-24",
+      "state": "DENIED",
+      "created_at": "2026-09-21 23:41:58.208135+00:00",
+      "correlation": {
+        "reference": "TINES-SHARED-20260921-overflow-a",
+        "event_id": 1310790895,
+        "story_run": "bd8da7b5-09dc-4afa-a6c6-c99f3d8cc27e",
+        "at": "2026-09-21T23:41:58.661Z"
+      },
+      "states": [
+        "ATTEMPTED",
+        "DENIED"
+      ],
+      "denial_reasons": [
+        "HARD_LIMIT:tenant-total-endpoint-isolate"
+      ],
+      "impact_rows": 0,
+      "journal_mutations": null,
+      "journal_sha256": null
+    }
+  ]
+}

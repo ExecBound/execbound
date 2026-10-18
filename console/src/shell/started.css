@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The sidebar's Getting started card (#678). Loaded with the card's own chunk, which the
+   sidebar loads on demand, so the shell's first load carries none of these rules. */
+.started {
+  display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 8px;
+  border: 1px solid var(--eb-line); border-radius: var(--radius-card); background: var(--eb-surface); color: inherit; text-decoration: none;
+}
+.started-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.started-body small { color: var(--eb-muted); }
+.started-track { display: block; height: 4px; border-radius: 2px; background: var(--eb-line2); overflow: hidden; }
+.started-fill { display: block; height: 100%; background: var(--eb-accent); }

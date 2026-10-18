@@ -1,0 +1,677 @@
+{
+  "authentication_failures": [
+    {
+      "count": 1,
+      "first_at": "2026-09-26T00:41:00.194224+00:00",
+      "last_at": "2026-09-26T00:41:00.194224+00:00",
+      "reason": "MISMATCH",
+      "subject_id": "e350211b-c956-47f7-a5b2-efbb40b40e5a",
+      "subject_kind": "source",
+      "surface": "monitor"
+    },
+    {
+      "count": 1,
+      "first_at": "2026-09-26T01:00:39.292157+00:00",
+      "last_at": "2026-09-26T01:00:39.292157+00:00",
+      "reason": "REVOKED",
+      "subject_id": "e350211b-c956-47f7-a5b2-efbb40b40e5a",
+      "subject_kind": "source",
+      "surface": "monitor"
+    }
+  ],
+  "date": "2026-09-26",
+  "deliveries": [
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:32:17.177936+00:00",
+      "delivery_id": "389a3284-1559-5110-9642-fb4e67e39da2",
+      "finding_id": "e729ef3a-2b3a-5f37-9cd7-7e403ac6dd65",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:32:17.208964+00:00",
+      "delivery_id": "87098e75-f437-5b2d-9399-18c080650426",
+      "finding_id": "50d4e3d1-264a-57c1-b791-47daa47a0d32",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:32:17.236074+00:00",
+      "delivery_id": "fb6c73ba-9580-58c2-8027-6b94934283c6",
+      "finding_id": "8971aca0-c112-56ab-9af1-c3cf911601fe",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:41:40.088928+00:00",
+      "delivery_id": "07e97ed2-a2a4-5634-83e0-fa730060f626",
+      "finding_id": "584b6cfb-db7a-5e59-9d82-03d17bc5beb5",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:41:40.107217+00:00",
+      "delivery_id": "223e491c-8573-55b5-9b02-7081325555ad",
+      "finding_id": "ec6b7133-f26a-5a64-8f91-869fa4b84067",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:41:40.124961+00:00",
+      "delivery_id": "429fc27a-38e1-5030-9478-0ad2abdc8185",
+      "finding_id": "8a08849c-34d2-5202-a5d5-f39f2eaa3592",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:41:40.142790+00:00",
+      "delivery_id": "a092c1bc-d3d3-584f-970b-2089fb0fd1bb",
+      "finding_id": "d06d45bd-8c8f-5b25-8c6d-2039a6fe5bc2",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:41:40.160399+00:00",
+      "delivery_id": "b0ebcd51-da6a-5777-88af-f90e2da0c1ed",
+      "finding_id": "772d7f3e-0680-54d7-b86b-1ea49415f2f5",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:55:42.528540+00:00",
+      "delivery_id": "776e64db-b45f-5c8d-aad5-14d20781b9c8",
+      "finding_id": "6182f0c8-385a-58b9-989e-aaca26260cf2",
+      "last_error": null,
+      "state": "DELIVERED"
+    },
+    {
+      "attempts": 1,
+      "delivered_at": "2026-09-26T00:55:42.551731+00:00",
+      "delivery_id": "da75abce-d0a9-5b50-9949-5ee65fd5d531",
+      "finding_id": "c456ddf0-84ad-5cc1-afb8-d1053adf0987",
+      "last_error": null,
+      "state": "DELIVERED"
+    }
+  ],
+  "findings": [
+    {
+      "created_at": "2026-09-26T00:32:17.086338+00:00",
+      "finding_id": "50d4e3d1-264a-57c1-b791-47daa47a0d32",
+      "observation_id": "614d43e8-ab0c-534a-9d38-8af5c5ef4a8e",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:32:17.086338+00:00",
+      "finding_id": "e729ef3a-2b3a-5f37-9cd7-7e403ac6dd65",
+      "observation_id": "90e9cf6c-719a-5136-9bcf-440ddb81a73b",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:32:17.086338+00:00",
+      "finding_id": "8971aca0-c112-56ab-9af1-c3cf911601fe",
+      "observation_id": "0fa00d18-96dc-5c3b-b2ed-6900f949e672",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:41:40.012556+00:00",
+      "finding_id": "d06d45bd-8c8f-5b25-8c6d-2039a6fe5bc2",
+      "observation_id": "a4964aa2-f4f9-57dd-9361-53a1344b25e7",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:41:40.012556+00:00",
+      "finding_id": "ec6b7133-f26a-5a64-8f91-869fa4b84067",
+      "observation_id": "99bfc7f0-01f7-55da-8945-fc2c8643cf02",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:41:40.012556+00:00",
+      "finding_id": "584b6cfb-db7a-5e59-9d82-03d17bc5beb5",
+      "observation_id": "91920e50-8b2a-5d82-91ed-0fccaa0bd816",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:41:40.012556+00:00",
+      "finding_id": "772d7f3e-0680-54d7-b86b-1ea49415f2f5",
+      "observation_id": "531831b9-b12d-55dd-a5ba-98df2d31bc29",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:41:40.012556+00:00",
+      "finding_id": "8a08849c-34d2-5202-a5d5-f39f2eaa3592",
+      "observation_id": "3481abe4-da7c-5419-b321-8753e7670602",
+      "rule_version": "sensitive-action.v2",
+      "title": "Source reported a consequential action"
+    },
+    {
+      "created_at": "2026-09-26T00:41:56.956435+00:00",
+      "finding_id": "6182f0c8-385a-58b9-989e-aaca26260cf2",
+      "observation_id": null,
+      "rule_version": "instrumentation-gap.v1",
+      "title": "Story has outbound actions and no reporting source"
+    },
+    {
+      "created_at": "2026-09-26T00:55:42.458404+00:00",
+      "finding_id": "c456ddf0-84ad-5cc1-afb8-d1053adf0987",
+      "observation_id": null,
+      "rule_version": "source-health.v1",
+      "title": "Source stopped reporting"
+    }
+  ],
+  "receipts_verified": 10,
+  "runs": [
+    {
+      "code": "INVALID_EVENT",
+      "evaluation": null,
+      "event_id": "tines-147205-1348816799",
+      "exit": "Reporting failed",
+      "exit_at": "2026-09-26T00:29:08.552Z",
+      "findings": [],
+      "kind": "tool_result",
+      "observation_id": null,
+      "reason": "not_recorded",
+      "report_status": 400,
+      "reported": "failed",
+      "stored_outcome": null,
+      "story_run_guid": "b8cb21fd-24af-4577-aa6d-1305b3731ea5",
+      "target": "lab-ws-01",
+      "vendor_status": 200
+    },
+    {
+      "code": "INVALID_EVENT",
+      "evaluation": null,
+      "event_id": "hb-147205-20260926T0030",
+      "exit": "Reporting failed",
+      "exit_at": "2026-09-26T00:30:14.840Z",
+      "findings": [],
+      "kind": "heartbeat",
+      "observation_id": null,
+      "reason": "not_recorded",
+      "report_status": 400,
+      "reported": "failed",
+      "stored_outcome": null,
+      "story_run_guid": "bb9ca323-167f-4227-a786-54d5c4a2f4d5",
+      "target": null,
+      "vendor_status": null
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348829066",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:30:33.948Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "50d4e3d1-264a-57c1-b791-47daa47a0d32",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "614d43e8-ab0c-534a-9d38-8af5c5ef4a8e",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "success",
+      "story_run_guid": "2f48135b-1a99-427f-a098-8c3a393ef42b",
+      "target": "lab-ws-01",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348836702",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:30:55.761Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "e729ef3a-2b3a-5f37-9cd7-7e403ac6dd65",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "90e9cf6c-719a-5136-9bcf-440ddb81a73b",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "error",
+      "story_run_guid": "f7dbcc13-a719-485d-8247-48c836cbf9bf",
+      "target": "fail-ws-02",
+      "vendor_status": 503
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348842662",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:31:26.443Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "8971aca0-c112-56ab-9af1-c3cf911601fe",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "0fa00d18-96dc-5c3b-b2ed-6900f949e672",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "unknown",
+      "story_run_guid": "bd7c88d6-ddae-4f8c-9e2c-f70088e8413f",
+      "target": "hang-ws-03",
+      "vendor_status": 0
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348829066",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:32:28.894Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "50d4e3d1-264a-57c1-b791-47daa47a0d32",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "614d43e8-ab0c-534a-9d38-8af5c5ef4a8e",
+      "reason": null,
+      "report_status": 200,
+      "reported": "duplicate",
+      "stored_outcome": "success",
+      "story_run_guid": "b6f73965-94d8-4bd4-a9fb-973d418b7a27",
+      "target": "lab-ws-01",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348851709",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:32:53.952Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "d06d45bd-8c8f-5b25-8c6d-2039a6fe5bc2",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "a4964aa2-f4f9-57dd-9361-53a1344b25e7",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "error",
+      "story_run_guid": "795155c0-c9b3-4831-8da1-cd3a8c1ba8e6",
+      "target": "12345",
+      "vendor_status": 400
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348852428",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:33:06.870Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "ec6b7133-f26a-5a64-8f91-869fa4b84067",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "99bfc7f0-01f7-55da-8945-fc2c8643cf02",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "success",
+      "story_run_guid": "2d25329f-d171-481b-ba30-9e3ad1236bce",
+      "target": "67890",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "NO_MATCH",
+      "event_id": "hb-147205-20260926T0035",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:35:06.725Z",
+      "findings": [],
+      "kind": "heartbeat",
+      "observation_id": "4f995f04-cb14-57c0-b7bf-38a25b19ce7a",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": null,
+      "story_run_guid": "b37aa023-c3c2-43b3-9358-054d056580d9",
+      "target": null,
+      "vendor_status": null
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348863284",
+      "exit": "Reporting failed",
+      "exit_at": "2026-09-26T00:38:02.388Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "584b6cfb-db7a-5e59-9d82-03d17bc5beb5",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": null,
+      "reason": "unreachable",
+      "report_status": 0,
+      "reported": "failed",
+      "stored_outcome": "success",
+      "story_run_guid": "169adb48-1ec3-4715-9cd3-92a6d8c16a0a",
+      "target": "lab-ws-04",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348863284",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:38:15.881Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "584b6cfb-db7a-5e59-9d82-03d17bc5beb5",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "91920e50-8b2a-5d82-91ed-0fccaa0bd816",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "success",
+      "story_run_guid": "d0f5b64d-8cfd-4188-8c34-55e3575b3ea6",
+      "target": "lab-ws-04",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348870171",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:38:40.073Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "772d7f3e-0680-54d7-b86b-1ea49415f2f5",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "531831b9-b12d-55dd-a5ba-98df2d31bc29",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "success",
+      "story_run_guid": "7c8c7cbc-d505-411f-a20b-4e01e1a8642a",
+      "target": "lab-ws-05",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "NO_MATCH",
+      "event_id": "hb-147205-20260926T0040",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:40:08.086Z",
+      "findings": [],
+      "kind": "heartbeat",
+      "observation_id": "40910e79-b72d-5c9e-80a3-631c94fdb545",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": null,
+      "story_run_guid": "6b22d7d1-309a-4abe-87be-e5ea340e25e4",
+      "target": null,
+      "vendor_status": null
+    },
+    {
+      "code": "INVALID_SOURCE",
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348885747",
+      "exit": "Reporting failed",
+      "exit_at": "2026-09-26T00:41:00.463Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "8a08849c-34d2-5202-a5d5-f39f2eaa3592",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": null,
+      "reason": "auth_lost",
+      "report_status": 401,
+      "reported": "failed",
+      "stored_outcome": "success",
+      "story_run_guid": "44fbd5c6-d792-4d12-938e-01b6f6d98d18",
+      "target": "lab-ws-06",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "MATCH",
+      "event_id": "tines-147205-1348885747",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:41:17.676Z",
+      "findings": [
+        {
+          "delivery": "DELIVERED",
+          "finding_id": "8a08849c-34d2-5202-a5d5-f39f2eaa3592",
+          "receipt": true,
+          "rule_version": "sensitive-action.v2"
+        }
+      ],
+      "kind": "tool_result",
+      "observation_id": "3481abe4-da7c-5419-b321-8753e7670602",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": "success",
+      "story_run_guid": "f0dadb9b-09b1-4433-998b-bc1564867cd2",
+      "target": "lab-ws-06",
+      "vendor_status": 200
+    },
+    {
+      "code": null,
+      "evaluation": "NO_MATCH",
+      "event_id": "hb-147205-20260926T0045",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T00:45:08.385Z",
+      "findings": [],
+      "kind": "heartbeat",
+      "observation_id": "57dfb44b-45ed-55b1-b7ba-1f75e0e5e763",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": null,
+      "story_run_guid": "e9ca799d-e4dc-4dc4-9566-83c968643182",
+      "target": null,
+      "vendor_status": null
+    },
+    {
+      "code": null,
+      "evaluation": "NO_MATCH",
+      "event_id": "hb-147205-20260926T0100",
+      "exit": "Reported",
+      "exit_at": "2026-09-26T01:00:22.265Z",
+      "findings": [],
+      "kind": "heartbeat",
+      "observation_id": "c09e4290-e344-5b2b-8d40-fa7f32866d54",
+      "reason": null,
+      "report_status": 202,
+      "reported": "recorded",
+      "stored_outcome": null,
+      "story_run_guid": "29df8c14-ca8a-458e-b728-34606f30383c",
+      "target": null,
+      "vendor_status": null
+    },
+    {
+      "code": "INVALID_SOURCE",
+      "evaluation": null,
+      "event_id": "tines-147205-1348973822",
+      "exit": "Reporting failed",
+      "exit_at": "2026-09-26T01:00:41.950Z",
+      "findings": [],
+      "kind": "tool_result",
+      "observation_id": null,
+      "reason": "auth_lost",
+      "report_status": 401,
+      "reported": "failed",
+      "stored_outcome": null,
+      "story_run_guid": "f5dfcb12-8a55-40e1-a7cd-33f6613b29fc",
+      "target": "lab-ws-07",
+      "vendor_status": 200
+    }
+  ],
+  "sources": [
+    {
+      "accepted_count": 12,
+      "active": false,
+      "created_at": "2026-09-26T00:28:39.791130+00:00",
+      "expires_at": "2026-09-26T12:38:37.452171+00:00",
+      "health_changed_at": "2026-09-26T01:00:24.484472+00:00",
+      "health_checked_at": "2026-09-26T01:00:24.484472+00:00",
+      "health_state": "REPORTING",
+      "heartbeat_seconds": 300,
+      "label": "Tines lab: Monitor an action",
+      "last_event_at": "2026-09-26T01:00:17.110412+00:00",
+      "last_heartbeat_at": "2026-09-26T01:00:17.110412+00:00",
+      "last_refusal_at": null,
+      "last_refusal_code": null,
+      "previous_valid_until": null,
+      "revoked_at": "2026-09-26T01:00:32.983906+00:00",
+      "rotated_at": "2026-09-26T00:38:37.457859+00:00",
+      "source_id": "e350211b-c956-47f7-a5b2-efbb40b40e5a",
+      "story_id": "147205"
+    }
+  ],
+  "tines_story_id": 147205,
+  "trial": "Tines Monitor instrumentation",
+  "vendor_requests": [
+    {
+      "answered_at": "2026-09-26T00:28:02.110081+00:00",
+      "authorized": false,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:28:02.110050+00:00",
+      "status": 401,
+      "target": "x"
+    },
+    {
+      "answered_at": "2026-09-26T00:29:07.491943+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:29:07.491911+00:00",
+      "status": 200,
+      "target": "lab-ws-01"
+    },
+    {
+      "answered_at": "2026-09-26T00:30:27.782671+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:30:27.782647+00:00",
+      "status": 200,
+      "target": "lab-ws-01"
+    },
+    {
+      "answered_at": "2026-09-26T00:30:53.704064+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:30:53.704041+00:00",
+      "status": 503,
+      "target": "fail-ws-02"
+    },
+    {
+      "answered_at": "2026-09-26T00:31:39.318570+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:30:54.318471+00:00",
+      "status": 200,
+      "target": "hang-ws-03"
+    },
+    {
+      "answered_at": "2026-09-26T00:32:53.097529+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:32:53.097506+00:00",
+      "status": 400,
+      "target": null
+    },
+    {
+      "answered_at": "2026-09-26T00:33:06.103984+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:33:06.103962+00:00",
+      "status": 200,
+      "target": "67890"
+    },
+    {
+      "answered_at": "2026-09-26T00:35:59.359930+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:35:59.359909+00:00",
+      "status": 200,
+      "target": "lab-ws-04"
+    },
+    {
+      "answered_at": "2026-09-26T00:38:39.192522+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:38:39.192497+00:00",
+      "status": 200,
+      "target": "lab-ws-05"
+    },
+    {
+      "answered_at": "2026-09-26T00:40:54.755820+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T00:40:54.755788+00:00",
+      "status": 200,
+      "target": "lab-ws-06"
+    },
+    {
+      "answered_at": "2026-09-26T01:00:36.927930+00:00",
+      "authorized": true,
+      "path": "/v1/isolate",
+      "received_at": "2026-09-26T01:00:36.927901+00:00",
+      "status": 200,
+      "target": "lab-ws-07"
+    }
+  ]
+}

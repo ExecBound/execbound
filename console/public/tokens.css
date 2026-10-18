@@ -1,0 +1,173 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The console's design tokens (#333). The two
+   :root blocks below are where a colour literal may appear in the console; every rule
+   elsewhere reads a token, and the three blocks that restate a palette under another selector
+   are held equal to them by tests/test_console_tokens.py. That test also holds every
+   documented pairing to WCAG 2.2 AA in both schemes, so a token that fails its floor moves
+   here, keeping its hue. Dark first, following the
+   system setting, with a complete light theme; this file is loaded by index.html before any
+   script, so the plain frame paints from the same values the application uses. */
+:root {
+  color-scheme: light dark;
+  --eb-bg: #F4F5F7;
+  --eb-side: #FFFFFF;
+  --eb-surface: #FFFFFF;
+  --eb-surface2: #EEF0F3;
+  --eb-line: #E1E4E9;
+  --eb-line2: #CBD1D8;
+  --eb-text: #0F1318;
+  --eb-muted: #535D6A;
+  --eb-faint: #646D79;
+  --eb-accent: #0A7486;
+  --eb-on-accent: #FFFFFF;
+  --eb-accent-soft: #DCF2F5;
+  --eb-accent-text: #0A6474;
+  --eb-allow: #146B41;
+  --eb-allow-bg: #DDF2E6;
+  --eb-hold: #7A5200;
+  --eb-hold-bg: #FCEFCB;
+  --eb-deny: #A3242B;
+  --eb-deny-bg: #FBE4E4;
+  --eb-obs: #5A3EC2;
+  --eb-obs-bg: #ECE6FD;
+  --eb-stale: #535D6A;
+  --eb-stale-bg: #EDEFF2;
+  --eb-scrim: rgba(15, 19, 24, 0.38);
+  --eb-shadow: 0 24px 64px rgba(16, 20, 26, 0.16);
+  --eb-font-sans: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --eb-font-mono: "IBM Plex Mono", ui-monospace, Consolas, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --eb-bg: #0B0D11;
+    --eb-side: #0F1217;
+    --eb-surface: #141821;
+    --eb-surface2: #1B202A;
+    --eb-line: #232934;
+    --eb-line2: #313947;
+    --eb-text: #E8EBEF;
+    --eb-muted: #A3ACB8;
+    --eb-faint: #808996;
+    --eb-accent: #35D3E6;
+    --eb-on-accent: #032429;
+    --eb-accent-soft: rgba(53, 211, 230, 0.13);
+    --eb-accent-text: #74E3F1;
+    --eb-allow: #5BD49A;
+    --eb-allow-bg: rgba(91, 212, 154, 0.12);
+    --eb-hold: #F4C152;
+    --eb-hold-bg: rgba(244, 193, 82, 0.13);
+    --eb-deny: #FF8A8A;
+    --eb-deny-bg: rgba(255, 138, 138, 0.12);
+    --eb-obs: #B8A2FF;
+    --eb-obs-bg: rgba(184, 162, 255, 0.13);
+    --eb-stale: #A3ACB8;
+    --eb-stale-bg: rgba(163, 172, 184, 0.12);
+    --eb-scrim: rgba(4, 6, 9, 0.62);
+    --eb-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* Appearance: System, Light or Dark (#333). System is the default and is the two blocks
+   above. A person who chooses one of the other two gets it as an attribute on the root
+   element, which the server writes into the document from a cookie before the browser has
+   parsed anything else — the console may carry no inline script, and the plain
+   frame paints from these tokens before the bundle runs, so a choice that
+   reached the root element any later would show as a flash of the wrong scheme. An attribute
+   selector outranks the bare `:root` of either block above, so these win in both schemes
+   whatever the system setting is, and `color-scheme` follows so the browser's own form
+   controls, scrollbars and canvas follow with them. The two blocks restate the palettes
+   above rather than importing them, because CSS has no way to alias a set of custom
+   properties; tests/test_console_tokens.py holds each of them equal to the block it
+   restates, so a token edited in one place and forgotten here fails in seconds. */
+:root[data-eb-scheme="light"] {
+  color-scheme: light;
+  --eb-bg: #F4F5F7;
+  --eb-side: #FFFFFF;
+  --eb-surface: #FFFFFF;
+  --eb-surface2: #EEF0F3;
+  --eb-line: #E1E4E9;
+  --eb-line2: #CBD1D8;
+  --eb-text: #0F1318;
+  --eb-muted: #535D6A;
+  --eb-faint: #646D79;
+  --eb-accent: #0A7486;
+  --eb-on-accent: #FFFFFF;
+  --eb-accent-soft: #DCF2F5;
+  --eb-accent-text: #0A6474;
+  --eb-allow: #146B41;
+  --eb-allow-bg: #DDF2E6;
+  --eb-hold: #7A5200;
+  --eb-hold-bg: #FCEFCB;
+  --eb-deny: #A3242B;
+  --eb-deny-bg: #FBE4E4;
+  --eb-obs: #5A3EC2;
+  --eb-obs-bg: #ECE6FD;
+  --eb-stale: #535D6A;
+  --eb-stale-bg: #EDEFF2;
+  --eb-scrim: rgba(15, 19, 24, 0.38);
+  --eb-shadow: 0 24px 64px rgba(16, 20, 26, 0.16);
+}
+
+:root[data-eb-scheme="dark"] {
+  color-scheme: dark;
+  --eb-bg: #0B0D11;
+  --eb-side: #0F1217;
+  --eb-surface: #141821;
+  --eb-surface2: #1B202A;
+  --eb-line: #232934;
+  --eb-line2: #313947;
+  --eb-text: #E8EBEF;
+  --eb-muted: #A3ACB8;
+  --eb-faint: #808996;
+  --eb-accent: #35D3E6;
+  --eb-on-accent: #032429;
+  --eb-accent-soft: rgba(53, 211, 230, 0.13);
+  --eb-accent-text: #74E3F1;
+  --eb-allow: #5BD49A;
+  --eb-allow-bg: rgba(91, 212, 154, 0.12);
+  --eb-hold: #F4C152;
+  --eb-hold-bg: rgba(244, 193, 82, 0.13);
+  --eb-deny: #FF8A8A;
+  --eb-deny-bg: rgba(255, 138, 138, 0.12);
+  --eb-obs: #B8A2FF;
+  --eb-obs-bg: rgba(184, 162, 255, 0.13);
+  --eb-stale: #A3ACB8;
+  --eb-stale-bg: rgba(163, 172, 184, 0.12);
+  --eb-scrim: rgba(4, 6, 9, 0.62);
+  --eb-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* The live board is the console's one full-ink surface: a display for a wall or a screen
+   share, dark in both schemes. #206 recorded that exception for the server-rendered board
+   and #280 carries it into this console. It is the dark block by another name, and
+   tests/test_console_tokens.py holds the two equal, so this exception can never quietly
+   become a second palette that drifts from the one everything else reads. */
+.ink {
+  color-scheme: dark;
+  --eb-bg: #0B0D11;
+  --eb-side: #0F1217;
+  --eb-surface: #141821;
+  --eb-surface2: #1B202A;
+  --eb-line: #232934;
+  --eb-line2: #313947;
+  --eb-text: #E8EBEF;
+  --eb-muted: #A3ACB8;
+  --eb-faint: #808996;
+  --eb-accent: #35D3E6;
+  --eb-on-accent: #032429;
+  --eb-accent-soft: rgba(53, 211, 230, 0.13);
+  --eb-accent-text: #74E3F1;
+  --eb-allow: #5BD49A;
+  --eb-allow-bg: rgba(91, 212, 154, 0.12);
+  --eb-hold: #F4C152;
+  --eb-hold-bg: rgba(244, 193, 82, 0.13);
+  --eb-deny: #FF8A8A;
+  --eb-deny-bg: rgba(255, 138, 138, 0.12);
+  --eb-obs: #B8A2FF;
+  --eb-obs-bg: rgba(184, 162, 255, 0.13);
+  --eb-stale: #A3ACB8;
+  --eb-stale-bg: rgba(163, 172, 184, 0.12);
+  --eb-scrim: rgba(4, 6, 9, 0.62);
+  --eb-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}

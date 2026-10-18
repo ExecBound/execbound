@@ -1,0 +1,303 @@
+{
+  "comment": "Synthetic Tines management API records. No real tenant, user, host or credential value appears here. Response shapes follow the vendor's documented fields on September 15, 2026; the live trial confirms the action list path, the action type names and the AI operation names.",
+  "tenant_id": 900,
+  "stories": [
+    {
+      "id": 4001,
+      "name": "Phishing triage",
+      "team_id": 7,
+      "folder_id": 11,
+      "guid": "aaaaaaaabbbbccccddddeeeeeeeeeeee",
+      "disabled": false,
+      "published": true,
+      "mode": "LIVE",
+      "description": "Synthetic story description that must never be retained.",
+      "created_at": "2026-08-01T09:00:00Z",
+      "updated_at": "2026-09-14T09:00:00Z",
+      "tags": ["synthetic"]
+    },
+    {
+      "id": 4002,
+      "name": "Account lockdown",
+      "team_id": 7,
+      "folder_id": 11,
+      "guid": "bbbbbbbbccccddddeeeeffffffffffff",
+      "disabled": false,
+      "published": true,
+      "mode": "LIVE",
+      "description": "Synthetic story description that must never be retained.",
+      "created_at": "2026-08-02T09:00:00Z",
+      "updated_at": "2026-09-13T09:00:00Z",
+      "tags": []
+    },
+    {
+      "id": 4003,
+      "name": "Daily digest",
+      "team_id": 7,
+      "folder_id": 12,
+      "guid": "ccccccccddddeeeeffff000000000000",
+      "disabled": false,
+      "published": true,
+      "mode": "LIVE",
+      "description": "Synthetic story description that must never be retained.",
+      "created_at": "2026-08-03T09:00:00Z",
+      "updated_at": "2026-09-12T09:00:00Z",
+      "tags": []
+    },
+    {
+      "id": 4004,
+      "name": "Retired handler",
+      "team_id": 7,
+      "folder_id": 12,
+      "guid": "ddddddddeeeeffff00001111111111111",
+      "disabled": true,
+      "published": false,
+      "mode": "TEST",
+      "description": "Synthetic story description that must never be retained.",
+      "created_at": "2026-08-04T09:00:00Z",
+      "updated_at": "2026-09-11T09:00:00Z",
+      "tags": []
+    },
+    {
+      "id": 4005,
+      "name": "Enrichment",
+      "team_id": 7,
+      "folder_id": 12,
+      "guid": "eeeeeeeeffff000011112222222222222",
+      "disabled": false,
+      "published": true,
+      "mode": "LIVE",
+      "description": "Synthetic story description that must never be retained.",
+      "created_at": "2026-08-05T09:00:00Z",
+      "updated_at": "2026-09-10T09:00:00Z",
+      "tags": []
+    }
+  ],
+  "actions": {
+    "4001": [
+      {
+        "id": 9001,
+        "type": "Agents::HTTPRequestAgent",
+        "name": "Disable the mailbox rule",
+        "story_id": 4001,
+        "disabled": false,
+        "options": {
+          "url": "https://synthetic.invalid/v1/rules",
+          "headers": {"Authorization": "SYNTHETIC-SECRET-MUST-NOT-BE-RETAINED"},
+          "payload": {"credential": "{{ .CREDENTIAL.okta_api }}"}
+        }
+      },
+      {
+        "id": 9002,
+        "type": "Agents::EventTransformationAgent",
+        "name": "Normalize the report",
+        "story_id": 4001,
+        "disabled": false,
+        "options": {"mode": "message_only"}
+      }
+    ],
+    "4002": [
+      {
+        "id": 9003,
+        "type": "Agents::HTTPRequestAgent",
+        "name": "Suspend the account",
+        "story_id": 4002,
+        "disabled": false,
+        "options": {"url": "https://synthetic.invalid/v1/users", "headers": {}}
+      }
+    ],
+    "4003": [
+      {
+        "id": 9004,
+        "type": "Agents::EventTransformationAgent",
+        "name": "Summarize",
+        "story_id": 4003,
+        "disabled": false,
+        "options": {}
+      }
+    ],
+    "4004": [
+      {
+        "id": 9005,
+        "type": "Agents::HTTPRequestAgent",
+        "name": "Legacy call",
+        "story_id": 4004,
+        "disabled": true,
+        "options": {}
+      }
+    ],
+    "4005": [
+      {
+        "id": 9006,
+        "type": "Agents::SyntheticUnreleasedAgent",
+        "name": "Unrecognized handler",
+        "story_id": 4005,
+        "disabled": false,
+        "options": {}
+      }
+    ]
+  },
+  "credentials": [
+    {
+      "id": 301,
+      "name": "okta_api",
+      "mode": "TEXT",
+      "team_id": 7,
+      "folder_id": 11,
+      "allowed_hosts": ["synthetic.invalid"],
+      "restriction_type": "team",
+      "expires_at": "2026-12-01T00:00:00Z",
+      "value": "SYNTHETIC-SECRET-MUST-NOT-BE-RETAINED"
+    },
+    {
+      "id": 302,
+      "name": "smtp_relay",
+      "mode": "AWS",
+      "team_id": 7,
+      "folder_id": 11,
+      "allowed_hosts": [],
+      "restriction_type": "global",
+      "expires_at": null,
+      "value": "SYNTHETIC-SECRET-MUST-NOT-BE-RETAINED"
+    }
+  ],
+  "audit": [
+    {
+      "id": 51001,
+      "created_at": "2026-09-15T10:00:00Z",
+      "operation_name": "StoryUpdated",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {"story_id": 4001, "note": "Synthetic input that must never be retained."},
+      "outputs": {"result": "Synthetic output that must never be retained."},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4001,
+      "source": "UI"
+    },
+    {
+      "id": 51002,
+      "created_at": "2026-09-15T10:05:00Z",
+      "operation_name": "ActionUpdated",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {"action_id": 9002},
+      "outputs": {},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4001,
+      "source": "UI"
+    },
+    {
+      "id": 51003,
+      "created_at": "2026-09-15T10:10:00Z",
+      "operation_name": "StoryUpdated",
+      "user_id": 78,
+      "user_email": "other.person@synthetic.invalid",
+      "user_name": "Other Person",
+      "inputs": {"story_id": 4003},
+      "outputs": {},
+      "request_ip": "203.0.113.6",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4003,
+      "source": "API"
+    },
+    {
+      "id": 51004,
+      "created_at": "2026-09-15T10:15:00Z",
+      "operation_name": "CredentialUpdated",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {"credential_id": 301},
+      "outputs": {},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": null,
+      "source": "UI"
+    },
+    {
+      "id": 51005,
+      "created_at": "2026-09-15T10:20:00Z",
+      "operation_name": "SyntheticUnlistedOperation",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {},
+      "outputs": {},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4001,
+      "source": "UI"
+    },
+    {
+      "id": 51006,
+      "created_at": "2026-09-15T10:25:00Z",
+      "operation_name": "MemberInvited",
+      "user_id": 79,
+      "user_email": "admin.person@synthetic.invalid",
+      "user_name": "Admin Person",
+      "inputs": {},
+      "outputs": {},
+      "request_ip": "203.0.113.7",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": null,
+      "source": "UI"
+    }
+  ],
+  "ai_audit": [
+    {
+      "id": 52001,
+      "created_at": "2026-09-15T11:00:00Z",
+      "operation_name": "AiModelRun",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {"model": "synthetic-model-1", "prompt": "Synthetic prompt text that must never be retained."},
+      "outputs": {"input_tokens": 1200, "output_tokens": 340, "text": "Synthetic completion text that must never be retained."},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4001,
+      "source": "Workbench"
+    },
+    {
+      "id": 52002,
+      "created_at": "2026-09-15T11:01:00Z",
+      "operation_name": "AiToolRun",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {"tool_name": "synthetic_disable_user", "arguments": {"user": "Synthetic argument that must never be retained."}},
+      "outputs": {"status": "success", "text": "Synthetic tool output that must never be retained."},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4001,
+      "source": "Workbench"
+    },
+    {
+      "id": 52003,
+      "created_at": "2026-09-15T11:02:00Z",
+      "operation_name": "AiToolRun",
+      "user_id": 77,
+      "user_email": "synthetic.person@synthetic.invalid",
+      "user_name": "Synthetic Person",
+      "inputs": {"tool_name": "synthetic_unmapped_tool", "arguments": {}},
+      "outputs": {"status": "success", "text": "Synthetic tool output that must never be retained."},
+      "request_ip": "203.0.113.5",
+      "request_user_agent": "Mozilla/5.0 (synthetic)",
+      "tenant_id": 900,
+      "story_id": 4001,
+      "source": "Workbench"
+    }
+  ]
+}

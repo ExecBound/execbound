@@ -1,0 +1,13 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.access-resource-picker { max-height: 16rem; overflow: auto; }
+.check-line { display: flex; align-items: baseline; gap: .5rem; padding: .35rem 0; }
+.check-line input { flex: 0 0 auto; }
+.access-dialog {
+  top: clamp(16px, 8dvh, 72px);
+  max-height: calc(100dvh - 2 * clamp(16px, 8dvh, 72px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.access-dialog > .drawer-head, .access-dialog > .dialog-foot { flex-shrink: 0; }
+.access-dialog > .dialog-body { min-height: 0; overflow-y: auto; }

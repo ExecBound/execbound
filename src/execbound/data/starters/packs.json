@@ -1,0 +1,101 @@
+{
+  "endpoint": {
+    "fingerprint": "931b5500ef4c7af6d2039b5c8348232d0e7fe0fe85d948fde61337a685db792f",
+    "rules": [
+      "isolate-workstation-open-critical",
+      "isolate-never-domain-controller",
+      "isolate-never-criticality-4",
+      "isolate-production-needs-review"
+    ],
+    "actions": [
+      "endpoint.isolate"
+    ]
+  },
+  "identity": {
+    "fingerprint": "d5a256580253a753dbb1dfc35a648579ec425e68118625385278bc0781c0968b",
+    "rules": [
+      "disable-standard-open-severe",
+      "disable-never-privileged",
+      "disable-never-criticality-4",
+      "disable-production-needs-review",
+      "enable-standard-open-severe",
+      "enable-never-privileged",
+      "enable-never-criticality-4",
+      "enable-always-needs-review",
+      "revoke-sessions-standard-open-severe",
+      "revoke-sessions-never-privileged",
+      "revoke-sessions-never-criticality-4",
+      "revoke-sessions-production-needs-review"
+    ],
+    "actions": [
+      "identity.disable",
+      "identity.enable",
+      "identity.revoke_sessions"
+    ]
+  },
+  "soc": {
+    "fingerprint": "998674dc2867c7326fbfe6fa2955145bebff7f6f434564a826269691b78df744",
+    "rules": [
+      "isolate-workstation-open-critical",
+      "isolate-never-domain-controller",
+      "isolate-never-criticality-4",
+      "isolate-production-needs-review",
+      "lift-when-incident-closed",
+      "lift-when-false-positive",
+      "lift-production-needs-review",
+      "lift-remediated-needs-review",
+      "disable-standard-open-severe",
+      "disable-never-privileged",
+      "disable-never-criticality-4",
+      "disable-production-needs-review",
+      "enable-standard-open-severe",
+      "enable-never-privileged",
+      "enable-never-criticality-4",
+      "enable-always-needs-review",
+      "revoke-sessions-standard-open-severe",
+      "revoke-sessions-never-privileged",
+      "revoke-sessions-never-criticality-4",
+      "revoke-sessions-production-needs-review",
+      "reset-password-standard-open-severe",
+      "reset-password-never-privileged",
+      "reset-password-never-criticality-4",
+      "reset-password-production-needs-review",
+      "reset-password-without-forced-change-needs-review"
+    ],
+    "actions": [
+      "endpoint.isolate",
+      "endpoint.lift_isolation",
+      "identity.disable",
+      "identity.enable",
+      "identity.reset_password",
+      "identity.revoke_sessions"
+    ]
+  },
+  "combined": {
+    "fingerprint": "2e1727d3ddd95ac455d75c0e4e17814c24a77149eb3b4d848d81dc8ae1496fec",
+    "rules": [
+      "isolate-workstation-open-critical",
+      "isolate-never-domain-controller",
+      "isolate-never-criticality-4",
+      "isolate-production-needs-review",
+      "disable-standard-open-severe",
+      "disable-never-privileged",
+      "disable-never-criticality-4",
+      "disable-production-needs-review",
+      "enable-standard-open-severe",
+      "enable-never-privileged",
+      "enable-never-criticality-4",
+      "enable-always-needs-review",
+      "revoke-sessions-standard-open-severe",
+      "revoke-sessions-never-privileged",
+      "revoke-sessions-never-criticality-4",
+      "revoke-sessions-production-needs-review"
+    ],
+    "actions": [
+      "endpoint.isolate",
+      "identity.disable",
+      "identity.enable",
+      "identity.revoke_sessions"
+    ]
+  }
+}

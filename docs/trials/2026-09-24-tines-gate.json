@@ -1,0 +1,381 @@
+{
+  "gateway_commit": "962ac9e",
+  "schema_revision": "0056_gate_evidence",
+  "tenant_id": "bc7df1d7-f9a9-5513-b496-435a8e97c529",
+  "bundle_id": "dd0f5a0a-92e8-5f07-a349-162a5c7a6019",
+  "separation_bundle_id": "a05b22c1-6ff9-4fe6-ae43-0318711cb508",
+  "shared_impact_bundle_id": "8763818e-43f1-4672-8710-4610d26836a4",
+  "tines_story_id": "146602",
+  "tines_bypass_story_id": "146607",
+  "scope": "Live Tines Gate trial: grant, act, report and reconcile paths for the Gate story, run against a local gateway and protected endpoint mock behind temporary Cloudflare quick tunnels in a Tines Community Edition lab tenant. No hosted database, hosted gateway or real vendor was used.",
+  "probe": {
+    "case": "jwt_sign_probe",
+    "ran_at": "2026-09-23T18:35:58+00:00",
+    "unrestricted_credential": {
+      "header": {"alg": "ES256", "kid": "probe-v1"},
+      "claim_names": ["domain", "reported_at", "version"],
+      "claims_version_type": "int",
+      "reported_at": "2026-09-23T18:35:58+00:00",
+      "signature_bytes": 64,
+      "verified": true
+    },
+    "host_restricted_credential": {
+      "emitted": false,
+      "error": "This credential can only be used with HTTP Request Actions, Webhooks or Receive Email Actions in IMAP mode."
+    },
+    "settles": [
+      "No 'typ' header field and no 'iat' claim are emitted by Tines' JWT_SIGN",
+      "reported_at carries an explicit +00:00 offset",
+      "checkpoint guide limitation 12: a Tines signing credential cannot be host-restricted"
+    ]
+  },
+  "cases": [
+    {
+      "case": "allow",
+      "gateway_commit": "962ac9e",
+      "reference": "GATE-TRIAL-allow-62e78e37",
+      "request_ref": "EB-1",
+      "state": "EXECUTED",
+      "tier": "PROVIDER_VERIFIED",
+      "code": null,
+      "execution_id": "f6e742a4-0f28-4c9d-a9b7-19b632cb47ad",
+      "operation_id": "cd21af93-23f3-41ac-9d86-9579d64af1d8",
+      "vendor_status": 200,
+      "dispatch_calls": 1,
+      "journal_mutations": 1,
+      "impact": "CONFIRMED",
+      "claim_released": true,
+      "tines_run_guids": ["cecee3ea-51d8-4fbf-a1a5-f8fc4d441ca4"]
+    },
+    {
+      "case": "deny",
+      "gateway_commit": "962ac9e",
+      "reference": "GATE-TRIAL-deny-09b2b179",
+      "request_ref": "EB-2",
+      "target": "gate-domain-controller",
+      "state": "DENIED",
+      "tier": null,
+      "code": null,
+      "execution_id": "107cc5a6-78f6-4e49-afe6-11f22a296c59",
+      "operation_id": "1ad69159-641b-4b20-a25a-005ba0781a8b",
+      "vendor_status": null,
+      "dispatch_calls": 0,
+      "journal_mutations": null,
+      "impact": null,
+      "claim_released": false,
+      "tines_run_guids": ["a2b1673f-87c5-43c6-a6db-f484ae8924ec"]
+    },
+    {
+      "case": "approval_expiry",
+      "gateway_commit": "962ac9e",
+      "reference": "GATE-TRIAL-review-approve-c254d679",
+      "request_ref": "EB-3",
+      "target": "gate-production",
+      "approval_state": "EXPIRED",
+      "state": "STALE_AUTHORIZATION",
+      "tier": null,
+      "code": null,
+      "execution_id": "19ca5f25-f39c-4f65-9027-67abb10e6c37",
+      "operation_id": "c30a36cf-3500-4b09-a1c0-fe005f73f8fe",
+      "vendor_status": null,
+      "dispatch_calls": 0,
+      "seconds": 129.9,
+      "note": "Default 120 s deadline; the tenant-approval-deadline was raised to 900 s afterwards for the review cases below.",
+      "tines_run_guids": ["f84f764d-bc4e-4fa8-9e67-7832cfaafbed"]
+    },
+    {
+      "case": "review_approve",
+      "gateway_commit": "962ac9e",
+      "reference": "GATE-TRIAL-review-approve-f2da3668",
+      "request_ref": "EB-4",
+      "target": "gate-production",
+      "approval_state": "CONSUMED",
+      "approval_decision_id": "09d2e3e3-5ef4-4d9e-a0f9-d333952197ed",
+      "approved_by": "trial reviewer (password account), HUMAN_APPROVER, no reviewer token",
+      "state": "EXECUTED",
+      "tier": "PROVIDER_VERIFIED",
+      "code": null,
+      "execution_id": "f5b1624a-995d-47b8-9d0e-2f61b5a582b6",
+      "operation_id": "ff9107f3-36c9-4946-b026-9d8258f79d2e",
+      "vendor_status": 200,
+      "dispatch_calls": 1,
+      "journal_mutations": 1,
+      "impact": "CONFIRMED",
+      "claim_released": true,
+      "seconds": 134.5,
+      "tines_run_guids": ["00809af5-b112-4007-b17f-5310cdc0968a"]
+    },
+    {
+      "case": "review_refuse",
+      "gateway_commit": "962ac9e",
+      "reference": "GATE-TRIAL-review-refuse-978f424e",
+      "request_ref": "EB-5",
+      "target": "gate-production",
+      "approval_state": "DENIED",
+      "approval_decision_id": "00761bde-18ec-4353-b757-6772643a5c23",
+      "denied_by": "trial reviewer (password account), HUMAN_APPROVER, no reviewer token",
+      "state": "DENIED",
+      "tier": null,
+      "code": null,
+      "execution_id": "b175fd2b-bbbb-400e-a8ef-231b3c6f3aff",
+      "operation_id": "f6827a06-9610-496e-894e-a36b46160555",
+      "vendor_status": null,
+      "dispatch_calls": 0,
+      "seconds": 135.1,
+      "tines_run_guids": ["1fa86254-b578-4847-8485-8ade3d2f3664"]
+    },
+    {
+      "case": "stable_retry",
+      "reference": "GATE-TRIAL-allow-62e78e37",
+      "request_ref": "EB-1",
+      "note": "Same reference as the allow case, resent. First re-send exited refused although the row was already EXECUTED (story defect, fixed in 0a9eeee); this record is the re-run after the fix.",
+      "state": "EXECUTED",
+      "tier": null,
+      "code": null,
+      "execution_id": "f6e742a4-0f28-4c9d-a9b7-19b632cb47ad",
+      "operation_id": "cd21af93-23f3-41ac-9d86-9579d64af1d8",
+      "message": "This reference already has a recorded result; this run did not call the vendor.",
+      "dispatch_calls_total_for_reference": 1,
+      "journal_mutations_total_for_reference": 1,
+      "gateway_commit_of_buggy_first_resend": "962ac9e",
+      "gateway_commit_of_fixed_rerun": "0a9eeee",
+      "tines_run_guids": [
+        "2e71e40d-5678-4399-a2dd-8ad6635040fd",
+        "9086719b-5526-42bd-9d2c-4b74b2ae016e",
+        "0e0ffb69-0270-415b-8eeb-43f3e84e7cc3"
+      ]
+    },
+    {
+      "case": "act_window_closed",
+      "gateway_commit": "0a9eeee",
+      "reference": "GATE-TRIAL-act-window-closed-d15d864c",
+      "request_ref": "EB-6",
+      "target": "gate-workstation-02",
+      "state": "FAILED_NOT_EXECUTED",
+      "tier": "ATTESTED",
+      "code": null,
+      "execution_id": "ebdfbdfc-5a5d-4620-9f8f-94547ca640aa",
+      "operation_id": "0d65937a-2138-4fd1-8818-043e05dce700",
+      "vendor_status": null,
+      "dispatch_calls": 0,
+      "impact": "NONEXECUTION",
+      "claim_released": true,
+      "note": "Tines-signed ES256 non-execution; no vendor call.",
+      "tines_run_guids": ["1c090851-64c6-4f7f-b413-e423e87a4c96"]
+    },
+    {
+      "case": "lost_first_response",
+      "gateway_commit": "0a9eeee",
+      "reference": "GATE-TRIAL-lost-first-43263f65",
+      "request_ref": "EB-7",
+      "target": "gate-workstation-03",
+      "outcome": "needs_administrator",
+      "code": "REGRANTED_WITHOUT_SECRET",
+      "state": "DISPATCH_COMMITTED",
+      "tier": null,
+      "execution_id": "202570d7-256e-4604-bac5-3e3d147d1d59",
+      "operation_id": "ac3d1719-6e98-4023-bfdb-9166b2c5a5da",
+      "dispatch_calls": 0,
+      "impact": "UNRESOLVED",
+      "claim_released": false,
+      "note": "Direct grant discarded; the story's own retry got a re-grant with no secret and could not report.",
+      "tines_run_guids": ["c88e6b5e-027f-4e80-91e8-7c8aaaa94460"]
+    },
+    {
+      "case": "lost_first_response_settled",
+      "reference": "GATE-TRIAL-lost-first-43263f65",
+      "request_ref": "EB-7",
+      "state": "FAILED_NOT_EXECUTED",
+      "tier": "ATTESTED",
+      "execution_id": "ac3d1719-6e98-4023-bfdb-9166b2c5a5da",
+      "impact": "NONEXECUTION",
+      "claim_released": true,
+      "note": "Settled by an administrator registered Ed25519 key (trial-admin-settle-1) signing CANCELLED_NOT_EXECUTED, through POST /api/console/v1/executions/{id}/reconcile driven over HTTP with a console session opened from the administrator setup credential. No password was entered and the settlement page itself was not clicked. This route is direct HTTPS, not a Tines story run, so it carries no Tines run guid."
+    },
+    {
+      "case": "lost_vendor_response_first_stranded",
+      "gateway_commit": "0a9eeee",
+      "reference": "GATE-TRIAL-lost-vendor-response-8feccdbf",
+      "execution_id": "9e5645be-6409-4afe-8a8e-e4463157a7ae",
+      "state": "EXECUTED",
+      "tier": "PROVIDER_VERIFIED",
+      "operation_id": "ed3291c7-a135-41d5-b279-d1b43a77d6fb",
+      "dispatch_calls": 1,
+      "journal_mutations": 1,
+      "impact": "CONFIRMED",
+      "claim_released": true,
+      "note": "Tines' default emit_failure_event emits nothing for a timeout, so the vendor call's 30 s timeout left this run's grant unreported with no exit event. Settled afterwards by the administrator exit with the vendor's own journal (the stranded-admin-journal record).",
+      "tines_run_guids": ["d45a34de-086b-4751-ac15-70c9a420391e"],
+      "tines_exit_event": null
+    },
+    {
+      "case": "lost_vendor_response_retry",
+      "gateway_commit": "3ed642b",
+      "reference": "GATE-TRIAL-lost-vendor-response-85224316",
+      "request_ref": "EB-9",
+      "target": "gate-workstation-05",
+      "state": "EXECUTED",
+      "tier": "PROVIDER_VERIFIED",
+      "code": null,
+      "execution_id": "483ee6e0-120d-4bfe-877b-8677a8af490f",
+      "operation_id": "2429f999-8b11-46fe-abc0-99fd8ba3b04b",
+      "vendor_status": 0,
+      "dispatch_calls": 1,
+      "journal_mutations": 1,
+      "impact": "CONFIRMED",
+      "claim_released": true,
+      "note": "With emit_failure_event: true (fixed in 3ed642b), the timeout emitted status 0, the story looked the journal up with the same command, found it, and settled PROVIDER_VERIFIED with one dispatch.",
+      "tines_run_guids": ["7c0d3724-4aa7-4fce-9f11-e8cc45043a72"]
+    },
+    {
+      "case": "replay_and_wrong_scope",
+      "gateway_commit": "3ed642b",
+      "requests": {"a": "EB-10", "b": "EB-11"},
+      "replayed_grant_on_b": {
+        "presented": "A's secret and A's journal",
+        "status": 403,
+        "code": "INVALID_REPORT"
+      },
+      "wrong_scope_journal_on_b": {
+        "presented": "B's secret and A's journal",
+        "status": 400,
+        "code": "INVALID_RECORD"
+      },
+      "b_after_refusals": {
+        "state": "DISPATCH_COMMITTED",
+        "tier": null,
+        "operation_id": "bd358881-016e-4355-bacd-23e39b6b9df8",
+        "impact": "UNRESOLVED",
+        "claim_released": false
+      },
+      "a_final": {
+        "state": "EXECUTED",
+        "tier": "PROVIDER_VERIFIED",
+        "operation_id": "8a44f3a6-9a91-4731-8c98-4dcc55a3e4d3",
+        "impact": "CONFIRMED",
+        "claim_released": true,
+        "journal_outcome": "EXECUTED",
+        "journal_mutations": 1,
+        "dispatch_calls": 1,
+        "settled_from": "its own journal"
+      },
+      "b_final": {
+        "state": "EXECUTED",
+        "tier": "PROVIDER_VERIFIED",
+        "operation_id": "bd358881-016e-4355-bacd-23e39b6b9df8",
+        "impact": "CONFIRMED",
+        "claim_released": true,
+        "journal_outcome": "EXECUTED",
+        "journal_mutations": 1,
+        "dispatch_calls": 1,
+        "settled_from": "its own journal"
+      },
+      "note": "Both A and B eventually settled EXECUTED, each from its own journal, after their cross-presented reports were refused. No Tines run guid was separately captured for this case; the refusal and settlement figures above are the gateway's own record."
+    },
+    {
+      "case": "credential_reach_before_separation",
+      "note": "Seeded bundle, no principal separation yet.",
+      "direct_http_no_story": [
+        {"reference": "GATE-TRIAL-reach-d7dc500d", "call": "gate credential, execute operation, on execute target", "status": 200, "state": "EXECUTED", "dispatched_by": "ExecBound (Execute path)"},
+        {"reference": "GATE-TRIAL-reach-19b9e3a2", "call": "gate credential, execute operation, on gate target", "status": 503, "code": "EXECUTION_UNAVAILABLE", "execution_rows": 0},
+        {"reference": "GATE-TRIAL-reach-2c7975d8", "call": "execute credential, execute operation, on gate target", "status": 503, "code": "EXECUTION_UNAVAILABLE", "execution_rows": 0},
+        {"reference": "GATE-TRIAL-reach-78939bb6", "call": "execute credential, gate operation, on execute target", "status": 503, "code": "EXECUTION_UNAVAILABLE", "execution_rows": 0}
+      ],
+      "through_gate_story": {
+        "reference": "GATE-TRIAL-gate-credential-execute-op-gate-target-c8e0dccb",
+        "outcome": "uncertain",
+        "code": "EXECUTION_UNAVAILABLE",
+        "seconds": 97.5,
+        "note": "The story retried the 503 for about 97 seconds before exiting uncertain. Pre-existing Execute-path behaviour for a target outside the mapping's account, for either principal; the interface reference documents it in its 503 row as the answer an unknown target gets.",
+        "tines_run_guids": ["a68701cc-0a20-4831-b76f-9b349bd8442d"]
+      },
+      "finding": "Before separation, the Gate credential's execute operation on an execute-path target was dispatched by ExecBound and EXECUTED: the seeded bundle never provisioned the separation that a Gate principal serves Gate mappings only (CHECKPOINT.md limitation 9, owner provisioning rather than a control)."
+    },
+    {
+      "case": "credential_reach_separation_provisioning",
+      "bundle_id": "a05b22c1-6ff9-4fe6-ae43-0318711cb508",
+      "state": "ACTIVE",
+      "note": "Provisioned live, the owner's way: bundle-create, bundle-validate and bundle-activate with the administrator credential, adding two Cedar forbids keyed on the principal and on resource.account. The seeded bundle itself failed bundle-validate first (INVALID_COMPONENT: _with_max_age wrote context settings for every catalog contract while the bundle maps only one; install_bundle never checks this), so the activated copy keeps settings for the mapped contract only. Recorded as found, then provisioned; fixed in the seed after the trial by 5c50940."
+    },
+    {
+      "case": "credential_reach_after_separation",
+      "direct_http_no_story": [
+        {"reference": "GATE-TRIAL-reach-97c39c5b", "call": "gate credential, execute operation, on execute target", "status": 200, "state": "DENIED"},
+        {"reference": "GATE-TRIAL-reach-0ddb16dc", "call": "execute credential, gate operation, on gate target", "status": 200, "state": "DENIED"}
+      ],
+      "through_gate_story": {
+        "reference": "GATE-TRIAL-gate-credential-execute-op-separated-5e2c924e",
+        "request_ref": "EB-15",
+        "target": "execute-workstation-11",
+        "outcome": "final",
+        "state": "DENIED",
+        "tier": null,
+        "execution_id": "b1211a7c-b5fc-4b7e-aa16-651ae79ad0c7",
+        "operation_id": "e9343fd9-c468-454b-96a9-d1619ac338ea",
+        "dispatch_calls": 0,
+        "claim_released": false,
+        "tines_run_guids": ["0c8b3187-8f3b-4ce2-9923-974d62bba321"]
+      }
+    },
+    {
+      "case": "bypass",
+      "gateway_commit": "3ed642b",
+      "target": "gate-workstation-12",
+      "operation_id": "0df00d55-6ef4-42bc-a203-9fcf36b23184",
+      "seconds": 4.5,
+      "bypass_without_credential": {"status": 401, "journal_outcome": null},
+      "bypass_with_vendor_credential": {"status": 200, "journal_outcome": "EXECUTED"},
+      "execbound_executions_for_operation": 0,
+      "note": "A separate ad hoc bypass probe story (id 146607), not the committed Gate story. No reference/ticket concept applies the same way and no Tines run guid was captured for it; only the two HTTP event timestamps and the vendor journal outcome are. This is why Gate is Advisory."
+    },
+    {
+      "case": "shared_impact",
+      "gateway_commit": "3ed642b",
+      "bundle_id": "8763818e-43f1-4672-8710-4610d26836a4",
+      "tenant_rule": "trial-shared-isolation",
+      "window_seconds": 7200,
+      "already_charged": 8,
+      "max_targets": 13,
+      "note": "An owner-added stricter tenant rule, used in place of the seeded 20-target/900 s rule: 11 untouched targets could not fill 20, and the 900 s window was rolling earlier charges out mid-case.",
+      "fill": [
+        {"path": "gate", "target": "gate-workstation-08", "state": "EXECUTED", "tier": "PROVIDER_VERIFIED", "execution_id": "c841c3d2-f3fd-4c48-afad-6702fc4b25ee", "reference": "GATE-TRIAL-shared-gate-1-e0bc36f6", "request_ref": "EB-17", "operation_id": "81081c6f-254d-411d-a9f3-9cf2e8585af3", "tines_run_guids": ["02f94767-9be4-49f4-aaae-20d22caba34e"]},
+        {"path": "execute", "target": "execute-workstation-01", "status": 200, "state": "EXECUTED", "execution_id": "d78cd735-398b-4ad3-ace5-ab2de9a5e3f6"},
+        {"path": "gate", "target": "gate-workstation-09", "state": "EXECUTED", "tier": "PROVIDER_VERIFIED", "execution_id": "f558106c-54e6-47e5-8263-86272b05a9f1", "reference": "GATE-TRIAL-shared-gate-2-73ce4a1c", "request_ref": "EB-19", "operation_id": "82fd6b0a-fa78-43de-a865-7ca46635d057", "tines_run_guids": ["aa6e7ea3-795c-40d7-8d01-45e61c0a52c8"]},
+        {"path": "execute", "target": "execute-workstation-02", "status": 200, "state": "EXECUTED", "execution_id": "dbb314e8-30a9-4704-b783-42ef0de3b9cb"},
+        {"path": "execute", "target": "execute-workstation-03", "status": 200, "state": "EXECUTED", "execution_id": "2c47352b-5dfb-4c30-a424-69d83f24bac8"}
+      ],
+      "charged_after_fill": 13,
+      "next_on_each_path": [
+        {"path": "gate", "target": "gate-workstation-11", "state": "DENIED", "execution_id": "dd4ba7dd-36dc-48da-83e7-b42d1801ea13", "reference": "GATE-TRIAL-shared-gate-over-6b7d3e33", "request_ref": "EB-22", "operation_id": "1c12ec7f-769f-4dff-bd5a-0297d0829e11", "reasons": ["HARD_LIMIT:trial-shared-isolation"], "tines_run_guids": ["f95e1e9a-4c1f-44a0-b507-a37065437729"]},
+        {"path": "execute", "target": "execute-workstation-04", "status": 200, "state": "DENIED", "execution_id": "b655bac2-876c-4a3a-b7e2-005702343640", "reasons": ["HARD_LIMIT:trial-shared-isolation"]}
+      ]
+    },
+    {
+      "case": "final_allow",
+      "gateway_commit": "3ed642b",
+      "reference": "GATE-TRIAL-allow-final-story-32265e1e",
+      "request_ref": "EB-16",
+      "target": "gate-workstation-10",
+      "state": "EXECUTED",
+      "tier": "PROVIDER_VERIFIED",
+      "code": null,
+      "execution_id": "ab63752c-434b-4db4-9412-207faf35a184",
+      "operation_id": "cc9790cf-b382-40ab-9c39-97dc676d4a34",
+      "vendor_status": 200,
+      "dispatch_calls": 1,
+      "journal_mutations": 1,
+      "impact": "CONFIRMED",
+      "claim_released": true,
+      "note": "This run's decision request and journal report are the committed fixtures tests/fixtures/tines-gate-decision-body.json and tests/fixtures/tines-gate-journal-report.json. Ran on the committed story, verified action-by-action equal to the exported integrations/tines/execbound-gate.json.",
+      "tines_run_guids": ["0f25621e-f103-47ea-bfc5-b64d333ffca1"]
+    }
+  ],
+  "not_established": [
+    "The report window closing: covered offline only, because the route authenticates the credential before it reads the deadline.",
+    "A real vendor: the protected mock signs the journals, with an HMAC key in the gateway's own private configuration (checkpoint guide limitation 11).",
+    "The Execute side through the Execute story: the shared-impact and credential-reach Execute-path calls went by direct HTTP, because the tenant's Execute story was configured for a different gateway.",
+    "The seeded 20-target/900 s shared-impact rule's own number: the trial exercised an owner-added stricter rule instead (see the shared_impact case).",
+    "The settlement page's control markup: the administrator exit for lost-first-response ran through POST /api/console/v1/executions/{id}/reconcile by HTTP with a console session, not by clicking the page.",
+    "The seed's separation and validated bundle as shipped at the trial commit (962ac9e): both were found missing/failing during the trial and fixed after the trial (see the trial record's own note on this)."
+  ]
+}

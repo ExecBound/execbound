@@ -1,0 +1,86 @@
+{
+  "attachments": [
+    {
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "actions": [
+          {
+            "title": "Open the approval",
+            "type": "Action.OpenUrl",
+            "url": "https://app.example.net/approvals/00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "title": "Use the basic page",
+            "type": "Action.OpenUrl",
+            "url": "https://app.example.net/approvals/00000000-0000-4000-8000-000000000002/classic"
+          }
+        ],
+        "body": [
+          {
+            "size": "Medium",
+            "text": "EB-20 · Isolate endpoint needs a decision",
+            "type": "TextBlock",
+            "weight": "Bolder",
+            "wrap": true
+          },
+          {
+            "facts": [
+              {
+                "title": "Decide by",
+                "value": "2026-09-18 03:28:00 UTC"
+              },
+              {
+                "title": "Time to decide",
+                "value": "About 4 minutes when sent"
+              },
+              {
+                "title": "Workspace",
+                "value": "Synthetic SOC"
+              },
+              {
+                "title": "Space",
+                "value": "Default"
+              },
+              {
+                "title": "Action",
+                "value": "Isolate endpoint"
+              },
+              {
+                "title": "Resource class",
+                "value": "workstation"
+              },
+              {
+                "title": "Environment",
+                "value": "production"
+              },
+              {
+                "title": "Requested by",
+                "value": "Agent 3"
+              }
+            ],
+            "type": "FactSet"
+          },
+          {
+            "isSubtle": true,
+            "size": "Small",
+            "text": "If the console does not load, use the basic page.",
+            "type": "TextBlock",
+            "wrap": true
+          },
+          {
+            "isSubtle": true,
+            "size": "Small",
+            "text": "Request EB-20",
+            "type": "TextBlock",
+            "wrap": true
+          }
+        ],
+        "type": "AdaptiveCard",
+        "version": "1.4"
+      },
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "contentUrl": null
+    }
+  ],
+  "type": "message"
+}

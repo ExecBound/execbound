@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Feature request
+description: A change to what ExecBound does, proposed before it is built.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what stops you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: >-
+        How it should behave. If it changes what an agent may do, say which security
+        invariant in the threat model it touches and why that invariant still holds.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

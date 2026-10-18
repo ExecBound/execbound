@@ -1,0 +1,13 @@
+{
+  "arguments": {},
+  "claimed_context": {
+    "incident_id": "6a33bfdf-3ad4-5c9e-ab3b-878667853a8a"
+  },
+  "external_case": null,
+  "operation_ref": "gate.endpoint.isolate",
+  "reference": "GATE-TRIAL-allow-final-story-32265e1e",
+  "target": {
+    "kind": "provider_id",
+    "value": "gate-workstation-10"
+  }
+}

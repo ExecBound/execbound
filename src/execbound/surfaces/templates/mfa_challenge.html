@@ -1,0 +1,47 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block head %}{% if options %}<script src="/assets/account-security.js" defer></script>{% endif %}{% endblock %}
+{% block body %}
+{# The second step of signing in, and nothing else. Managing factors, passkeys and the
+   organization's requirement belongs on Account security; a person here only needs to finish
+   signing in, so this page asks for one code and goes straight on once it is accepted. #}
+<section class="login challenge">
+  {# A session a workspace switch created opens that workspace, and says which; its name is
+     the tenant's own string and is escaped as text. #}
+  <h1>{% if view.entering %}Verify to open {{ view.entering }}{% else %}Two-step verification{% endif %}</h1>
+  {% if options %}
+  <p class="intro">{% if view.entering %}Use your passkey to open {{ view.entering }}.{% else %}Use your passkey to finish signing in.{% endif %}</p>
+  <input type="hidden" id="passkey-options" value="{{ options }}">
+  <form id="passkey-finish" data-ceremony="{{ ceremony }}" action="/account/security/passkey/{{ ceremony }}/finish" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="credential">
+    <button id="passkey-prompt" type="button">Continue with passkey</button>
+  </form>
+  <p id="passkey-problem" role="alert"></p>
+  <p class="alternative"><a href="/mfa">Use your authenticator app instead</a></p>
+  {% else %}
+  <p class="intro">Enter the 6-digit code from your authenticator app to {% if view.entering %}open {{ view.entering }}{% else %}finish signing in{% endif %}.</p>
+  {% if problem %}<p class="notice" role="alert">{{ problem }}</p>{% endif %}
+  <form action="/account/security/verify" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="code">Authentication code</label>
+    <input id="code" class="code-input" name="code" required maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" autofocus>
+    <button>Verify</button>
+  </form>
+  {% if view.passkeys %}
+  <form action="/account/security/passkey/authenticate/start" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="secondary">Use a passkey instead</button>
+  </form>
+  {% endif %}
+  <details class="recovery">
+    <summary>Lost your authenticator? Use a recovery code</summary>
+    <form action="/account/security/verify" method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="recovery-code">Recovery code</label>
+      <input id="recovery-code" name="code" required maxlength="29" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button class="secondary">Verify with a recovery code</button>
+    </form>
+  </details>
+  {% endif %}
+  <p class="muted">Not you, or the wrong account? <a href="/login">Sign in again</a>{% if service.support_email %} · <a href="mailto:{{ service.support_email }}">Get account help</a>{% endif %}</p>
+</section>
+{% endblock %}

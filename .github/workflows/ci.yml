@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The token reads the repository and nothing else, on every event, a fork's pull request
+# included. No step needs a secret.
+permissions:
+  contents: read
+
+# A newer push supersedes the run in progress for the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # GitHub-hosted only: a pull request from a fork runs on a machine that is thrown away
+    # afterwards, never on one that anybody keeps.
+    runs-on: ubuntu-latest
+    # Every stage runs in this one job. On the two-CPU runner a private copy of this repository
+    # gets, the suite alone takes about 90 minutes and the whole job about two hours; a public
+    # repository's four-CPU runner takes about half that.
+    timeout-minutes: 180
+    env:
+      # The runner has root, so the browser install brings Chromium's system libraries too.
+      EXECBOUND_CI_BROWSER_DEPS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.13"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: console/package.json
+      - name: Enable the package manager console/package.json pins
+        run: corepack enable
+      # One step per stage of scripts/ci.py, in its order, so a failure names its stage.
+      # `python3 scripts/ci.py --print all` shows what each one runs.
+      - name: Install the locked environment
+        run: python3 scripts/ci.py sync
+      - name: Lint, format, type and bandit checks
+        run: python3 scripts/ci.py lint
+      - name: Check every licence and the third-party notices
+        run: python3 scripts/ci.py licences
+      - name: Check and build the console
+        run: python3 scripts/ci.py console
+      - name: Install the test clients and the browser
+        run: python3 scripts/ci.py tools
+      - name: Start PostgreSQL
+        run: python3 scripts/ci.py database
+      - name: Run the test suite
+        run: python3 scripts/ci.py suite
+      - name: Build and check the distributions
+        run: python3 scripts/ci.py package
+      - name: Reproduce the validation package
+        run: python3 scripts/ci.py validation
+      - name: Back up, restore and replay the demonstration history
+        run: python3 scripts/ci.py restore
+      - name: Reproduce the monitoring slice
+        run: python3 scripts/ci.py monitoring
+      - name: Build and smoke-test the runtime image
+        run: python3 scripts/ci.py image
+      - name: Describe the image, and check the SBOM matches what it carries
+        run: python3 scripts/ci.py provenance
+      - name: Install from nothing in three commands
+        run: python3 scripts/ci.py fresh-machine
+      - name: Remove what the stages started
+        if: always()
+        run: python3 scripts/ci.py cleanup

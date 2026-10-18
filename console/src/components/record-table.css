@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Loaded with Home and Activity, never with the cold approval link (#678). */
+/* A record's row on a phone (#678): the action and its decision, the target, the time and the
+   agent, then why, each on a line of its own, so no column is out of sight. */
+@media (max-width: 767px) {
+  .table.record-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .table.record-table, .table.record-table tbody { display: block; }
+  .table.record-table tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline;
+    grid-template-areas: "action decision" "target target" "time agent" "note note" "extra extra";
+    padding: 10px 0; border-bottom: 1px solid var(--eb-line);
+  }
+  .table.record-table td { height: auto; padding: 0; border: 0; min-width: 0; }
+  .table.record-table td:nth-child(1) { grid-area: time; color: var(--eb-muted); font-size: 12.5px; }
+  .table.record-table td:nth-child(2) { grid-area: agent; justify-self: end; font-size: 12.5px; }
+  .table.record-table td:nth-child(3) { grid-area: action; }
+  .table.record-table td:nth-child(4) { grid-area: target; overflow-wrap: anywhere; }
+  .table.record-table td:nth-child(5) { grid-area: decision; justify-self: end; }
+  .table.record-table td:nth-child(6) { grid-area: note; }
+  .table.record-table td:nth-child(7) { grid-area: extra; }
+  .table.record-table td:empty { display: none; }
+  .table.record-table td.reason { max-width: none; }
+}

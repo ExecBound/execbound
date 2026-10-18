@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "isolate-open-incident",
+      "action": "endpoint.isolate",
+      "effect": "ALLOW",
+      "when": [
+        {
+          "kind": "fact",
+          "name": "incident_status",
+          "operator": "is",
+          "values": [
+            "OPEN"
+          ]
+        }
+      ],
+      "note": "Nothing is allowed that this rule does not allow; the default is refusal."
+    },
+    {
+      "id": "isolate-never-domain-controller",
+      "action": "endpoint.isolate",
+      "effect": "DENY",
+      "when": [
+        {
+          "kind": "fact",
+          "name": "role",
+          "operator": "is",
+          "values": [
+            "domain_controller"
+          ]
+        }
+      ],
+      "note": "A hard denial wins over every permit, verdict and approval."
+    }
+  ],
+  "context": [
+    {
+      "context_contract_version": "endpoint-isolation.v1",
+      "source_kind": "inventory",
+      "max_age_seconds": 3600,
+      "permitted_writers": [
+        "inventory_sync"
+      ]
+    },
+    {
+      "context_contract_version": "endpoint-isolation.v1",
+      "source_kind": "incident",
+      "max_age_seconds": 3600,
+      "permitted_writers": [
+        "soc_analyst"
+      ]
+    }
+  ]
+}

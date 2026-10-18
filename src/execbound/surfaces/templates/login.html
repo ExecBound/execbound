@@ -1,0 +1,59 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block body %}
+{% from 'provider_marks.html' import mark %}
+<section class="login">
+  <h1>Sign in.</h1>
+  <p class="intro">Every agent action, the decision it got, and the policy behind it.</p>
+  {% if problem %}<p class="notice" role="alert">{{ problem }}</p>{% endif %}
+  <form action="/session/password" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Email<input type="email" name="email" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+    <label>Password<input type="password" name="password" required maxlength="200" autocomplete="current-password"></label>
+    <button>Sign in with a password</button>
+  </form>
+  {# A loaded plugin's way to reset a forgotten password (#678), with the help page kept for
+     a lost second factor, which stays an operator's recovery. Without one, the help line. #}
+  {% if recovery_link %}
+  <p><a href="{{ recovery_link.path }}">{{ recovery_link.label }}</a></p>
+  {% if service.help_url %}<p class="muted">Lost your authenticator app and recovery codes? <a href="{{ service.help_url }}">Get account help</a></p>{% endif %}
+  {% else %}
+  {% if service.help_url %}<p><a href="{{ service.help_url }}">Forgot your password or lost access?</a></p>{% endif %}
+  {% endif %}
+  {% if providers or directory %}
+  <p class="rule"><span>or continue with</span></p>
+  <div class="providers">
+    {# The tenant's own directory, when this browser has signed in through it before. The name
+       is a value its administrator typed, so it is rendered as text by the autoescaping
+       template and is never a control, a lookup key or part of an address. #}
+    {% if directory %}
+    <form action="/login/directory/{{ directory.provider_id }}" method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="provider">{{ mark('directory') }}Continue with {{ directory.name }}</button>
+    </form>
+    {% endif %}
+    {% for provider in providers %}
+    <form action="/login/{{ provider.name }}" method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="provider">{{ mark(provider.name) }}Continue with {{ provider.label }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {# A loaded plugin's link, such as the way to sign up. The label is the plugin's text, so it
+     is rendered as text by the autoescaping template; it stays a plain link, never a button
+     or a field, below every way to sign in so "or continue with" still reads as signing in. #}
+  {% if sign_in_link %}
+  <p><a href="{{ sign_in_link.path }}">{{ sign_in_link.label }}</a></p>
+  {% endif %}
+  {% if setup %}
+  <h2 class="eyebrow">Installation setup</h2>
+  <p class="muted">Use a provisioned setup credential to configure your account. Reviewing actions uses your normal sign-in.</p>
+  <form action="/session" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Setup credential<input type="password" name="credential" required maxlength="160" autocomplete="off"></label>
+    <button class="quiet">Continue setup</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

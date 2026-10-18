@@ -1,0 +1,122 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block head %}{% if options %}<script src="/assets/account-security.js" defer></script>{% endif %}{% endblock %}
+{% block body %}
+<section class="login">
+  <h1>Account security</h1>
+  {% if not view.required %}<p class="back"><a href="{{ continue_to }}">Back to ExecBound</a></p>{% endif %}
+  {% if problem %}<p class="notice" role="alert">{{ problem }}</p>{% endif %}
+  {% if notice %}<p role="status">{{ notice }}</p>{% endif %}
+  {% if options %}
+  <h2>{{ 'Add a passkey' if ceremony == 'register' else 'Use your passkey' }}</h2>
+  <p>Continue to use your device unlock, security key or another device.</p>
+  <input type="hidden" id="passkey-options" value="{{ options }}">
+  <form id="passkey-finish" data-ceremony="{{ ceremony }}" action="/account/security/passkey/{{ ceremony }}/finish" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="credential">
+    <button id="passkey-prompt" type="button">Continue with device</button>
+  </form>
+  <p id="passkey-problem" role="alert"></p>
+  <p><a href="/account/security">Back to account security</a></p>
+  {% endif %}
+  {% if not available %}
+  <p>Your administrator needs to configure account security before you can add an authenticator.</p>
+  {% elif recovery %}
+  <h2>Save your recovery codes</h2>
+  <p>Each code can be used once if you lose your authenticator. Store them in your password manager. These codes are shown only now.</p>
+  <ul>{% for code in recovery %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+  {% endif %}
+  {% if view.required %}<p role="status">Verify your identity to continue. Your organization or account requires multi-factor authentication.</p>{% endif %}
+  {% if view.enabled and available %}
+  <h2>Authenticator enabled</h2>
+  <p>{{ view.recovery_remaining }} recovery codes remain.</p>
+  <form action="/account/security/verify" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Authenticator or recovery code<input name="code" required maxlength="29" autocomplete="one-time-code" autocapitalize="none" spellcheck="false"></label>
+    <button>Verify identity</button>
+  </form>
+  <p>Before changing your security settings, verify with a new code. Verification lasts thirty minutes.</p>
+  {% endif %}
+  {% if secret %}
+  <h2>Connect your authenticator</h2>
+  {% if qr %}<div class="mfa-qr" role="img" aria-label="Scan this QR code with your authenticator app">{{ qr }}</div><p>Scan the code, or enter the setup key manually.</p>{% endif %}
+  <ol><li>Open your authenticator app and choose to add an account using a setup key.</li>
+  <li>Choose a time-based account, name it ExecBound, and enter this key: <code>{{ secret }}</code>.</li>
+  <li>Enter the six-digit code from your app below. This setup expires after five minutes.</li></ol>
+  <form action="/account/security/confirm" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Six-digit code<input name="code" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code"></label>
+    <button>Confirm authenticator</button>
+  </form>
+  {% elif available %}
+  <form action="/account/security/enroll" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button>{{ 'Replace authenticator' if view.enabled else 'Set up authenticator' }}</button>
+  </form>
+  {% endif %}
+  {% if view.enabled and available and not recovery %}
+  <h2>Passkeys and security keys</h2>
+  <p>Use a passkey for phishing-resistant verification. Your authenticator and recovery codes remain available.</p>
+  {% if view.passkeys %}
+  <form action="/account/security/passkey/authenticate/start" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button>Verify with a passkey</button>
+  </form>
+  {% endif %}
+  {% if not view.required %}
+  <form action="/account/security/passkey/register/start" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button>Add a passkey</button>
+  </form>
+  {% for key in view.passkeys %}
+  <form action="/account/security/passkey/remove/finish" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="credential" value="{{ key.credential_id }}">
+    <p>Passkey {{ key.credential_id[:8] }} · added {{ key.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</p><button class="quiet">Remove this passkey</button>
+  </form>
+  {% endfor %}
+  {% endif %}
+  <details><summary>Recovery and security settings</summary>
+  <form action="/account/security/recovery" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <p>Replacing recovery codes immediately invalidates every previous code.</p><button>Replace recovery codes</button>
+  </form>
+  {% if view.requirement == 'optional' or (view.requirement == 'admins' and not admin) %}
+  <form action="/account/security/disable" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <p>Turning MFA off removes this extra protection from your account.</p><button class="quiet">Turn off MFA</button>
+  </form>
+  {% endif %}
+  </details>
+  {% endif %}
+  {% if view.sets_requirement and view.enabled and available %}
+  <h2>Organization requirement</h2>
+  <p>Members who need MFA will be asked to enroll before accessing the console. Every sign-in method follows this requirement.</p>
+  <form action="/account/security/policy" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Require MFA for<select name="requirement">
+      <option value="optional" {{ 'selected' if view.requirement == 'optional' else '' }}>Let each user choose</option>
+      <option value="admins" {{ 'selected' if view.requirement == 'admins' else '' }}>Administrators</option>
+      <option value="all" {{ 'selected' if view.requirement == 'all' else '' }}>Everyone (recommended)</option>
+    </select></label><button>Save requirement</button>
+  </form>
+  {% endif %}
+  {% if first_password and not view.required %}
+  <h2>Password</h2>
+  <p>Your account signs in with a provider and has no password. Add one to sign in with your address as well. Sign in again first; adding it also requires your current MFA verification when enabled.</p>
+  <form action="/account/security/password" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>New password<input type="password" name="password" required minlength="{{ minimum }}" maxlength="{{ maximum }}" autocomplete="new-password"></label>
+    <label>New password again<input type="password" name="confirm" required minlength="{{ minimum }}" maxlength="{{ maximum }}" autocomplete="new-password"></label>
+    <button>Add a password</button>
+  </form>
+  {% endif %}
+  {% if link_providers and not view.required %}
+  <h2>Sign-in methods</h2>
+  <p>Link a provider to your verified account. Sign in again first; linking also requires your current MFA verification when enabled.</p>
+  {% for provider in link_providers %}
+  <form action="/account/link/{{ provider.name }}" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button>Link {{ provider.label }}</button>
+  </form>
+  {% endfor %}
+  {% endif %}
+  {% if not view.required %}<p><a class="btn" href="{{ continue_to }}">Continue to ExecBound</a></p>{% endif %}
+  <p><a href="/login">Sign in again</a>{% if service.support_email %} · <a href="mailto:{{ service.support_email }}">Get account help</a>{% endif %}</p>
+</section>
+{% endblock %}

@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Copy link and Copy reference (#678): small secondary controls; the drawer's eyebrow wraps them
+   under the reference on a phone, and a value shown for copying by hand breaks anywhere. */
+.drawer-eyebrow:has(.copy-control) { flex-wrap: wrap; }
+.copy-control { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.copy-value { overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .copy-control .btn { min-height: 44px; }
+}

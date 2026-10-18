@@ -1,0 +1,368 @@
+{
+  "action_runtime_version": 88,
+  "agents": [
+    {
+      "description": "Example trigger with a `target`. In your own story this is whatever already starts the work.",
+      "disabled": false,
+      "guid": "21540d1bcb526214d015e1e4884d910c",
+      "monitoring": null,
+      "name": "Entry",
+      "options": {
+        "include_headers": false,
+        "path": "",
+        "secret": "",
+        "verbs": "post"
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::WebhookAgent",
+      "width": null
+    },
+    {
+      "description": "Reads the target and stamps when the action is attempted. The stamp is taken before the action so re-running the report rebuilds the same body.",
+      "disabled": false,
+      "guid": "d84c2214aea91092d4229905583a2e11",
+      "monitoring": null,
+      "name": "Prepare",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "attempted_at": "=DATE(NOW(), \"%Y-%m-%dT%H:%M:%S%:z\")",
+          "target": "=DEFAULT(entry.body.target, DEFAULT(entry.target, null))"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": "A target ExecBound can record: letters, digits, dot, underscore, colon, hyphen.",
+      "disabled": false,
+      "guid": "37e28858e577ffd248ca2076f49b74b9",
+      "monitoring": null,
+      "name": "Has target?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<prepare.target>>",
+            "type": "regex",
+            "value": "^[A-Za-z0-9._:-]{1,96}$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": "The example's consequential action, at a vendor, with the story's own vendor credential. Replace it with yours. Never retried: a second send could be a second effect.",
+      "disabled": false,
+      "guid": "70d3ace78875b30e2983b1189a873238",
+      "monitoring": null,
+      "name": "Act",
+      "options": {
+        "disable_redirect_follow": true,
+        "emit_failure_event": true,
+        "fail_on_status": false,
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.execbound_lab_vendor>>",
+          "Content-Type": "application/json"
+        },
+        "method": "post",
+        "payload": "=TO_JSON(OBJECT(\"target\", prepare.target))",
+        "retries": 0,
+        "retry_on_status": [],
+        "url": "<<RESOURCE.execbound_lab_vendor_origin>>/v1/isolate"
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::HTTPRequestAgent",
+      "width": null
+    },
+    {
+      "description": "The observation for the action's result. The outcome is what the vendor answered: 2xx is success, no answer at all is unknown, anything else is an error. Report errors as well as successes.",
+      "disabled": false,
+      "guid": "c7c61b0eb4d265b418e20e149eeebcf5",
+      "monitoring": null,
+      "name": "Build result",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "body": "=OBJECT(\"version\", 1, \"event_id\", APPEND(\"tines-\", TEXT(META.story.id), \"-\", TEXT(META.event.id)), \"story_id\", TEXT(META.story.id), \"occurred_at\", prepare.attempted_at, \"kind\", \"tool_result\", \"action\", \"endpoint.isolate\", \"target_ref\", prepare.target, \"outcome\", IF(DEFAULT(act.status, 0) = 0, \"unknown\", IF(AND(act.status >= 200, act.status <= 299), \"success\", \"error\")))"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": "Runs every five minutes whether or not anything else happens, so a broken reporting path shows as a stale source instead of as silence.",
+      "disabled": false,
+      "guid": "7ec759fb23fa88f068f62e3846120bb8",
+      "monitoring": null,
+      "name": "Heartbeat",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "at": "=DATE(NOW(), \"%Y-%m-%dT%H:%M:00+00:00\")",
+          "minute": "=DATE(NOW(), \"%Y%m%dT%H%M\")"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": [
+        {
+          "cron": "*/5 * * * *",
+          "timezone": "Etc/UTC"
+        }
+      ],
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": "Stamps the heartbeat to the minute. Every accepted send refreshes source freshness.",
+      "disabled": false,
+      "guid": "5eab90c75d23b6ffe93aae668b0013d5",
+      "monitoring": null,
+      "name": "Build heartbeat",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "body": "=OBJECT(\"version\", 1, \"event_id\", APPEND(\"hb-\", TEXT(META.story.id), \"-\", heartbeat.minute), \"story_id\", TEXT(META.story.id), \"occurred_at\", heartbeat.at, \"kind\", \"heartbeat\")"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": "Sends the report with the story's monitoring source token. A tool-result retry resends the identical body, which ExecBound records once. Heartbeats only refresh source freshness.",
+      "disabled": false,
+      "guid": "a2c85bc6e33d0bbc8390ef153744a12e",
+      "monitoring": null,
+      "name": "Report",
+      "options": {
+        "disable_redirect_follow": true,
+        "emit_failure_event": true,
+        "fail_on_status": false,
+        "headers": {
+          "Authorization": "Bearer <<CREDENTIAL.execbound_monitor_source>>",
+          "Content-Type": "application/json"
+        },
+        "method": "post",
+        "payload": "=TO_JSON(DEFAULT(build_result.body, build_heartbeat.body))",
+        "retries": 3,
+        "retry_on_status": [
+          429,
+          500,
+          502,
+          503,
+          504
+        ],
+        "url": "<<RESOURCE.execbound_monitor_origin>>/v1/monitor/events"
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::HTTPRequestAgent",
+      "width": null
+    },
+    {
+      "description": "202 is a new tool result or refreshed heartbeat; 200 is an already recorded result.",
+      "disabled": false,
+      "guid": "31f0145daef66518b5fefbbf15748f52",
+      "monitoring": null,
+      "name": "Recorded?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<report.status>>",
+            "type": "regex",
+            "value": "^(200|202)$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": "Anything else: ExecBound has not accepted this report.",
+      "disabled": false,
+      "guid": "1ff124c68799c903d32f470737346617",
+      "monitoring": null,
+      "name": "Not recorded?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<report.status>>",
+            "type": "!regex",
+            "value": "^(200|202)$"
+          }
+        ]
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": "Exit: the tool result is recorded or heartbeat freshness is refreshed.",
+      "disabled": false,
+      "guid": "044905ad756b424f44c5611cec0893ad",
+      "monitoring": null,
+      "name": "Reported",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "event_id": "=DEFAULT(build_result.body.event_id, build_heartbeat.body.event_id)",
+          "kind": "=DEFAULT(build_result.body.kind, build_heartbeat.body.kind)",
+          "observation_id": "=DEFAULT(report.body.observation_id, null)",
+          "reported": "=IF(DEFAULT(build_result.body.kind, build_heartbeat.body.kind) = \"heartbeat\", \"refreshed\", IF(report.status = 202, \"recorded\", \"duplicate\"))"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    },
+    {
+      "description": "Exit: route this to your own alerting. A result that is not recorded is a gap in what ExecBound can see; `auth_lost` means the source token expired, was revoked or was rotated past its grace window.",
+      "disabled": false,
+      "guid": "a915e05a7ce49f390abae9d3e00d7be0",
+      "monitoring": null,
+      "name": "Reporting failed",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "code": "=DEFAULT(report.body.code, null)",
+          "event_id": "=DEFAULT(build_result.body.event_id, build_heartbeat.body.event_id)",
+          "kind": "=DEFAULT(build_result.body.kind, build_heartbeat.body.kind)",
+          "reason": "=SWITCH(TEXT(DEFAULT(report.status, 0)), \"401\", \"auth_lost\", \"409\", \"conflict\", \"0\", \"unreachable\", \"not_recorded\")",
+          "reported": "failed",
+          "status": "=DEFAULT(report.status, 0)"
+        }
+      },
+      "origin_story_identifier": "cloud:execbound:monitor",
+      "reporting": null,
+      "schedule": null,
+      "template": null,
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    }
+  ],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "app_endpoints": [],
+  "description": "An example of a story ExecBound monitors: it acts at a vendor with its own credential and reports each result, and a heartbeat, to ExecBound. Copy Prepare's stamp, Build result, Heartbeat, Build heartbeat, Report and the two exits into your own story.",
+  "diagram_layout": "{}",
+  "diagram_notes": [],
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "exported_at": "2026-09-25T00:00:00Z",
+  "guid": "b6c3cf5cdd53aa0ae93583be10679a64",
+  "icon": ":adhesive_bandage:",
+  "integration_product": null,
+  "integration_vendor": null,
+  "integrations": [],
+  "keep_events_for": 86400,
+  "links": [
+    {
+      "receiver": 1,
+      "source": 0
+    },
+    {
+      "receiver": 2,
+      "source": 1
+    },
+    {
+      "receiver": 3,
+      "source": 2
+    },
+    {
+      "receiver": 4,
+      "source": 3
+    },
+    {
+      "receiver": 7,
+      "source": 4
+    },
+    {
+      "receiver": 6,
+      "source": 5
+    },
+    {
+      "receiver": 7,
+      "source": 6
+    },
+    {
+      "receiver": 8,
+      "source": 7
+    },
+    {
+      "receiver": 9,
+      "source": 7
+    },
+    {
+      "receiver": 10,
+      "source": 8
+    },
+    {
+      "receiver": 11,
+      "source": 9
+    }
+  ],
+  "llm_product_instructions": "",
+  "monitor_failures": false,
+  "name": "ExecBound: Monitor an action (example)",
+  "origin_story_identifier": null,
+  "pages": [],
+  "parent_only_send_to_story": false,
+  "recipients": [],
+  "reporting_status": true,
+  "schema_version": 30,
+  "sections": [],
+  "send_to_stories": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": "OFF",
+  "send_to_story_enabled": false,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "send_to_story_timeout_duration_seconds": null,
+  "send_to_story_timeout_enabled": false,
+  "slug": "execbound_monitor_an_action_example",
+  "standard_lib_version": 95,
+  "start_reference": null,
+  "story_library_metadata": {},
+  "synchronous_webhooks_enabled": false,
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0
+}

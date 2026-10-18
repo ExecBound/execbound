@@ -1,0 +1,10 @@
+{
+  "action": "endpoint.isolate",
+  "event_id": "tines-147205-1348829066",
+  "kind": "tool_result",
+  "occurred_at": "2026-09-26T00:30:23+00:00",
+  "outcome": "success",
+  "story_id": "147205",
+  "target_ref": "lab-ws-01",
+  "version": 1
+}

@@ -1,0 +1,224 @@
+{
+  "$defs": {
+    "Producer": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_.-]{0,63}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "Producer",
+      "type": "object"
+    },
+    "ResourceSubject": {
+      "additionalProperties": false,
+      "description": "The correlation keys of a resource subject; the tenant is the credential's.",
+      "properties": {
+        "account_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "title": "Account Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "resource",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provider": {
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "title": "Provider",
+          "type": "string"
+        },
+        "provider_id": {
+          "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u034f\\u061c\\u180e\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff\\ufff9-\\ufffb]{1,128}$",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "resource_type": {
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "title": "Resource Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "account_id",
+        "provider",
+        "resource_type",
+        "provider_id"
+      ],
+      "title": "ResourceSubject",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One producer's verdict about one subject at one instant.\n\nThe parser also refuses what this schema cannot express: a body that is not UTF-8, that\nopens with a byte order mark or that is longer than 8,192 bytes; an object that repeats a\nkey; a number written with a fraction or an exponent, even one of integral value; a time\nthat is not a real instant between the years 1 and 9999 once converted to UTC; and an\n`expires_at` that is not later than `observed_at`.\n\nBytes come in through `parse_signal`. A producer building one from Python values may also\ngive a time as an aware `datetime` and the account as a `UUID`.",
+  "properties": {
+    "action": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_.-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Action"
+    },
+    "attributes": {
+      "additionalProperties": false,
+      "maxProperties": 16,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,62}$": {
+          "anyOf": [
+            {
+              "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u034f\\u061c\\u180e\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff\\ufff9-\\ufffb]{0,254}$",
+              "type": "string"
+            },
+            {
+              "maximum": 9223372036854775807,
+              "minimum": -9223372036854775808,
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "title": "Attributes",
+      "type": "object"
+    },
+    "capability": {
+      "const": "resource_compromise.v1",
+      "title": "Capability",
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Confidence",
+      "type": "integer"
+    },
+    "evidence_digest": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Digest"
+    },
+    "evidence_ref": {
+      "anyOf": [
+        {
+          "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u034f\\u061c\\u180e\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff\\ufff9-\\ufffb]{1,256}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Ref"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "producer": {
+      "$ref": "#/$defs/Producer"
+    },
+    "request_reference": {
+      "anyOf": [
+        {
+          "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u034f\\u061c\\u180e\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u206f\\ufeff\\ufff9-\\ufffb]{1,200}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Refused today. `resource_compromise.v1`, the only capability, takes no request-scoped record, so the intake refuses an envelope carrying this field as INVALID_ENVELOPE: a request's reference is the agent's own string, and a record scoped by it could be claimed by any agent that names it.",
+      "title": "Request Reference"
+    },
+    "schema_version": {
+      "const": "execbound.security-signal.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9 _.:-]{1,32}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Severity"
+    },
+    "source_event_id": {
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+      "title": "Source Event Id",
+      "type": "string"
+    },
+    "subject": {
+      "$ref": "#/$defs/ResourceSubject"
+    },
+    "verdict": {
+      "pattern": "^[A-Za-z0-9_.:-](?:[A-Za-z0-9 _.:-]{0,62}[A-Za-z0-9_.:-])?$",
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source_event_id",
+    "producer",
+    "capability",
+    "verdict",
+    "confidence",
+    "subject",
+    "observed_at"
+  ],
+  "title": "SecuritySignal",
+  "type": "object"
+}

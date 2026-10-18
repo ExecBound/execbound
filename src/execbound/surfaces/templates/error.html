@@ -1,0 +1,10 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block body %}
+<section class="empty" role="alert">
+  <p class="eyebrow">ERROR {{ status }}</p>
+  <h1>{{ heading }}</h1>
+  <p>{{ guidance }}</p>
+  <p><a href="/login">Sign in</a> · <a href="/">Home</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,117 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The live board (#280): its page, its figures and its picture, loaded with the board route rather than
+   with every page, so an approval link opened cold carries none of it (#678). */
+/* The console's one full-ink surface, recorded as #206's exception and carried into this console:
+   a display for a wall or a screen share, dark in both schemes. `.ink` in the token file supplies
+   the dark values, so every rule below reads the same token names as the rest of the console and
+   nothing here knows a colour.
+
+   Motion is horizontal translation only. A lane's position is a `transform` attribute the figure
+   writes, so no rule here has to know where a lane sits, and the delay that anchors a shot on its
+   own event time is a style prop React applies through the CSSOM, which `style-src 'self'` does
+   not govern. That is why this file has no generated block of 151 age classes. */
+.board-page {
+  margin: -22px -28px -40px; padding: 22px 28px 40px; box-sizing: border-box;
+  background: var(--eb-bg); color: var(--eb-text);
+  /* The ink reaches the bottom of the window even when the board is nearly empty: a display
+     surface that stops halfway down reads as a broken page rather than a quiet one. */
+  min-height: calc(100vh - var(--eb-topbar));
+}
+.board-page .lead, .board-page .board-note { color: var(--eb-muted); }
+.board-page .btn { background: var(--eb-surface); border-color: var(--eb-line2); color: var(--eb-text); }
+.board-state { margin: 10px 0 0; color: var(--eb-muted); }
+.board-note { margin: 10px 0 0; color: var(--eb-muted); }
+
+/* The figures across the top: today large, the window beneath in smaller type. */
+.board-counters { margin-top: 14px; }
+.board-counters dl { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; margin: 0; }
+.board-counters dl > div { display: flex; align-items: baseline; gap: 6px; }
+.board-counters dt { color: var(--eb-muted); order: 2; }
+.board-counters dd { margin: 0; order: 1; color: var(--eb-accent-text); }
+.board-today { font-size: 20px; }
+.board-today dt { font-size: 13px; }
+.board-window { margin-top: 6px; font-size: 14px; color: var(--eb-muted); }
+.board-period dd { color: var(--eb-faint); font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; font-size: 11px; }
+
+/* The picture */
+.board { margin-top: 14px; overflow-x: auto; }
+.board svg { display: block; width: 100%; height: auto; }
+.board:focus-visible { outline: 2px solid var(--eb-accent); outline-offset: 2px; }
+.lane-label { fill: var(--eb-accent-text); font-size: 11px; font-family: var(--eb-font-sans); }
+.lane-group { fill: var(--eb-faint); font-size: 10px; font-family: var(--eb-font-sans); }
+.lane-rule { stroke: var(--eb-line2); stroke-width: 1; }
+.checkpoint-rule { stroke: var(--eb-accent); stroke-width: 3; stroke-linecap: round; }
+.checkpoint-word { fill: var(--eb-accent-text); font-size: 11px; font-family: var(--eb-font-sans); text-anchor: middle; }
+
+.shot { fill: var(--eb-accent); }
+.shot.deny, .shot.short { fill: var(--eb-deny); }
+.shot.hold, .shot.unsettled { fill: var(--eb-hold); }
+.shot.land, .shot.shot-out { fill: var(--eb-allow); }
+.shot.hollow { fill: none; stroke: var(--eb-stale); stroke-width: 1.5; }
+.shot.observe { fill: none; stroke: var(--eb-obs); stroke-width: 1.5; }
+
+/* Six phases, each a fixed keyframe run; the delay the figure sets anchors a shot on its own
+   event time. `forwards` so a shot stays where its phase ends rather than snapping back. */
+@keyframes shot-in { from { transform: translateX(0); } to { transform: translateX(340px); } }
+@keyframes shot-out { from { transform: translateX(0); } to { transform: translateX(120px); } }
+@keyframes hold { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes deny { 0% { opacity: 1; } 100% { opacity: 0.2; } }
+@keyframes land { from { transform: translateX(0) scale(1.6); } to { transform: translateX(120px) scale(1); } }
+@keyframes fade { from { opacity: 0.9; } to { opacity: 0; } }
+@keyframes seen { from { transform: translateX(0); } to { transform: translateX(760px); } }
+
+.shot.shot-in, .shot.observe { animation: shot-in 2s linear forwards; }
+.shot.short { animation: shot-in 1s linear forwards, fade 60s linear forwards; }
+.shot.hold { animation: hold 1.6s ease-in-out infinite; }
+.shot.deny { animation: deny 60s linear forwards; }
+.shot.shot-out { animation: shot-out 2s linear forwards; }
+.shot.land, .shot.hollow { animation: land 2s ease-out forwards; }
+.shot.unsettled { animation: shot-out 2s linear forwards, hold 1.6s ease-in-out infinite; }
+.seen { fill: var(--eb-stale); animation: seen 3s linear forwards; }
+.seen.flagged { fill: var(--eb-obs); }
+.band-rule { stroke: var(--eb-line2); stroke-width: 1; }
+.band-label { fill: var(--eb-muted); font-size: 11px; font-family: var(--eb-font-sans); }
+
+/* Paused, and reduced motion: every shot is drawn at the final position of its phase with its
+   word still said beneath. Nothing moves; everything is still stated.
+
+   Both blocks name the phase classes rather than `.shot` alone. A phase rule is two classes, so
+   a one-class `animation: none` loses to it on specificity and the board would keep moving for
+   exactly the readers who asked it not to. */
+.board-still .shot, .board-still .seen { animation: none; }
+.board-still .shot.shot-in, .board-still .shot.observe { transform: translateX(340px); }
+.board-still .shot.shot-out,
+.board-still .shot.unsettled,
+.board-still .shot.land,
+.board-still .shot.hollow { transform: translateX(120px); }
+.board-still .seen { transform: translateX(760px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .shot.shot-in,
+  .shot.observe,
+  .shot.short,
+  .shot.hold,
+  .shot.deny,
+  .shot.shot-out,
+  .shot.land,
+  .shot.hollow,
+  .shot.unsettled,
+  .seen { animation: none; }
+  .shot.shot-in, .shot.observe { transform: translateX(340px); }
+  .shot.shot-out, .shot.unsettled, .shot.land, .shot.hollow { transform: translateX(120px); }
+  .seen { transform: translateX(760px); }
+}
+
+@media (max-width: 767px) {
+  .board-page { margin: -16px -16px -24px; padding: 16px 16px 24px; min-height: calc(100vh - var(--eb-topbar) - var(--eb-tabbar)); }
+  .board-today { font-size: 17px; }
+  /* A thousand units of board squeezed into a phone makes every label unreadable, so the picture
+     keeps a legible width and pans inside its own region; the page itself never scrolls sideways
+     and the region is reachable from the keyboard. */
+  .board svg { min-width: 680px; }
+}
+
+.board-next-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.board-window-controls { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.board-window-controls .chips { margin-bottom: 0; }
+.board-snapshot { color: var(--eb-muted); font-size: 13px; }

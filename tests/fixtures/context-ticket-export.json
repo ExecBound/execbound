@@ -1,0 +1,19 @@
+{
+  "exported_at": "2026-09-15T12:00:00+00:00",
+  "tickets": [
+    {
+      "number": "INC0010001",
+      "state": "in_progress",
+      "priority": 2,
+      "asset": {"provider": "mock_crowdstrike", "class": "endpoint", "asset_id": "device-01"},
+      "updated_at": "2026-09-15T11:57:00+00:00"
+    },
+    {
+      "number": "INC0010002",
+      "state": "closed",
+      "priority": 4,
+      "asset": {"provider": "mock_crowdstrike", "class": "endpoint", "asset_id": "device-02"},
+      "updated_at": "2026-09-15T11:50:00+00:00"
+    }
+  ]
+}

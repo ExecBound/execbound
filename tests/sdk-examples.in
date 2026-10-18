@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# The two agent SDKs whose tool examples (clients/python/examples/) run in CI against a
+# scripted model, which is what makes their rows on docs/INTEGRATIONS.md fixture-tested
+# (#250). Installed into .tools/sdk-examples, apart from the runtime environment, and only
+# ever imported by tests/sdk_examples_probe.py.
+#
+# Compiled with a seven-day release age, the console's own supply-chain rule:
+#   uv pip compile tests/sdk-examples.in --universal --generate-hashes \
+#     --exclude-newer <seven days ago> --output-file tests/sdk-examples.txt
+# claude-agent-sdk is installed from its source distribution (--no-binary): the wheels
+# bundle the Claude Code CLI at about 100 MB each, and the example's tool path needs only
+# the Python package. The integrations manifest pins these versions; a bump is re-tested
+# before the rows claim it.
+openai-agents==0.22.2
+claude-agent-sdk==0.2.153

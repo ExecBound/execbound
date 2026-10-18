@@ -1,0 +1,66 @@
+{
+  "blocks": [
+    {
+      "text": {
+        "emoji": false,
+        "text": "EB-20 · Isolate endpoint: approved",
+        "type": "plain_text"
+      },
+      "type": "header"
+    },
+    {
+      "fields": [
+        {
+          "emoji": false,
+          "text": "Workspace: Synthetic SOC",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Outcome: Approved",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "At: 2026-09-18 03:25:10 UTC",
+          "type": "plain_text"
+        }
+      ],
+      "type": "section"
+    },
+    {
+      "text": {
+        "emoji": false,
+        "text": "This message decides nothing and does not say whether the action ran. The approval page has the record.",
+        "type": "plain_text"
+      },
+      "type": "section"
+    },
+    {
+      "elements": [
+        {
+          "action_id": "open_approval",
+          "text": {
+            "emoji": false,
+            "text": "Open the approval",
+            "type": "plain_text"
+          },
+          "type": "button",
+          "url": "https://app.example.net/approvals/00000000-0000-4000-8000-000000000002"
+        }
+      ],
+      "type": "actions"
+    },
+    {
+      "elements": [
+        {
+          "emoji": false,
+          "text": "Request EB-20",
+          "type": "plain_text"
+        }
+      ],
+      "type": "context"
+    }
+  ],
+  "text": "EB-20 · Isolate endpoint: approved in Synthetic SOC"
+}

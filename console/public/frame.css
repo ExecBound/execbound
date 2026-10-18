@@ -1,0 +1,46 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The plain frame index.html paints before any script runs (#333): the sidebar's
+   ground, the top bar and a status line, in HTML and CSS only, so the first paint never waits
+   for the bundle. The application removes it when it mounts. Colours come from tokens.css. */
+html {
+  background: var(--eb-bg);
+  color: var(--eb-text);
+  font-family: var(--eb-font-sans);
+}
+body {
+  margin: 0;
+}
+.frame {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-rows: 56px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.frame-side {
+  grid-row: 1 / span 2;
+  background: var(--eb-side);
+  border-right: 1px solid var(--eb-line);
+}
+.frame-top {
+  background: var(--eb-bg);
+  border-bottom: 1px solid var(--eb-line);
+}
+.frame-main {
+  padding: 22px 28px;
+}
+.frame-status {
+  margin: 0;
+  color: var(--eb-muted);
+  font-size: 13.5px;
+}
+@media (max-width: 767px) {
+  .frame {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 56px minmax(0, 1fr) 64px;
+  }
+  .frame-side {
+    grid-row: 3;
+    border-right: 0;
+    border-top: 1px solid var(--eb-line);
+  }
+}
