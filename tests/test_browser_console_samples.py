@@ -203,7 +203,7 @@ def test_ay17_guided_setup_states_delivery_after_the_deadline(
     # right after the deadline (#678).
     following = deadline.locator("xpath=following-sibling::p[1]")
     expect(following).to_have_text(
-        "No notification destination is configured, so a held request is announced only in "
+        "No approval destination is configured, so a held request is announced only in "
         "this console."
     )
     clean(page, "verify step with the delivery sentence")

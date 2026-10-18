@@ -90,6 +90,8 @@ STEP_UP_NESTED = (
     ("/api/console/v1/spaces/", "/members/"),
     ("/api/console/v1/policy/", "/activate"),
     ("/api/console/v1/monitor/connections/", "/key"),
+    # Recording a Tines tenant's egress changes what a directory's actors are attributed to.
+    ("/api/console/v1/monitor/connections/", "/egress"),
     ("/api/console/v1/monitor/connections/", "/revoke"),
 )
 # Exact paths, where a prefix would catch too much: installing and refreshing the samples

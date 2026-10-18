@@ -2545,6 +2545,7 @@ def _main() -> None:
                 notify=schedule.destinations_configured(path),
                 weekly_summary=schedule.weekly_summary_configured(path),
                 collect=schedule.collect_configured(args.state, args.collector),
+                deliver=schedule.runtime_configured(path),
             )
         except KeyError:
             parser.exit(2, "The jobs service needs DATABASE_URL.\n")

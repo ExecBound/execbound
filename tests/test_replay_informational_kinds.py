@@ -152,10 +152,10 @@ def test_an_acknowledged_finding_leaves_every_later_decision_replayable(
 def test_monitoring_connection_changes_leave_every_later_decision_replayable(
     db, world, live_provider, connector, admin_engine, tmp_path
 ):
-    """A monitoring connection created, re-keyed, asked for, rescheduled and revoked appends
-    one event each (acceptance MC12). No admission reads a connection, so each is
-    informational to replay, and the export carrying them passes its secret check."""
-    from execbound.monitoring import connect, sealing
+    """A monitoring connection created, re-keyed, asked for, rescheduled, given its egress and
+    revoked appends one event each (acceptance MC12, SR27). No admission reads a connection, so
+    each is informational to replay, and the export carrying them passes its secret check."""
+    from execbound.monitoring import connect, drivers, sealing
 
     tenant, clock = world["identity"].tenant_id, world["clock"]
     public = sealing.generate(tmp_path / "collector")
@@ -183,12 +183,17 @@ def test_monitoring_connection_changes_leave_every_later_decision_replayable(
         )
     connect.request_collection(db, session, connection, clock=clock)
     connect.set_schedule(db, session, connection, collect=None, activity=600, clock=clock)
+    # A Tines tenant's egress recorded (#355): what a directory's sign-ins are matched against.
+    drivers.set_egress_addresses(
+        db, world["admin"], connection, ["18.200.10.20"], clock=clock, session=session
+    )
     connect.revoke_connection(db, session, connection, clock=clock)
     for kind in (
         "monitor.connection_created",
         "monitor.key_replaced",
         "monitor.collection_requested",
         "monitor.schedule_changed",
+        "monitor.egress_recorded",
         "monitor.connection_revoked",
     ):
         assert len(audit(admin_engine, tenant, kind)) == 1, kind

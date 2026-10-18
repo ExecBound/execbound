@@ -120,6 +120,7 @@ def test_the_tenant_overview_names_destinations_without_addresses_or_secrets(run
             "host": "alerts.example.net",
             "approvers": None,
             "messages": ["pending"],
+            "classes": ["approvals"],
         }
     ]
     reject_secrets(data["destinations"])

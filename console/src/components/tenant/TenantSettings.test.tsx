@@ -23,8 +23,8 @@ function view(changes: Partial<TenantSettingsView> = {}): TenantSettingsView {
     bundle_id: "3446c357-35fe-4b4c-9911-af20f40e0445",
     monitoring: { sources: 2, reporting: 1, stale: 1, overdue: 0, open_findings: 3 },
     destinations: [
-      { destination_id: "soc", kind: "webhook", host: "alerts.example.net", approvers: null, messages: ["pending", "closed"] },
-      { destination_id: "oncall", kind: "slack", host: "hooks.slack.com", approvers: 2, messages: ["pending"] },
+      { destination_id: "soc", kind: "webhook", host: "alerts.example.net", approvers: null, messages: ["pending", "closed"], classes: ["approvals", "findings"] },
+      { destination_id: "oncall", kind: "slack", host: "hooks.slack.com", approvers: 2, messages: ["pending"], classes: ["approvals"] },
     ],
     delivery: { window_days: 7, delivered: 6, median_seconds: 40, p90_seconds: 90, slowest_seconds: 95, lapsed: 1, failed: 0 },
     approval_windows: [],
@@ -115,8 +115,9 @@ describe("the tenant settings page", () => {
     expect(seen.some((request) => request.path.endsWith("/tenant/sandbox"))).toBe(false);
   });
 
-  it("shows the mode, the deadline, the stop and the read-only block with destinations as id, kind and host", async () => {
-    answerWith({ [`GET ${TENANT}`]: { body: view() }, [`GET ${SIGN_IN}`]: { body: signIn() } });
+  it("shows the mode, the deadline, the stop and the read-only block with destinations by id, kind, host and classes (#31)", async () => {
+    const audit = { destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [], classes: [] };
+    answerWith({ [`GET ${TENANT}`]: { body: view({ destinations: [...view().destinations, audit] }) }, [`GET ${SIGN_IN}`]: { body: signIn() } });
     renderPage(<TenantSettings />);
     expect(await screen.findByText("Enforcing")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Workspace settings");
@@ -124,8 +125,23 @@ describe("the tenant settings page", () => {
     expect(screen.getByText("Not active")).toBeInTheDocument();
     expect(screen.getByText("3446c357")).toHaveAttribute("href", "/policy");
     expect(screen.getByText(/2 sources: 1 reporting, 1 stale/)).toBeInTheDocument();
-    const table = screen.getByRole("table", { name: /notification destinations/ });
-    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    const table = screen.getByRole("table", {
+      name: "Configured approval and audit notification destinations, as this deployment's private configuration names them. Addresses and secrets are never shown.",
+    });
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(4);
+    const headers = within(table).getAllByRole("columnheader");
+    // Classes sits after Host, before what only an approval destination has.
+    expect(headers.map((cell) => cell.textContent)).toEqual(["Destination", "Kind", "Host", "Classes", "Approvers", "Messages"]);
+    const column = headers.findIndex((cell) => cell.textContent === "Classes");
+    const socCell = within(rows[1] ?? table).getAllByRole("cell")[column];
+    expect(socCell).toHaveTextContent(/^Approvals, Findings$/);
+    expect(socCell).toHaveAttribute("data-label", "Classes");
+    expect(within(rows[2] ?? table).getAllByRole("cell")[column]).toHaveTextContent(/^Approvals$/);
+    expect(within(rows[3] ?? table).getAllByRole("cell")[column]).toHaveTextContent(/^None$/);
+    // The audit export announces no approval, so it has no approvers either.
+    const approvers = headers.findIndex((cell) => cell.textContent === "Approvers");
+    expect(within(rows[3] ?? table).getAllByRole("cell")[approvers]).toHaveTextContent(/^None$/);
     expect(within(table).getByText("alerts.example.net")).toBeInTheDocument();
     expect(within(table).getByText("every approver")).toBeInTheDocument();
     expect(within(table).getByText("2")).toBeInTheDocument();
@@ -133,7 +149,7 @@ describe("the tenant settings page", () => {
   });
 
   it("names each destination's messages and says how fast notifications arrived (#678)", async () => {
-    const audit = { destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: 1, messages: [] };
+    const audit = { destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: 1, messages: [], classes: [] };
     answerWith({
       [`GET ${TENANT}`]: { body: view({ destinations: [...view().destinations, audit] }) },
       [`GET ${SIGN_IN}`]: { body: signIn() },
@@ -168,7 +184,7 @@ describe("the tenant settings page", () => {
   it("adds no delivery line where nothing announces approvals", async () => {
     answerWith({
       [`GET ${TENANT}`]: {
-        body: view({ destinations: [{ destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [] }] }),
+        body: view({ destinations: [{ destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [], classes: [] }] }),
       },
       [`GET ${SIGN_IN}`]: { body: signIn() },
     });

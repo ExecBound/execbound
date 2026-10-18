@@ -25,6 +25,9 @@
 .monitor-marked { box-shadow: inset 3px 0 0 var(--eb-hold); }
 .monitor-receiver { padding: 14px 16px; }
 .monitor-receiver > summary { cursor: pointer; font-weight: 500; }
+/* A findings destination's Spaces on Alert settings, one part to a line (#31). */
+.monitor-spaces { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.monitor-spaces-none { margin: 2px 0 0; }
 .report-command { margin-top: 8px; }
 @media (max-width: 767px) {
   .finding-head { grid-template-columns: minmax(0, 1fr); }

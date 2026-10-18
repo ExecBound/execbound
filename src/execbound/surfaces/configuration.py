@@ -5,7 +5,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import Field, SecretStr, model_validator
@@ -19,6 +19,7 @@ from execbound.envelope import ring_from
 from execbound.execution.models import PreconditionClass, PreconditionConfig
 from execbound.github import GitHubProvider
 from execbound.logging_schema import log_event
+from execbound.monitoring.delivery import FINDING_RULES
 from execbound.monitoring.sealing import CollectorPublicKey, read_public_key
 from execbound.notifications import Destination
 from execbound.oidc import GoogleProvider, JwksCache
@@ -34,10 +35,13 @@ from execbound.requests import StrictModel, _unique_object
 from execbound.runtime import Runtime
 from execbound.service_links import SOURCE_URL, ServiceLinks
 from execbound.signin import ProviderConfig, SignInProvider
-from execbound.surfaces.human import HumanConfig, ScoutConfig, ScoutEntra
+from execbound.surfaces.human import HumanConfig, ScoutConfig, ScoutEntra, check_origin
 from execbound.surfaces.limits import RequestLimits
 from execbound.surfaces.tokens import TokenKeys
-from execbound.transports import MailConfig
+from execbound.transports import MailConfig, is_message_origin
+
+if TYPE_CHECKING:  # pragma: no cover - imported for types only
+    from execbound.monitoring.worker import Outbound
 
 
 class _Connector(StrictModel):
@@ -109,6 +113,14 @@ class _Notification(StrictModel):
     # means `["pending"]`, what every destination always received, so an existing file's
     # behaviour and shape are unchanged.
     messages: tuple[Literal["pending", "reminder", "closed"], ...] | None = None
+    # Which classes it receives (#31): `approvals` announces held requests, `findings` sends
+    # monitoring findings. Absent means `["approvals"]`, what every destination always was, so
+    # an existing file's behaviour and shape are unchanged. The audit export takes none.
+    classes: tuple[Literal["approvals", "findings"], ...] | None = None
+    # A findings destination's narrowing: the rules and the Spaces whose findings it receives.
+    # Absent means every one.
+    rules: tuple[str, ...] | None = None
+    spaces: tuple[UUID, ...] | None = None
 
     @model_validator(mode="after")
     def fields_for_kind(self) -> Self:
@@ -136,6 +148,26 @@ class _Notification(StrictModel):
             or len(chosen) != len(self.messages)
             or ("closed" in chosen and not chosen & {"pending", "reminder"})
         ):
+            raise ValueError("Invalid notification destination")
+        return self
+
+    @model_validator(mode="after")
+    def classes_and_narrowing(self) -> Self:
+        """Classes listed once; `rules` and `spaces` for findings only, `messages` and
+        `approvers` for approvals only; every rule one a finding can carry."""
+        chosen = set(self.classes) if self.classes is not None else {"approvals"}
+        if self.classes is not None and (
+            self.kind == "security-events" or not self.classes or len(chosen) != len(self.classes)
+        ):
+            raise ValueError("Invalid notification destination")
+        for listed in (self.rules, self.spaces):
+            if listed is not None and (
+                "findings" not in chosen or not listed or len(set(listed)) != len(listed)
+            ):
+                raise ValueError("Invalid notification destination")
+        if self.rules is not None and not set(self.rules) <= FINDING_RULES.keys():
+            raise ValueError("Invalid notification destination")
+        if "approvals" not in chosen and (self.messages is not None or self.approvers is not None):
             raise ValueError("Invalid notification destination")
         return self
 
@@ -518,6 +550,9 @@ class _Configuration(StrictModel):
                     n.to,
                     n.approvers,
                     n.messages,
+                    n.classes,
+                    n.rules,
+                    n.spaces,
                 )
                 for n in self.notifications
             ),
@@ -806,6 +841,56 @@ def reload_keys(
     return KeyReload("current", rotated=True, configuration=config)
 
 
+def _destinations(config: _Configuration) -> list[Destination]:
+    """Every configured destination, as the runtime and `process --deliver` both hold them;
+    one id twice in a workspace refuses the file."""
+    destinations = [
+        Destination(
+            n.destination_id,
+            n.tenant_id,
+            n.url.get_secret_value() if n.url is not None else "",
+            n.secret.get_secret_value() if n.secret is not None else "",
+            frozenset(n.approvers) if n.approvers is not None else None,
+            kind=n.kind,
+            to=n.to,
+            messages=frozenset(n.messages or ("pending",)),
+            classes=frozenset(n.classes or ("approvals",)),
+            rules=frozenset(n.rules) if n.rules is not None else None,
+            spaces=frozenset(n.spaces) if n.spaces is not None else None,
+        )
+        for n in config.notifications
+    ]
+    if len({(d.tenant_id, d.destination_id) for d in destinations}) != len(destinations):
+        raise ValueError
+    return destinations
+
+
+def read_outbound(path: Path) -> "Outbound":
+    """What `process --deliver` needs from the private configuration (#31): its destinations,
+    its relay and its origin, and nothing else. No connector is built and no plugin loads, so a
+    process that names its plugins through `EXECBOUND_PLUGINS` keeps doing so. A refusal is the
+    same opaque sentence `load_runtime`'s is, raised after the `except` as `load_runtime`'s is,
+    so it holds no context: the JSON error it would otherwise carry holds the whole file."""
+    from execbound.monitoring.worker import Outbound
+
+    try:
+        config = read_configuration(path)
+        # The origin every finding's link is built from, held to the console's own rule and to
+        # the finding message's, which is narrower: an origin only the console takes would fail
+        # every delivery `INVALID_NOTIFICATION`, so it fails the file here instead.
+        check_origin(config.origin)
+        if not is_message_origin(config.origin):
+            raise ValueError
+        return Outbound(
+            destinations=tuple(_destinations(config)),
+            origin=config.origin,
+            mail=_mail_config(config.mail) if config.mail is not None else None,
+        )
+    except (OSError, ValueError, RecursionError):
+        pass
+    raise ValueError("Invalid runtime configuration")
+
+
 def load_runtime(path: Path, db: Database) -> tuple[Runtime, HumanConfig]:
     connectors: list[Connector] = []
     try:
@@ -846,23 +931,9 @@ def load_runtime(path: Path, db: Database) -> tuple[Runtime, HumanConfig]:
                 )
             )
         limits = RequestLimits(**config.limits.model_dump()) if config.limits else None
-        destinations = [
-            Destination(
-                n.destination_id,
-                n.tenant_id,
-                n.url.get_secret_value() if n.url is not None else "",
-                n.secret.get_secret_value() if n.secret is not None else "",
-                frozenset(n.approvers) if n.approvers is not None else None,
-                kind=n.kind,
-                to=n.to,
-                messages=frozenset(n.messages or ("pending",)),
-            )
-            for n in config.notifications
-        ]
+        destinations = _destinations(config)
         mail = _mail_config(config.mail) if config.mail is not None else None
         assistant = _assistant_config(config.assistant) if config.assistant is not None else None
-        if len({(d.tenant_id, d.destination_id) for d in destinations}) != len(destinations):
-            raise ValueError
         preconditions = PreconditionConfig(
             {(p.provider, p.provider_operation): p.precondition_class for p in config.preconditions}
         )

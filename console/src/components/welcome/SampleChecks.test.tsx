@@ -235,7 +235,7 @@ describe("the sample lines in Verify protection (#545)", () => {
   it("states how fast notifications arrive right after the deadline, or that none are sent (#678)", async () => {
     serve({
       [TENANT]: tenant(600, {
-        destinations: [{ destination_id: "soc", kind: "webhook", host: "alerts.example.net", approvers: null, messages: ["pending"] }],
+        destinations: [{ destination_id: "soc", kind: "webhook", host: "alerts.example.net", approvers: null, messages: ["pending"], classes: ["approvals"] }],
         delivery: { window_days: 7, delivered: 6, median_seconds: 40, p90_seconds: 70, slowest_seconds: 95, lapsed: 0, failed: 0 },
       }),
     });
@@ -247,12 +247,12 @@ describe("the sample lines in Verify protection (#545)", () => {
     expect(delivery).toHaveClass("muted");
   });
 
-  it("says a held request is announced only in this console where no destination is configured", async () => {
+  it("says a held request is announced only in this console where no approval destination is configured", async () => {
     serve({ [TENANT]: tenant(120) });
     renderPage(<SampleChecks samples={CURRENT} />);
     const none = await screen.findByText(NO_DESTINATION);
     expect(screen.getByText(/this workspace's approval deadline/).nextElementSibling).toBe(none);
-    expect(NO_DESTINATION).toBe("No notification destination is configured, so a held request is announced only in this console.");
+    expect(NO_DESTINATION).toBe("No approval destination is configured, so a held request is announced only in this console.");
   });
 
   it("says nothing of delivery before the tenant is read", async () => {

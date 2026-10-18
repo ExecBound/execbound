@@ -237,4 +237,4 @@ None of these dispatch.
 
 `tests/soc_fixtures.py` provides `PROBE` (a synthetic `Long`-argument action), `SECOND_BINDING`, `TEST_ACTIONS`, `TEST_CATALOG` and the lift and reset scenarios.
 
-`ACCEPTANCE_PREFIXES` in [`validation_evidence.py`](../src/execbound_harness/validation_evidence.py) records these files as acceptance group `SA`, one of its 39 groups (A to X, `SA`, `SL`, `GC`, `AL`, `SP`, `SM`, `DN`, `LA`, `EX`, `SG`, `PK`, `CF`, `AY`, `MQ` and `HV`), and group `F`'s argument-shape prefixes now name the catalog's rejection tests. `tests/test_validation_evidence.py` runs pytest collection and fails if any prefix stops matching a test, so a rename is caught before CI.
+`ACCEPTANCE_PREFIXES` in [`validation_evidence.py`](../src/execbound_harness/validation_evidence.py) records these files as acceptance group `SA`, and group `F`'s argument-shape prefixes now name the catalog's rejection tests. `tests/test_validation_evidence.py` runs pytest collection and fails if any prefix stops matching a test, so a rename is caught before CI.

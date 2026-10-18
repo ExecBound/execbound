@@ -6822,6 +6822,16 @@
           "agent": {
             "$ref": "#/components/schemas/MonitorAgentIdentity"
           },
+          "driver_gaps": {
+            "$ref": "#/components/schemas/MonitorDriverGaps"
+          },
+          "drivers": {
+            "items": {
+              "$ref": "#/components/schemas/MonitorDriver"
+            },
+            "title": "Drivers",
+            "type": "array"
+          },
           "findings": {
             "items": {
               "$ref": "#/components/schemas/MonitorAgentFinding"
@@ -6861,7 +6871,9 @@
           "reach",
           "findings",
           "observations",
-          "unresolved"
+          "unresolved",
+          "drivers",
+          "driver_gaps"
         ],
         "title": "MonitorAgentDetail",
         "type": "object"
@@ -7022,6 +7034,29 @@
             },
             "title": "Tags",
             "type": "array"
+          },
+          "user_agent_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent Hint"
+          },
+          "user_agent_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent Seen At"
           }
         },
         "required": [
@@ -7040,7 +7075,9 @@
           "linked_principal_id",
           "linked_principal_ref",
           "first_seen_at",
-          "observed_at"
+          "observed_at",
+          "user_agent_hint",
+          "user_agent_seen_at"
         ],
         "title": "MonitorAgentIdentity",
         "type": "object"
@@ -7538,6 +7575,35 @@
             "title": "Credential Mode",
             "type": "string"
           },
+          "egress_addresses": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Egress Addresses",
+            "type": "array"
+          },
+          "egress_recorded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Egress Recorded At"
+          },
+          "egress_recorded_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrincipalRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "health_changed_at": {
             "anyOf": [
               {
@@ -7674,6 +7740,18 @@
             ],
             "title": "Revoked At"
           },
+          "sign_in_cursor": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sign In Cursor"
+          },
           "team_id": {
             "anyOf": [
               {
@@ -7714,7 +7792,11 @@
           "next_due_at",
           "consented_at",
           "consented_by",
-          "consent_needs_update"
+          "consent_needs_update",
+          "sign_in_cursor",
+          "egress_addresses",
+          "egress_recorded_at",
+          "egress_recorded_by"
         ],
         "title": "MonitorConnection",
         "type": "object"
@@ -7791,6 +7873,17 @@
             "title": "Delivery Id",
             "type": "string"
           },
+          "destination_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destination Id"
+          },
           "finding_id": {
             "format": "uuid",
             "title": "Finding Id",
@@ -7815,12 +7908,253 @@
         "required": [
           "delivery_id",
           "finding_id",
+          "destination_id",
           "created_at",
           "state",
           "attempts",
           "last_error"
         ],
         "title": "MonitorDelivery",
+        "type": "object"
+      },
+      "MonitorDestination": {
+        "description": "One findings destination (#31), as the private configuration names it: its id, kind,\nhost, rules and Spaces, never its URL, address or secret. `rules` and `spaces` are null\nwhere it takes every one; a configured Space the reader cannot read is counted in\n`other_spaces`, never named. For a reader of every Space, `other_spaces` is 0 and a\nconfigured id that is no Space of this workspace is counted in `unknown_spaces`; for any\nother reader such an id is counted in `other_spaces`, so a hidden Space and a mistaken id\nlook the same.",
+        "properties": {
+          "destination_id": {
+            "title": "Destination Id",
+            "type": "string"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "other_spaces": {
+            "title": "Other Spaces",
+            "type": "integer"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "spaces": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MonitorDestinationSpace"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spaces"
+          },
+          "unknown_spaces": {
+            "title": "Unknown Spaces",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "destination_id",
+          "kind",
+          "host",
+          "rules",
+          "spaces",
+          "other_spaces",
+          "unknown_spaces"
+        ],
+        "title": "MonitorDestination",
+        "type": "object"
+      },
+      "MonitorDestinationSpace": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "space_id": {
+            "format": "uuid",
+            "title": "Space Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "space_id",
+          "name"
+        ],
+        "title": "MonitorDestinationSpace",
+        "type": "object"
+      },
+      "MonitorDriver": {
+        "description": "One piece of evidence of who drives an actor (#355), kept apart from what it can reach.\n\n`declared`: the directory names the driver, as the AI publisher catalog's entry for the\nprincipal's application or an agent identity's blueprint. `network`: its successful sign-ins\ncame from a range the reviewed egress catalog attributes to a platform, or from an address an\nadministrator recorded as the Space's Tines tenant's egress; it names a platform, never a\nworkflow. `joined`: that Tines evidence plus every story in the Tines tenant that uses a\ncredential allowed to call Microsoft Graph or Microsoft sign-in (`story_ids`, \"at least\" where\n`stories_capped`); it never names one story as the one that acted. A catalog row names its\nsource and the day it was read; a Tines row counts the tenant's credentials with no host\nrestriction, which are never joined. `label` is a catalog's name or, for a Tines tenant, the\nconnection's own name, and renders as text.",
+        "properties": {
+          "catalog_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Version"
+          },
+          "evidence": {
+            "enum": [
+              "declared",
+              "network",
+              "joined"
+            ],
+            "title": "Evidence",
+            "type": "string"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "gone_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gone At"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "platform_kind": {
+            "enum": [
+              "publisher",
+              "blueprint",
+              "egress",
+              "tines"
+            ],
+            "title": "Platform Kind",
+            "type": "string"
+          },
+          "platform_ref": {
+            "title": "Platform Ref",
+            "type": "string"
+          },
+          "retrieved": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "stories_capped": {
+            "title": "Stories Capped",
+            "type": "boolean"
+          },
+          "story_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Story Ids",
+            "type": "array"
+          },
+          "unrestricted_credentials": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unrestricted Credentials"
+          }
+        },
+        "required": [
+          "evidence",
+          "platform_kind",
+          "platform_ref",
+          "label",
+          "source",
+          "retrieved",
+          "catalog_version",
+          "story_ids",
+          "stories_capped",
+          "unrestricted_credentials",
+          "first_seen_at",
+          "last_seen_at",
+          "gone_at"
+        ],
+        "title": "MonitorDriver",
+        "type": "object"
+      },
+      "MonitorDriverGaps": {
+        "description": "What no network evidence can name: platforms that publish no stable egress, whose actors\ncannot be attributed by network, and those whose published feed has not been read into the\ncatalog yet.",
+        "properties": {
+          "catalog_version": {
+            "title": "Catalog Version",
+            "type": "string"
+          },
+          "pending": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pending",
+            "type": "array"
+          },
+          "unattributable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unattributable",
+            "type": "array"
+          }
+        },
+        "required": [
+          "catalog_version",
+          "unattributable",
+          "pending"
+        ],
+        "title": "MonitorDriverGaps",
         "type": "object"
       },
       "MonitorFinding": {
@@ -8660,6 +8994,13 @@
             "title": "Deliveries",
             "type": "array"
           },
+          "destinations": {
+            "items": {
+              "$ref": "#/components/schemas/MonitorDestination"
+            },
+            "title": "Destinations",
+            "type": "array"
+          },
           "findings": {
             "items": {
               "$ref": "#/components/schemas/MonitorFinding"
@@ -8711,6 +9052,7 @@
           "observations",
           "findings",
           "deliveries",
+          "destinations",
           "profile",
           "open_findings"
         ],
@@ -9168,6 +9510,17 @@
             ],
             "title": "Approvers"
           },
+          "classes": {
+            "items": {
+              "enum": [
+                "approvals",
+                "findings"
+              ],
+              "type": "string"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
           "destination_id": {
             "title": "Destination Id",
             "type": "string"
@@ -9198,7 +9551,8 @@
           "kind",
           "host",
           "approvers",
-          "messages"
+          "messages",
+          "classes"
         ],
         "title": "NotificationDestination",
         "type": "object"
@@ -10922,6 +11276,25 @@
           "continuation"
         ],
         "title": "ReconcileView",
+        "type": "object"
+      },
+      "RecordEgress": {
+        "additionalProperties": false,
+        "description": "The addresses a Tines tenant's HTTP requests leave from, as Tines shows them at\n`/info`: at most eight single public addresses; an empty list clears them. Recording them\nre-reads thirty days of the Space's directory sign-ins once.",
+        "properties": {
+          "addresses": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Addresses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "addresses"
+        ],
+        "title": "RecordEgress",
         "type": "object"
       },
       "RefusedView": {
@@ -17597,6 +17970,47 @@
         },
         "summary": "Request Collection",
         "x-execbound-token": "allowed"
+      }
+    },
+    "/api/console/v1/monitor/connections/{connection_id}/egress": {
+      "post": {
+        "description": "Personal access tokens: refused; sign in to the console.",
+        "operationId": "recordMonitorEgress",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordEgress"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorConnection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Record Egress",
+        "x-execbound-token": "refused"
       }
     },
     "/api/console/v1/monitor/connections/{connection_id}/key": {

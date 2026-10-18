@@ -84,13 +84,16 @@ def issue_source(db, identity, output):
 
 
 @pytest.mark.parametrize("limit", [0, -1, True, 51, 500, "2", 1.5])
-@pytest.mark.parametrize("receiver", [None, object()])
-def test_process_rejects_invalid_common_limit_before_any_stage(monkeypatch, limit, receiver):
+@pytest.mark.parametrize("outbound", [None, object()])
+def test_process_rejects_invalid_common_limit_before_any_stage(monkeypatch, limit, outbound):
     calls = []
     monkeypatch.setattr(worker, "evaluate_pending", lambda *a, **kw: calls.append("evaluate") or 0)
-    monkeypatch.setattr(worker, "deliver_pending", lambda *a, **kw: calls.append("deliver") or 0)
+    monkeypatch.setattr(worker, "route_findings", lambda *a, **kw: calls.append("route") or {})
+    monkeypatch.setattr(
+        worker, "deliver_findings", lambda *a, **kw: calls.append("deliver") or {"delivered": 0}
+    )
     with pytest.raises(MonitorError) as exc:
-        worker.process(object(), object(), receiver, limit=limit)
+        worker.process(object(), object(), outbound, limit=limit)
     assert exc.value.code == "INVALID_LIMIT"
     assert calls == []
 

@@ -9,7 +9,7 @@ import { answerWith, renderPage } from "../../test/page";
 import { DeadlineDialog } from "./DeadlineDialog";
 
 const CURRENT = { seconds: 120, bounds: { min: 120, max: 3600 }, changed: null };
-const EMAIL: NotificationDestination[] = [{ destination_id: "jane", kind: "email", host: "", approvers: null, messages: ["pending"] }];
+const EMAIL: NotificationDestination[] = [{ destination_id: "jane", kind: "email", host: "", approvers: null, messages: ["pending"], classes: ["approvals"] }];
 const MEASURED: NotificationDelivery = {
   window_days: 7,
   delivered: 8,
@@ -84,7 +84,7 @@ describe("the deadline dialog's delivery hint (#678, AY17)", () => {
   });
 
   it("gives no hint without an approval destination", async () => {
-    open([{ destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [] }], MEASURED);
+    open([{ destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [], classes: [] }], MEASURED);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByText(/Nine in ten|Email can arrive/)).toBeNull();
   });
@@ -92,7 +92,7 @@ describe("the deadline dialog's delivery hint (#678, AY17)", () => {
 
 describe("the deadline dialog's lapse warning (#678, AR12)", () => {
   const WEBHOOK: NotificationDestination[] = [
-    { destination_id: "soc", kind: "webhook", host: "alerts.example.net", approvers: null, messages: ["pending"] },
+    { destination_id: "soc", kind: "webhook", host: "alerts.example.net", approvers: null, messages: ["pending"], classes: ["approvals"] },
   ];
   const LAPSE = /^Messages to reviewers can arrive after a .* deadline, and a request that lapses first cannot be decided\./;
 
@@ -122,7 +122,7 @@ describe("the deadline dialog's lapse warning (#678, AR12)", () => {
   });
 
   it("is absent where nothing announces approvals", async () => {
-    open([{ destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [] }], UNMEASURED);
+    open([{ destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [], classes: [] }], UNMEASURED);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("textbox", { name: /Seconds/ })).toHaveValue("120");
     expect(within(dialog).queryByText(LAPSE)).toBeNull();

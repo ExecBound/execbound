@@ -100,7 +100,10 @@ PASSED_THROUGH: dict[str, tuple[int, str | None]] = {
 
 # Codes a command prints itself, as text rather than through an error, and the table each
 # belongs to; the modules searched for them are the command modules below.
-PRINTED = {"COMMAND_CONFLICT": "Plugins"}
+PRINTED = {
+    "COMMAND_CONFLICT": "Plugins",
+    "FINDINGS_DESTINATIONS_CONFIGURED": "The monitoring API",
+}
 COMMAND_MODULES = ("cli.py", "monitoring/commands.py", "recovery.py")
 
 # Codes a collection run records on its connection or reports in its result without raising

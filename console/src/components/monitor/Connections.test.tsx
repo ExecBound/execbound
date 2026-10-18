@@ -17,7 +17,7 @@ import { answerWith, renderPage, settle } from "../../test/page";
 import { minted, options, SOURCE, source } from "../../test/source-data";
 import { Connections } from "./Connections";
 
-const empty: MonitorSnapshot = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], profile: null, open_findings: 0 };
+const empty: MonitorSnapshot = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], destinations: [], profile: null, open_findings: 0 };
 const ADMIN: SessionSummary = { ...PLACEHOLDER, role: "ADMIN" };
 const served = (service: Partial<typeof NO_SERVICE>): SessionSummary => ({ ...ADMIN, service: { ...NO_SERVICE, ...service } });
 
@@ -88,6 +88,22 @@ describe("the Connections schedule line (MC5)", () => {
     expect(line).toHaveTextContent(/Due since .+\.$/);
     expect(line).not.toHaveTextContent(/Next due/);
     expect(line.querySelector("time")).toHaveAttribute("dateTime", "2026-09-19T05:16:00+00:00");
+  });
+
+  it("labels the beta sign-in capability and says what the probe found (#355)", async () => {
+    await card({
+      kind: "entra_agent_id",
+      base_url: "https://graph.microsoft.com",
+      team_id: null,
+      capabilities: {
+        audit_log: { state: "available", at: "2026-09-19T05:01:00+00:00" },
+        sign_ins: { state: "unlicensed", at: "2026-09-19T05:01:00+00:00" },
+      },
+    });
+    const row = screen.getByText("sign ins (beta)").closest("tr");
+    if (row === null) throw new Error("no capability row");
+    expect(row).toHaveTextContent("unlicensed");
+    expect(screen.getByText("audit log")).toBeInTheDocument();
   });
 
   it("names an Entra connection's interval in hours", async () => {

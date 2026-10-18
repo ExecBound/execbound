@@ -134,6 +134,10 @@ def test_source_binding_secrets_and_protected_state_unchanged(db, setup_monitor,
         "acknowledgers",
         # Who asked for each waiting collection, the same way (#678).
         "requesters",
+        # The names of the Spaces findings destinations name that the reader may read, and
+        # whether they read every Space, for Alert settings (#31): no secret.
+        "space_names",
+        "reads_every_space",
     }
     assert len(state["findings"]) == len(state["deliveries"]) == 1
     assert state["observations"][0]["evaluation_result"] == "MATCH"

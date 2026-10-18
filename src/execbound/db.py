@@ -14,7 +14,7 @@ from sqlalchemy.engine import URL, Connection, RowMapping
 
 from execbound.connection import connect_args, database_url
 
-SCHEMA_REVISION = "0096_approval_email"
+SCHEMA_REVISION = "0098_scout_drivers"
 # SECURITY DEFINER functions: owned by the schema owner, executable by the runtime role unless
 # dormant (below), and the only way the runtime writes principals, credentials, scopes, a
 # session's expiry, a sandbox claim or a sandbox's fact observation times.
@@ -432,6 +432,9 @@ FUNCTIONS = (
     # an observation, fenced to the caller's tenant and an Entra connection of it, and only one
     # evaluated, uncited and a month old by the database's own clock.
     ("monitor_audit_purge", "p_connection uuid, p_observations uuid[]"),
+    # A Tines tenant's egress addresses (0098): the one writer of what an administrator of the
+    # connection's Space recorded, at most eight single public addresses.
+    ("admin_set_egress_addresses", "p_actor uuid, p_connection uuid, p_addresses inet[]"),
 )
 # Trigger functions that run as their owner. A trigger function is fired, never called, so
 # each is held to this list by name rather than to an EXECUTE grant: 0088's keeps the
@@ -512,6 +515,8 @@ TABLES = (
     "monitor_agent_grants",
     "monitor_agent_reach",
     "monitor_reach_exceptions",
+    # Who drives a directory actor, and how that is known (0098).
+    "monitor_actor_drivers",
     "arcade_hooks",
     "agent_bindings",
     "assistant_turns",
@@ -640,6 +645,9 @@ UPDATE_COLUMNS = {
         # Since when its audit reads have met the connection's observation bound (0095); the
         # runtime does not insert it.
         "audit_bound_since",
+        # Where the next read of the directory's service principal sign-ins starts (0098); the
+        # runtime does not insert it, and writes none of a Tines tenant's egress addresses.
+        "sign_in_cursor",
     },
     "monitor_inventory": {
         "name",
@@ -652,6 +660,10 @@ UPDATE_COLUMNS = {
         "source_updated_at",
         "gap_opened_at",
         "coverage_class",
+        # A credential's host scope and the stories that reference it (0098).
+        "host_scope",
+        "story_refs",
+        "references_capped",
     },
     "monitor_agents": {
         "display_name",
@@ -675,6 +687,9 @@ UPDATE_COLUMNS = {
         "new_actor_opened_at",
         "first_action_opened_at",
         "ai_consent_opened_at",
+        # The leading product token of the newest sign-in's user agent, a hint (0098).
+        "user_agent_hint",
+        "user_agent_seen_at",
     },
     "monitor_agent_grants": {"path_ref", "observed_at", "gone_at"},
     "monitor_agent_reach": {
@@ -686,6 +701,14 @@ UPDATE_COLUMNS = {
         "gone_at",
     },
     "monitor_reach_exceptions": {"withdrawn_at"},
+    "monitor_actor_drivers": {
+        "first_seen_at",
+        "last_seen_at",
+        "gone_at",
+        "detail_refs",
+        "detail_capped",
+        "catalog_version",
+    },
     "monitor_deliveries": {
         "state",
         "attempts",
@@ -1224,6 +1247,7 @@ def check_runtime(conn: Connection) -> None:
                     "monitor_agent_grants",
                     "monitor_agent_reach",
                     "monitor_reach_exceptions",
+                    "monitor_actor_drivers",
                     "arcade_hooks",
                     "space_policy_selection",
                     "weekly_summary_subscriptions",

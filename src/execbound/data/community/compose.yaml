@@ -161,8 +161,10 @@ services:
 
   # The scheduled work: recovery every fifteen minutes; approval notifications every fifteen
   # seconds where an approval destination is configured; monitoring evaluation every five
-  # minutes; audit-chain verification every hour, with the retained heads in
-  # private/checkpoints/ where that directory exists; monitoring collection every five minutes where the collector directory or the
+  # minutes, which also sends findings to the destinations listed for findings (a scheduled
+  # `monitor-process` runs with `--deliver`, and the jobs service passes it wherever it has a
+  # runtime configuration that reads); audit-chain verification every hour, with the retained
+  # heads in private/checkpoints/ where that directory exists; monitoring collection every five minutes where the collector directory or the
   # state's key-files directory holds something to collect with; and, where a mail relay is
   # configured, teammate invitations every two minutes and, if its `mail` block turns the
   # weekly summary on, that summary hourly. Each run takes a PostgreSQL advisory lock named for
@@ -171,6 +173,11 @@ services:
   # saying so, until `execbound quickstart` has run: `recover` and `notify` hold no
   # credential, and it runs them only once /srv/state/jobs.json, quickstart's mark, exists;
   # `monitor-process` runs as the jobs administrator quickstart issued into monitor.json.
+  # The service decides `--deliver` when it starts. If gateway.json does not read then,
+  # monitor-process runs without `--deliver` until the service restarts, so restart it once the
+  # file is fixed (`docker compose restart jobs`). If the file breaks after the service starts,
+  # every pass still evaluates, then fails, logging `monitor.delivery_refused`, until the file
+  # reads again.
   jobs:
     <<: *execbound
     depends_on:

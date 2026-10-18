@@ -47,6 +47,9 @@ class Scenario:
     retry_after: str | None = None
     # Bytes of filler added to every story record, to exercise the response size bound.
     padding: int = 0
+    # Tines lists at most this many actions referencing one credential, across its references,
+    # and only when asked with `include_references=true` (#355).
+    reference_cap: int = 100
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -85,6 +88,11 @@ class _Handler(BaseHTTPRequestHandler):
             story = query.get("story_id")
             if story is not None:
                 records = [r for r in records if str(r.get("story_id")) == story]
+        if key == "credentials":
+            records = [
+                self.server.credential(record, query.get("include_references") == "true")
+                for record in records
+            ]
         if key == "audit":
             after = query.get("after")
             if after:
@@ -167,6 +175,23 @@ class FakeTines(ThreadingHTTPServer):
             "credentials": "user_credentials",
             "audit": "audit_logs",
         }[key]
+
+    def credential(self, record: dict[str, Any], references: bool) -> dict[str, Any]:
+        """A credential as Tines lists it: its `references` only when they were asked for, and
+        then at most `reference_cap` actions across them, in the order they were recorded."""
+        served = {key: value for key, value in record.items() if key != "references"}
+        if not references or "references" not in record:
+            return served
+        budget = self.scenario.reference_cap
+        kept = []
+        for reference in record["references"]:
+            if budget <= 0:
+                break
+            actions = list(reference.get("action_ids", []))[:budget]
+            budget -= len(actions)
+            kept.append({**reference, "action_ids": actions})
+        served["references"] = kept
+        return served
 
     def paths(self) -> list[str]:
         return [path for path, _, _ in self.requests]

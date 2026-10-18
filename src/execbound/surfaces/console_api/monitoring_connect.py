@@ -11,13 +11,15 @@ records the attempt, sets the binding cookie the consent's callbacks require in 
 and answers Microsoft's sign-in address, the one answer here that carries a secret, its
 `state`. `{connection_id}/key` replaces a sealed connection's key,
 `{connection_id}/collect` asks for a collection the next scheduled pass answers,
-`{connection_id}/schedule` sets the intervals and `{connection_id}/revoke` stops collection.
+`{connection_id}/schedule` sets the intervals, `{connection_id}/egress` records the addresses a
+Tines tenant connects from (#355) and `{connection_id}/revoke` stops collection.
 
 Every route is an administrator's, behind the session, the exact Origin and CSRF, and answers
 the connection as the Connections view reads it, from the server: nothing is optimistic.
-Connecting, replacing a key and revoking ask for a recently verified factor and refuse a
-personal access token (`guards.STEP_UP_PREFIXES`, `token_rules`), because they create a
-credentialed connection or silence one; asking and scheduling do neither. A malformed body is
+Connecting, replacing a key, recording egress addresses and revoking ask for a recently verified
+factor and refuse a personal access token (`guards.STEP_UP_PREFIXES`, `token_rules`), because they
+create a credentialed connection, change what a directory's actors are attributed to, or silence
+one; asking and scheduling do none of these. A malformed body is
 refused by field location only, so no value, a key least of all, is ever echoed. Nothing here
 calls Tines: collection runs only in the collector.
 """
@@ -30,7 +32,7 @@ from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from execbound.monitoring import connect, consent
+from execbound.monitoring import connect, consent, drivers
 from execbound.monitoring import store as monitor_store
 from execbound.monitoring.models import MonitorError
 from execbound.monitoring.sealing import CollectorPublicKey
@@ -129,6 +131,16 @@ class ConnectionSchedule(BaseModel):
     activity_interval_seconds: int | None = Field(default=None, ge=300, le=3600)
 
 
+class RecordEgress(BaseModel):
+    """The addresses a Tines tenant's HTTP requests leave from, as Tines shows them at
+    `/info`: at most eight single public addresses; an empty list clears them. Recording them
+    re-reads thirty days of the Space's directory sign-ins once."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    addresses: list[str] = Field(max_length=8)
+
+
 class ConnectionChange(BaseModel):
     """No fields: the address names the connection and the change."""
 
@@ -159,6 +171,8 @@ _FIELDS = {
     "INVALID_BASE_URL": ["base_url"],
     "INVALID_KEY": ["api_key"],
     "INVALID_SCHEDULE": ["activity_interval_seconds", "collect_interval_seconds"],
+    "INVALID_EGRESS": ["addresses"],
+    "EGRESS_CATALOGUED": ["addresses"],
     "INVALID_INPUT": [],
 }
 _CODES = {
@@ -172,6 +186,8 @@ _CODES = {
     "CONNECTION_NOT_SEALED": "CONFLICT",
     "CONNECTION_NOT_CONSENTED": "CONFLICT",
     "ATTEMPT_CAPACITY": "ATTEMPT_CAPACITY",
+    # Egress is a Tines connection's alone.
+    "INVALID_STATE": "CONFLICT",
 }
 
 
@@ -366,6 +382,29 @@ def monitoring_connect_routes(
             return target
 
         return await run_in_threadpool(_applied, runtime, current, schedule)
+
+    @routes.post(
+        "/monitor/connections/{connection_id}/egress",
+        response_model=MonitorConnection,
+        operation_id="recordMonitorEgress",
+        openapi_extra=body(RecordEgress),
+    )
+    async def record_egress(request: Request, connection_id: str) -> MonitorConnection:
+        current, values = await guards.mutation(request, RecordEgress, kind="ADMIN")
+        target = identifier(connection_id)
+
+        def record() -> UUID:
+            drivers.set_egress_addresses(
+                runtime.db,
+                current.identity,
+                target,
+                values.addresses,
+                clock=runtime.clock,
+                session=current,
+            )
+            return target
+
+        return await run_in_threadpool(_applied, runtime, current, record)
 
     @routes.post(
         "/monitor/connections/{connection_id}/revoke",

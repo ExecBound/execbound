@@ -288,6 +288,9 @@ _INFORMATIONAL = frozenset(
         "monitor.collection_requested",
         "monitor.schedule_changed",
         "monitor.connection_revoked",
+        # A Tines tenant's egress addresses recorded on its connection (#355): what a
+        # directory's sign-ins are matched against for driver evidence, which no decision reads.
+        "monitor.egress_recorded",
         # A directory administrator's consent recorded on a Microsoft Entra connection (#678):
         # who started the attempt and which directory consented. Like the kinds above, it
         # decides nothing replay reconstructs.

@@ -6,7 +6,9 @@ shown as metadata with none of the fixture's secrets, a finding acknowledged fro
 the sidebar's count following, the Scout agent views with a hostile display name as text, and
 an approver at the address getting the boundary with the shell intact. Since #678 also: a
 finding opened by its address, governing from the Monitoring agent page and back, and every
-view of the daily queue clean in both schemes at desktop and phone width (MQ9, MQ12).
+view of the daily queue clean in both schemes at desktop and phone width (MQ9, MQ12). Since
+#31 also: Alert settings listing a findings destination and its deliveries, in both schemes
+at both widths (MQ11).
 """
 
 import re
@@ -14,9 +16,10 @@ from datetime import timedelta
 
 from monitoring_fixtures import HOSTILE_NAME
 from playwright.sync_api import expect
+from secret_shapes import SLACK
 from space_fixtures import default_space, make_space, place
 from sqlalchemy import text
-from test_browser_console import AXE_RUN, settled, sign_in_as
+from test_browser_console import AXE_RUN, FITS, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
 from test_browser_surfaces import chromium as chromium
@@ -30,7 +33,9 @@ from test_runtime import runtime as runtime
 from test_scout_run import agent, detailed_scenario
 from test_tines_collection import SECRETS
 
+from execbound.monitoring import worker
 from execbound.monitoring.store import COLLECTION_HEALTH_RULE as RUN
+from execbound.notifications import Destination
 
 
 def clean(page, what):
@@ -315,15 +320,18 @@ def test_mq12_monitoring_is_clean_in_both_schemes_at_1280_and_390(
                 if "story=" in path:
                     expect(console_page.locator("tr[aria-current='true']")).to_have_count(1)
                 if "alerts" in path:
+                    # Every delivery is listed outside the receiver, which opens to be audited.
+                    expect(
+                        console_page.get_by_role("table", name=re.compile("Finding deliveries"))
+                    ).to_be_visible()
                     console_page.get_by_text("Local test receiver").click()
                     expect(
-                        console_page.get_by_role("table", name=re.compile("delivery intents"))
-                    ).to_be_visible()
+                        console_page.locator("details", has_text="Local test receiver")
+                    ).to_have_attribute("open", "")
                 what = f"{path} in {scheme} at {width}"
                 clean(console_page, what)
-                assert console_page.evaluate(
-                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-                ), what
+                # Neither the document nor `main` scrolls sideways (#31).
+                assert console_page.evaluate(FITS), what
 
 
 def open_in(admin_engine, tenant, space):
@@ -434,3 +442,150 @@ def test_mq16_bulk_views_are_clean_in_both_schemes_at_1280_and_390(
                 assert console_page.evaluate(
                     "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 ), label
+
+
+RIVAL = "Rival Holdings"
+MAILBOX = "soc-findings@example.com"
+RIVAL_URL, RIVAL_SECRET = "https://alerts.example.net/execbound/rival", "r1v4l-" + "q" * 32
+# The Slack webhook's secret, its path's last segment, which no page may show.
+SLACK_SECRET = SLACK.rsplit("/", 1)[1]
+
+
+def alert_destinations(admin_engine, world, seeded, slack):
+    """Alert settings with three findings destinations: `slack` for every Space, an email
+    destination for this workspace's default Space and a Space of another workspace, and a
+    webhook for that other Space alone, which receives no findings (#31). Returns the
+    destinations, the other workspace's Space and the default Space's name."""
+    tenant = world["admin"].tenant_id
+    elsewhere = next(other for other in seeded["tenants"] if other != tenant)
+    with admin_engine.begin() as conn:
+        fenced(conn, elsewhere)
+        rival = make_space(conn, elsewhere, RIVAL)
+    with admin_engine.begin() as conn:
+        fenced(conn, tenant)
+        own = default_space(conn, tenant)
+        name = conn.execute(
+            text("SELECT name FROM execbound.spaces WHERE tenant_id = :t AND space_id = :s"),
+            {"t": tenant, "s": own},
+        ).scalar_one()
+    findings = frozenset({"findings"})
+    destinations = (
+        slack,
+        Destination(
+            "soc-email",
+            tenant,
+            "",
+            "",
+            kind="email",
+            to=MAILBOX,
+            classes=findings,
+            spaces=frozenset({own, rival}),
+        ),
+        Destination(
+            "rival-only",
+            tenant,
+            RIVAL_URL,
+            RIVAL_SECRET,
+            classes=findings,
+            spaces=frozenset({rival}),
+        ),
+    )
+    return destinations, rival, name
+
+
+def destinations_listed(admin_engine, tenant):
+    """Each listed delivery's destination as the delivery table names it, sorted, since the
+    comparison is of the sorted cells: every row but a routed intent, an intent not routed named
+    "Not routed"."""
+    with admin_engine.begin() as conn:
+        fenced(conn, tenant)
+        listed = conn.execute(
+            text(
+                "SELECT destination_id FROM execbound.monitor_deliveries "
+                "WHERE tenant_id = :t AND state <> 'ROUTED'"
+            ),
+            {"t": tenant},
+        ).scalars()
+        return sorted(destination or "Not routed" for destination in listed)
+
+
+def check_alert_settings(page, *, every, rival, own, listed):
+    """What Alert settings shows in either edition for `alert_destinations`: each destination
+    by id, host, rules and Spaces, the destination for another workspace's Space alone saying
+    it receives no findings, every delivery naming its destination and the intent routed after
+    the others "Not routed"; never an address, a secret, nor that Space's name or identifier."""
+    destinations = page.get_by_role("table", name=re.compile("Findings destinations"))
+    expect(destinations).to_contain_text("rival-only")
+    # Rendered, so the page is checked for what it must never hold before anything else.
+    content = page.content()
+    for private in (
+        SLACK_SECRET,
+        "/services/",
+        MAILBOX,
+        RIVAL_SECRET,
+        "/execbound/rival",
+        RIVAL,
+        str(rival),
+    ):
+        assert private not in content, private
+    expect(destinations).to_contain_text("soc-slack")
+    expect(destinations).to_contain_text("hooks.slack.com")
+    expect(destinations).to_contain_text(every)
+    slack, email, alone = (
+        destinations.get_by_role("row").filter(has_text=item)
+        for item in ("soc-slack", "soc-email", "rival-only")
+    )
+    expect(slack).to_contain_text("Every Space")
+    expect(email).to_contain_text(own)
+    expect(email).to_contain_text("1 unknown Space ID")
+    expect(email).not_to_contain_text("Receives no findings")
+    expect(alone).to_contain_text("alerts.example.net")
+    expect(alone).to_contain_text("1 unknown Space ID")
+    expect(alone.get_by_text("Receives no findings")).to_be_visible()
+    deliveries = page.get_by_role("table", name=re.compile("Finding deliveries"))
+    named = deliveries.locator('td[data-label="Destination"]')
+    expect(named.filter(has_text="Not routed")).to_have_count(1)
+    expect(named.filter(has_text="soc-slack").first).to_be_visible()
+    assert sorted(named.all_inner_texts()) == listed
+
+
+def test_mq11_alert_settings_lists_destinations_and_deliveries_in_both_schemes(
+    console_page, admin_engine, world, db, runtime, seeded
+):
+    """MQ11 in the core build (#31): findings destinations and their deliveries on Alert
+    settings, one for another workspace's Space alone that receives no findings and an intent
+    not routed among them, with no address, secret or other workspace's Space in the page,
+    clean under axe in light and dark at 1280 and 390 px with no policy violation and no
+    sideways scroll. The hosted half is the hosted service's own browser test."""
+    seed_tines(db, world)
+    tenant = world["admin"].tenant_id
+    slack = Destination(
+        "soc-slack",
+        tenant,
+        SLACK,
+        "",
+        kind="slack",
+        classes=frozenset({"approvals", "findings"}),
+        rules=frozenset({"sensitive-action.v2", "monitored-path-change.v1"}),
+    )
+    runtime.notifications, rival, own = alert_destinations(admin_engine, world, seeded, slack)
+    worker.route_findings(db, world["admin"], runtime.notifications, clock=runtime.clock)
+    # Raised after the router ran, so it waits unrouted.
+    more_findings(db, admin_engine, world, 1)
+    listed = destinations_listed(admin_engine, tenant)
+    sign_in_as(console_page, admin_engine, world["admin"])
+    for scheme in ("light", "dark"):
+        for width, height in ((1280, 900), (390, 844)):
+            console_page.emulate_media(color_scheme=scheme)
+            console_page.set_viewport_size({"width": width, "height": height})
+            console_page.goto("/monitor?view=alerts")
+            check_alert_settings(
+                console_page,
+                every="monitored-path-change.v1, sensitive-action.v2",
+                rival=rival,
+                own=own,
+                listed=listed,
+            )
+            what = f"alert settings in {scheme} at {width}"
+            clean(console_page, what)
+            assert console_page.evaluate(FITS), what

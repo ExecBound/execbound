@@ -71,6 +71,10 @@ def revoke(connection):
     return API + f"/monitor/connections/{connection}/revoke"
 
 
+def egress(connection):
+    return API + f"/monitor/connections/{connection}/egress"
+
+
 ROUTES = [
     (CONNECT, "GET"),
     (TINES, "POST"),
@@ -78,9 +82,10 @@ ROUTES = [
     (collect(ZERO), "POST"),
     (schedule(ZERO), "POST"),
     (revoke(ZERO), "POST"),
+    (egress(ZERO), "POST"),
     (ENTRA_START, "POST"),
 ]
-STEPPED = (TINES, key(ZERO), revoke(ZERO), ENTRA_START)
+STEPPED = (TINES, key(ZERO), revoke(ZERO), egress(ZERO), ENTRA_START)
 UNSTEPPED = (collect(ZERO), schedule(ZERO))
 PASTE = {"label": "Synthetic Tines tenant", "base_url": BASE_URL, "api_key": SENTINEL}
 # Where a connection or source made now lands for the world's administrator: the tenant's one
@@ -183,6 +188,7 @@ def test_mc13_every_change_needs_the_token_and_the_exact_origin(
             key(connection),
             collect(connection),
             schedule(connection),
+            egress(connection),
             ENTRA_START,
         ):
             missing = client.post(path, PASTE, csrf=None)
@@ -264,6 +270,10 @@ def test_mc13_a_token_may_ask_and_schedule_but_never_connect_replace_or_revoke(
                     "TOKEN_NOT_ALLOWED",
                 ), path
             refused = post(client, revoke(connection), token, {})
+            assert refused.json()["code"] == "TOKEN_NOT_ALLOWED"
+            # Recording a Tines tenant's egress changes what a directory's actors are
+            # attributed to (#355).
+            refused = post(client, egress(connection), token, {"addresses": ["18.200.10.20"]})
             assert refused.json()["code"] == "TOKEN_NOT_ALLOWED"
             # Starting a consent creates a credentialed connection when it completes.
             refused = post(client, ENTRA_START, token, {"label": "Directory"})
@@ -426,6 +436,9 @@ ECHOES = [
     ("collect", {"unknown": SENTINEL}),
     ("schedule", {"collect_interval_seconds": SENTINEL, "activity_interval_seconds": SENTINEL}),
     ("revoke", {"unknown": SENTINEL}),
+    ("egress", {"addresses": [SENTINEL]}),
+    ("egress", {"addresses": [], "unknown": SENTINEL}),
+    ("egress", {"addresses": ["10.0.0.1"]}),
 ]
 
 
@@ -434,7 +447,13 @@ def test_mc2_a_malformed_body_never_echoes_what_it_carried(
 ):
     caplog.set_level(logging.DEBUG)
     connection = key_file_connection(db, world)
-    paths = {"key": key, "collect": collect, "schedule": schedule, "revoke": revoke}
+    paths = {
+        "key": key,
+        "collect": collect,
+        "schedule": schedule,
+        "revoke": revoke,
+        "egress": egress,
+    }
     with console_client(
         db, runtime, admin_engine, world["admin"], config=configured(collector)
     ) as client:
@@ -844,3 +863,42 @@ def test_mc11_the_consent_rule_names_the_finding_a_lost_capability_raises():
     """The snapshot's SQL names the rule and title `record_capabilities` raises, literally."""
     assert monitor_store.HEALTH_TITLES["CAPABILITY_LOST"] in monitor_store.CONSENT_NEEDS_UPDATE
     assert monitor_store.COLLECTION_HEALTH_RULE in monitor_store.CONSENT_NEEDS_UPDATE
+
+
+def test_sr27_the_egress_route_records_a_tines_tenant_s_addresses_and_answers_the_connection(
+    db, runtime, admin_engine, world, collector
+):
+    """An administrator records the addresses a Tines tenant's requests leave from; the answer is
+    the connection as the server now holds it, the change is audited with the count alone, and
+    another platform's catalogued range, a repeat and more than eight are refused by field
+    (#355)."""
+    tenant = world["admin"].tenant_id
+    connection = key_file_connection(db, world)
+    with console_client(db, runtime, admin_engine, world["admin"]) as client:
+        recorded = client.post(egress(connection), {"addresses": ["18.200.10.21", "18.200.10.20"]})
+        assert recorded.status_code == 200, recorded.text
+        answer = recorded.json()
+        assert answer["egress_addresses"] == ["18.200.10.20", "18.200.10.21"]
+        assert answer["egress_recorded_by"]["principal_id"] == str(world["admin"].principal_id)
+        assert answer["egress_recorded_at"] is not None
+        for body in (
+            {"addresses": ["160.79.104.20"]},
+            {"addresses": [f"18.200.10.{n}" for n in range(30, 39)]},
+            {"addresses": ["18.200.10.20", "18.200.10.20"]},
+        ):
+            refused = client.post(egress(connection), body)
+            assert (refused.status_code, refused.json()["code"]) == (400, "INVALID_BODY"), body
+            assert refused.json()["fields"] == ["addresses"], body
+        cleared = client.post(egress(connection), {"addresses": []})
+        assert cleared.json()["egress_addresses"] == []
+        unknown = client.post(egress(uuid4()), {"addresses": []})
+        assert (unknown.status_code, unknown.json()["code"]) == (404, "NOT_FOUND")
+        # A directory connection has no egress of its own to record.
+        entra = consented_connection(admin_engine, world, consented_minutes_ago=0)
+        conflict = client.post(egress(entra), {"addresses": ["18.200.10.20"]})
+        assert (conflict.status_code, conflict.json()["code"]) == (409, "CONFLICT")
+    events = [
+        e for e in monitoring_events(admin_engine, tenant) if e["kind"] == "monitor.egress_recorded"
+    ]
+    assert [event["payload"]["addresses"] for event in events] == [2, 0]
+    assert "18.200.10.20" not in json.dumps([event["payload"] for event in events])

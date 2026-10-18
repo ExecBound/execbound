@@ -129,7 +129,8 @@ def run(private: Path, output: Path) -> None:
                     if view == "activity":
                         page.get_by_text("identity.disable", exact=True).first.wait_for()
                     if view == "alerts":
-                        # The local test receiver and its delivery table are folded (#678).
+                        # The local test receiver is folded (#678); every delivery is listed
+                        # outside it, with its destination, in every edition (#31).
                         page.get_by_text("Local test receiver", exact=True).click()
                         page.get_by_text("DELIVERED", exact=True).first.wait_for()
                     page.screenshot(path=str(output / (view + "-desktop.png")), full_page=True)

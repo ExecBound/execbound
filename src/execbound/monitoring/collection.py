@@ -69,6 +69,15 @@ ENVELOPES = {
 
 IDENTIFIER = re.compile(r"^[A-Za-z0-9._:-]{1,96}$")
 SYSTEM_CLOCK = SystemClock()
+# The hosts that make a credential one a story can call Microsoft Graph or Microsoft sign-in with
+# (#355). Only whether a credential's allowed hosts name one of them is kept, never a host.
+MICROSOFT_HOSTS = frozenset({"graph.microsoft.com", "login.microsoftonline.com"})
+# Tines lists at most this many actions referencing one credential, across its references, so a
+# credential that reaches it may be used by more stories than it lists. A credential keeps at most
+# this many story ids too.
+REFERENCE_CAP = 100
+MAX_ALLOWED_HOSTS = 256
+_MISSING = object()
 
 
 class CollectionError(MonitorError):
@@ -144,6 +153,11 @@ class Item:
     disabled: bool | None = None
     outbound: bool | None = None
     source_updated_at: datetime | None = None
+    # A credential's allowed hosts, classified (`microsoft`, `other` or `unrestricted`), and the
+    # stories that reference it with whether Tines' cap was reached; None where not read (#355).
+    host_scope: str | None = None
+    story_refs: tuple[str, ...] | None = None
+    references_capped: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -213,14 +227,67 @@ def parse_action(record: object, story: str) -> Item | None:
     )
 
 
-def parse_credential(record: object) -> Item | None:
+def _host(value: object) -> str | None:
+    """An allowed host as a credential's restriction writes it, reduced to a host name: no
+    scheme, path, port or final dot, in lower case. Read to be classified, never kept."""
+    if type(value) is not str or len(value) > 255:
+        return None
+    host = value.strip().lower()
+    for scheme in ("https://", "http://"):
+        host = host.removeprefix(scheme)
+    host = host.split("/", 1)[0].split(":", 1)[0].rstrip(".")
+    return host or None
+
+
+def credential_scope(value: object) -> str | None:
+    """Where a credential may be used, from its `allowed_hosts`: `microsoft` when they name
+    Microsoft Graph or Microsoft sign-in, `other` when they name only other hosts, `unrestricted`
+    when they name none. None when the field is absent or not a list. A wildcard that would cover
+    a Microsoft host is not one of them, so a scope is never wider than its hosts say."""
+    if value is _MISSING or not isinstance(value, list):
+        return None
+    if not value:
+        return "unrestricted"
+    hosts = {_host(item) for item in value[:MAX_ALLOWED_HOSTS]}
+    return "microsoft" if hosts & MICROSOFT_HOSTS else "other"
+
+
+def credential_references(
+    value: object, *, team: str | None = None
+) -> tuple[tuple[str, ...] | None, bool | None]:
+    """The stories that reference a credential, by id alone, and whether the list may be short:
+    Tines lists at most `REFERENCE_CAP` actions across a credential's references, and a credential
+    keeps at most that many stories. A connection scoped to a team (`team`) keeps only the stories
+    of references that name that team, since a credential one team shares is referenced by other
+    teams' stories too; every reference's actions still count toward Tines' cap. Action ids are
+    counted, never kept. None for both when the references were not listed."""
+    if value is _MISSING or not isinstance(value, list):
+        return None, None
+    stories: set[str] = set()
+    actions = 0
+    for reference in value[: REFERENCE_CAP * 2]:
+        if not isinstance(reference, dict):
+            continue
+        story = _identifier(reference.get("story_id"))
+        if story is not None and (team is None or _identifier(reference.get("team_id")) == team):
+            stories.add(story)
+        listed = reference.get("action_ids")
+        actions += len(listed) if isinstance(listed, list) else 0
+    ordered = sorted(stories, key=lambda story: (len(story), story))
+    capped = actions >= REFERENCE_CAP or len(ordered) > REFERENCE_CAP
+    return tuple(ordered[:REFERENCE_CAP]), capped
+
+
+def parse_credential(record: object, *, team: str | None = None) -> Item | None:
     if not isinstance(record, dict):
         return None
     external = _identifier(record.get("id"))
     if external is None:
         return None
     name, truncated = _label(record.get("name"))
-    # A credential value is never returned by the vendor and is never read here either.
+    stories, capped = credential_references(record.get("references", _MISSING), team=team)
+    # A credential value is never returned by the vendor and is never read here either, and
+    # neither its metadata, its owner, its test credential nor any host it names is kept.
     return Item(
         "credential",
         external,
@@ -228,6 +295,9 @@ def parse_credential(record: object) -> Item | None:
         truncated,
         item_type=_identifier(record.get("mode"), limit=32),
         source_updated_at=_moment(record.get("expires_at")),
+        host_scope=credential_scope(record.get("allowed_hosts", _MISSING)),
+        story_refs=stories,
+        references_capped=capped,
     )
 
 
@@ -488,8 +558,12 @@ def _inventory(reader: Reader, capabilities: dict[str, dict[str, Any]]) -> tuple
             "credentials",
             limit=MAX_CREDENTIALS,
             pages=MAX_CREDENTIALS // PAGE_SIZE + 1,
+            # The stories and actions that use each credential (#355), which Tines lists only
+            # when asked for.
+            include_references="true",
         ):
-            parsed = parse_credential(record)
+            # A team-scoped connection's stories are its team's alone (#355).
+            parsed = parse_credential(record, team=reader.team_id)
             if parsed is None:
                 unsupported += 1
             else:

@@ -7,15 +7,16 @@ fifteen seconds, `monitor-process` every five minutes and `audit-verify` every h
 existed the runbook left the first three to the operator, which means that on a Community
 installation they were not run at all: nothing settles a committed operation, nobody is told an
 approval is waiting, and no monitoring observation ever becomes a finding. `notify` is
-scheduled only where the runtime configuration names an approval destination,
-`invitations-run` only where it names a mail relay, and
-`collect-due` only where the state directory holds a key-files directory (for operator key-file
-connections) or the collector's directory holds its key or the key a rotation is retiring (for
-sealed ones) or the platform app's credential (for consented directories); each is decided
-once, when the service starts (`jobs_for`). Neither the collector's key nor the platform app's
-credential is ever in the state directory: the gateway mounts that, and the gateway must never
-hold a key that opens a sealed monitoring key or signs for the app that reads every consented
-directory, so the collector's directory is the jobs container's alone.
+scheduled only where the runtime configuration names an approval destination, `invitations-run`
+only where it names a mail relay, `monitor-process` runs with `--deliver` wherever the runtime
+configuration reads, and `collect-due` only where the state directory holds a key-files
+directory (for operator key-file connections) or the collector's directory holds its key or the
+key a rotation is retiring (for sealed ones) or the platform app's credential (for consented
+directories); each is decided once, when the service starts (`jobs_for`). Neither the
+collector's key nor the platform app's credential is ever in the state directory: the gateway
+mounts that, and the gateway must never hold a key that opens a sealed monitoring key or signs
+for the app that reads every consented directory, so the collector's directory is the jobs
+container's alone.
 
 **Jobs run side by side.** Each due job is started as its own process and the scheduler does
 not wait for it, so a recover pass that runs for minutes never holds a notification back
@@ -51,7 +52,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import IO, TYPE_CHECKING
 
@@ -91,6 +92,9 @@ class Job:
     # reach the log whole, however many there are, and even when the job is stopped at its
     # timeout.
     own_log: bool = False
+    # Whether `monitor-process` routes and sends findings too (`--deliver`, #31): wherever the
+    # jobs service has a runtime configuration that reads (`runtime_configured`).
+    deliver: bool = False
 
 
 RECOVER = Job("recover", 9_001, 900, JOBS_FILE)
@@ -104,6 +108,9 @@ MONITOR = Job("monitor-process", 9_003, 300, MONITOR_FILE)
 # so they go to this service's log as they are written (`own_log`). Lock 9_007.
 AUDIT_VERIFY = Job("audit-verify", 9_007, 3600, JOBS_FILE, own_log=True)
 JOBS: tuple[Job, ...] = (RECOVER, NOTIFY, MONITOR, AUDIT_VERIFY)
+# `monitor-process` with `--deliver` (#31): the same job, name and lock, wherever a runtime
+# configuration reads, so a replica that runs either holds the one tick.
+MONITOR_DELIVER = replace(MONITOR, deliver=True)
 # The teammate invitations drain: it retries what the console's first send could not deliver.
 # It needs a mail relay to send through and refuses to start without one, so it is scheduled
 # only where the runtime configuration has a `mail` block (`jobs_for`).
@@ -132,13 +139,23 @@ APPROVAL_DESTINATION_KINDS = frozenset({"webhook", "email", "slack", "teams"})
 
 
 def jobs_for(
-    mail: bool, *, notify: bool = True, weekly_summary: bool = False, collect: bool = False
+    mail: bool,
+    *,
+    notify: bool = True,
+    weekly_summary: bool = False,
+    collect: bool = False,
+    deliver: bool = False,
 ) -> tuple[Job, ...]:
     """The jobs this deployment runs: the approval drain only where something can be
     announced, the invitations drain only where mail can be sent, the weekly summary only
-    where mail can be sent and the summary is on, and monitoring collection only where this
-    host holds something to collect with."""
-    jobs = tuple(job for job in JOBS if notify or job is not NOTIFY)
+    where mail can be sent and the summary is on, monitoring collection only where this
+    host holds something to collect with, and `monitor-process` routes and sends findings
+    wherever the runtime configuration reads."""
+    jobs = tuple(
+        MONITOR_DELIVER if deliver and job is MONITOR else job
+        for job in JOBS
+        if notify or job is not NOTIFY
+    )
     found = (*jobs, INVITATIONS) if mail else jobs
     found = (*found, WEEKLY_SUMMARY) if mail and weekly_summary else found
     return (*found, COLLECT) if collect else found
@@ -163,7 +180,9 @@ def mail_configured(path: Path | None) -> bool:
 
     try:
         return read_configuration(path).mail is not None
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
+        # `RecursionError` too: JSON nested past the parser's limit, under the size cap, would
+        # otherwise crash the service at start, and again at every restart.
         return False
 
 
@@ -176,24 +195,50 @@ def weekly_summary_configured(path: Path | None) -> bool:
 
     try:
         mail = read_configuration(path).mail
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         return False
     return mail is not None and mail.weekly_summary
 
 
 def destinations_configured(path: Path | None) -> bool:
-    """Whether the runtime configuration at `path` names an approval destination: a fifteen
-    second drain is a process every fifteen seconds, so it runs only where it can announce
-    something. A file that cannot be read or does not validate answers no, as for mail."""
+    """Whether the runtime configuration at `path` names an approval-kind destination whose
+    classes include `approvals`: a fifteen second drain is a process every fifteen seconds, so
+    it runs only where it can announce something (#31). A file that cannot be read or does not
+    validate answers no, as for mail."""
     if path is None:
         return False
     from execbound.surfaces.configuration import read_configuration
 
     try:
         notifications = read_configuration(path).notifications
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         return False
-    return any(item.kind in APPROVAL_DESTINATION_KINDS for item in notifications)
+    return any(
+        item.kind in APPROVAL_DESTINATION_KINDS and "approvals" in (item.classes or ("approvals",))
+        for item in notifications
+    )
+
+
+def runtime_configured(path: Path | None) -> bool:
+    """Whether the runtime configuration at `path` reads (#31). Wherever it does,
+    `monitor-process` runs with `--deliver`, findings destination or none: with none, the
+    router marks each finding's intent routed with no delivery, so the first destination added
+    receives nothing raised before it, and a destination's leftovers still close once it is
+    removed. A file that does not read answers no, as for mail, so a broken file stops no
+    evaluation. It is read as `process --deliver` reads it (`read_outbound`), not only parsed
+    as `mail_configured` parses it: a file that parses but whose origin or destinations
+    `--deliver` refuses would fail every scheduled pass."""
+    if path is None:
+        return False
+    from execbound.surfaces.configuration import read_outbound
+
+    try:
+        read_outbound(path)
+    except ValueError:
+        # `read_outbound`'s one refusal, for a file it cannot open, parse or accept; it holds
+        # no context, and nothing of the file is logged or printed here.
+        return False
+    return True
 
 
 def argv(
@@ -243,7 +288,7 @@ def argv(
                 command += ["--platform-app", str(collector / SCOUT_APP)]
         return command
     if job.name == "monitor-process":
-        return [
+        command = [
             sys.executable,
             "-m",
             "execbound.monitoring.commands",
@@ -253,6 +298,10 @@ def argv(
             "--limit",
             str(limit),
         ]
+        if job.deliver:
+            # Reads the runtime configuration the jobs container carries (#31).
+            command.append("--deliver")
+        return command
     return [
         sys.executable,
         "-m",
@@ -525,6 +574,7 @@ def serve(
     notify: bool = True,
     weekly_summary: bool = False,
     collect: bool = False,
+    deliver: bool = False,
 ) -> dict[str, int]:
     """Run the scheduler until the process is stopped, or one pass with `once`, which waits
     for every job it started and returns each one's outcome."""
@@ -535,9 +585,13 @@ def serve(
         collector=collector,
         checkpoints=checkpoints,
         limit=limit,
-        jobs=jobs_for(mail, notify=notify, weekly_summary=weekly_summary, collect=collect),
+        jobs=jobs_for(
+            mail, notify=notify, weekly_summary=weekly_summary, collect=collect, deliver=deliver
+        ),
     )
-    log_event("jobs.started", count=len(scheduler.jobs))
+    # Whether `monitor-process` routes and sends findings, so a runtime configuration that does
+    # not read is never a silent switch-off (#31).
+    log_event("jobs.started", count=len(scheduler.jobs), deliver=deliver)
     remaining = 1 if once else cycles
     outcomes: dict[str, int] = {}
     try:

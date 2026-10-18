@@ -108,6 +108,31 @@ class ScoutConfig:
     entra: ScoutEntra | None = None
 
 
+def check_origin(origin: str) -> None:
+    """Hold a deployment's origin to the console's rule: https, or http on a loopback address,
+    with a host and nothing after it. `HumanConfig` and `configuration.read_outbound`, which
+    builds every finding's link from it (#31), read this one rule; `read_outbound` also holds
+    the origin to the finding message's narrower one (`transports.is_message_origin`)."""
+    parsed = urlsplit(origin)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("Invalid application origin")
+    if parsed.scheme == "http":
+        try:
+            if not ipaddress.ip_address(parsed.hostname).is_loopback:
+                raise ValueError
+        except ValueError:
+            raise ValueError("Cleartext application origin must use a loopback IP") from None
+    _ = parsed.port
+
+
 @dataclass(frozen=True)
 class HumanConfig:
     origin: str
@@ -154,24 +179,7 @@ class HumanConfig:
         object.__setattr__(self, "keys", keys)
 
     def __post_init__(self) -> None:
-        parsed = urlsplit(self.origin)
-        if (
-            parsed.scheme not in {"http", "https"}
-            or not parsed.hostname
-            or parsed.username
-            or parsed.password
-            or parsed.path
-            or parsed.query
-            or parsed.fragment
-        ):
-            raise ValueError("Invalid application origin")
-        if parsed.scheme == "http":
-            try:
-                if not ipaddress.ip_address(parsed.hostname).is_loopback:
-                    raise ValueError
-            except ValueError:
-                raise ValueError("Cleartext application origin must use a loopback IP") from None
-        _ = parsed.port
+        check_origin(self.origin)
         if type(self.service) is not ServiceLinks or not self.service.valid():
             raise ValueError("Invalid service links")
 

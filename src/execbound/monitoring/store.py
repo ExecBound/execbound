@@ -7,7 +7,7 @@ import hmac
 import json
 import re
 import secrets
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, get_args
 from uuid import UUID, uuid4, uuid5
@@ -1425,6 +1425,10 @@ CONSENT_NEEDS_UPDATE = (
     "AND (f.created_at >= e.consented_at OR e.capabilities_at > e.consented_at))) "
     "AS consent_needs_update"
 )
+# A Tines connection's recorded egress, as text in the database's own order (#355).
+EGRESS_ADDRESSES = (
+    "ARRAY(SELECT host(a) FROM unnest(e.egress_addresses) AS a ORDER BY a) AS egress_addresses"
+)
 CONNECTION_COLUMNS = (
     "e.connection_id, e.kind, e.label, e.base_url, e.team_id, e.created_at, e.active, "
     "e.revoked_at, e.capabilities, e.capabilities_at, e.health_state, "
@@ -1433,6 +1437,11 @@ CONNECTION_COLUMNS = (
     "e.consecutive_rate_limited, e.consecutive_backlog, e.credential_mode, "
     "e.collect_interval_seconds, e.activity_interval_seconds, e.collect_requested_at, "
     "e.collect_requested_by, e.collecting_until, e.consented_at, e.consented_by, "
+    # A directory's sign-in cursor, and the egress an administrator recorded for a Tines tenant
+    # with when and by whom (#355).
+    "e.sign_in_cursor, e.egress_recorded_at, e.egress_recorded_by, "
+    + EGRESS_ADDRESSES
+    + ", "
     + CONSENT_NEEDS_UPDATE
 )
 
@@ -1442,7 +1451,10 @@ def snapshot(
     session: Session,
     *,
     clock: Clock = SYSTEM_CLOCK,
+    spaces: Collection[UUID] = (),
 ) -> dict[str, Any]:
+    """The monitoring page's rows. `spaces` are the Spaces the workspace's findings destinations
+    name (#31), the only ones whose names are read."""
     # Each relation: its columns, its FROM clause, the alias its space predicate applies to
     # and its newest-first order. Sources, observations and connections carry
     # a space of their own; inventory takes its connection's, through the join, and a delivery
@@ -1468,10 +1480,11 @@ def snapshot(
             "e.received_at",
         ),
         "deliveries": (
-            "d.delivery_id, d.finding_id, d.created_at, d.state, d.attempts, d.next_attempt_at, "
-            "d.lease_until, d.delivered_at, d.last_error",
+            "d.delivery_id, d.finding_id, d.destination_id, d.created_at, d.state, d.attempts, "
+            "d.next_attempt_at, d.lease_until, d.delivered_at, d.last_error",
+            # A routed intent is left out: its deliveries say what happened to it (#31).
             "execbound.monitor_deliveries d JOIN execbound.monitor_findings e "
-            "ON e.tenant_id=d.tenant_id AND e.finding_id=d.finding_id",
+            "ON e.tenant_id=d.tenant_id AND e.finding_id=d.finding_id AND d.state <> 'ROUTED'",
             "e",
             "d.created_at",
         ),
@@ -1535,10 +1548,41 @@ def snapshot(
                 [
                     person
                     for row in result["connections"]
-                    for person in (row["collect_requested_by"], row["consented_by"])
+                    for person in (
+                        row["collect_requested_by"],
+                        row["consented_by"],
+                        row["egress_recorded_by"],
+                    )
                 ],
             )
             result["profile"] = _profile_rows(conn, tenant)
+            # Of the Spaces the findings destinations name, those of this workspace the reader
+            # may read, by name, for Alert settings (#31); any other is counted, never named.
+            # Only the named ids are read, and none at all where no destination names one.
+            result["space_names"] = (
+                [
+                    dict(row)
+                    for row in conn.execute(
+                        text(
+                            "SELECT space_id, name FROM execbound.spaces WHERE tenant_id = :t "
+                            "AND space_id = ANY(CAST(:named AS uuid[])) "
+                            "AND (CAST(:everything AS boolean) "
+                            "OR space_id = ANY(CAST(:spaces AS uuid[])))"
+                        ),
+                        {
+                            "t": tenant,
+                            "named": sorted({str(space) for space in spaces}),
+                            "everything": visibility.everything,
+                            "spaces": [str(space) for space in visibility.spaces],
+                        },
+                    ).mappings()
+                ]
+                if spaces
+                else []
+            )
+            # Whether the reader may read every Space of this workspace, so that a named id
+            # missing from `space_names` is no Space of it rather than one they cannot see.
+            result["reads_every_space"] = visibility.everything
             _session(conn, session, clock)
             return result
     except DEPENDENCY_ERRORS:
@@ -1604,7 +1648,7 @@ AGENT_COLUMNS = (
     "agent_id, connection_id, platform_ref, identity_class, display_name, enabled, "
     "blueprint_ref, blueprint_object_ref, credential_kinds, sponsors, sponsor_state, "
     "sponsor_group_count, owner_count, tags, linked_principal_id, first_seen_at, observed_at, "
-    "gone_at, reach_gap_opened_at, sponsor_gap_opened_at"
+    "gone_at, reach_gap_opened_at, sponsor_gap_opened_at, user_agent_hint, user_agent_seen_at"
 )
 
 
@@ -1786,7 +1830,8 @@ def agent_detail(
                 row["effective"] = reach.effective(row, now)
             # The findings the read and acknowledge routes would answer for: the reads' own
             # space predicate, so this list names nothing in a space the session does not see.
-            space = space_clause(visible_spaces(conn, session), "f")
+            visibility = visible_spaces(conn, session)
+            space = space_clause(visibility, "f")
             findings = [
                 dict(row)
                 for row in conn.execute(
@@ -1813,6 +1858,11 @@ def agent_detail(
                 ).mappings()
             ]
             principals = _principal_rows(conn, tenant, [agent["linked_principal_id"]])
+            # Who drives it, and how that is known (#355), held to the same visible Spaces: a
+            # Tines tenant is its Space's. Imported here: the drivers module builds on this one.
+            from execbound.monitoring import drivers
+
+            driver_rows = drivers.agent_drivers(conn, tenant, agent_id, visibility)
             _session(conn, session, clock)
     except MonitorError:
         raise
@@ -1825,6 +1875,7 @@ def agent_detail(
         "reach": reach_rows,
         "findings": findings,
         "observations": observations,
+        "drivers": driver_rows,
         "unresolved": sum(1 for g in grants if not g["actions"] and g["gone_at"] is None),
     }
 
@@ -2396,9 +2447,11 @@ def revoke_connection(
     retention of directory audit observations still applies (`purge_audit_observations`).
 
     The statement that clears `active` also ends any lease a run holds (0086's trigger), so a
-    run in progress writes nothing more. One administrator narrowed to other spaces is refused;
-    with a console `session`, a connection outside its spaces does not exist for it. The
-    revocation appends `monitor.connection_revoked` as its last write.
+    run in progress writes nothing more. A Tines connection's revocation also marks gone every
+    driver row naming it (#355): its recorded egress no longer matches a sign-in and its
+    credentials join nothing. One administrator narrowed to other spaces is refused; with a
+    console `session`, a connection outside its spaces does not exist for it. The revocation
+    appends `monitor.connection_revoked` as its last write.
     """
     now = _now(clock)
     if type(connection_id) is not UUID:
@@ -2416,7 +2469,7 @@ def revoke_connection(
             row = (
                 conn.execute(
                     text(
-                        "SELECT space_id, active FROM execbound.monitor_connections "
+                        "SELECT space_id, kind, active FROM execbound.monitor_connections "
                         "WHERE tenant_id=:t AND connection_id=:c FOR UPDATE"
                     ),
                     {"t": identity.tenant_id, "c": connection_id},
@@ -2439,6 +2492,11 @@ def revoke_connection(
             """),
                 {"now": now, "t": identity.tenant_id, "c": connection_id},
             )
+            if row["kind"] == "tines":
+                # Imported here: the drivers module builds on this one.
+                from execbound.monitoring import drivers
+
+                drivers.end_tines(conn, identity.tenant_id, connection_id, now)
             if session is None:
                 check_admin(conn, identity, clock=clock)
             else:
@@ -2641,7 +2699,10 @@ def record_capabilities(
             re.fullmatch(r"[a-z_]{1,32}", name) is None
             or type(value) is not dict
             or set(value) != {"state", "at"}
-            or value["state"] not in {"available", "forbidden", "unsupported", "unknown"}
+            # `unlicensed`: a directory without Microsoft Entra ID P1 or P2, refused its
+            # sign-ins (#355); never `forbidden`, which only the registration's refusal is.
+            or value["state"]
+            not in {"available", "forbidden", "unsupported", "unknown", "unlicensed"}
         ):
             raise MonitorError("INVALID_INPUT")
     tenant = actor.tenant_id
@@ -2689,7 +2750,10 @@ def apply_inventory(
     clock: Clock = SYSTEM_CLOCK,
     lease: UUID | None = None,
 ) -> dict[str, int]:
-    """Replace one connection's inventory snapshot; items no longer listed are marked gone."""
+    """Replace one connection's inventory snapshot; items no longer listed are marked gone. The
+    joins its credentials make with the directories of its Space follow in the same transaction
+    (#355), so a credential that no longer allows Microsoft Graph or Microsoft sign-in ends them
+    whether or not those directories' sign-ins are still read."""
     now = _now(clock)
     if len(items) > MAX_INVENTORY:
         raise MonitorError("INVENTORY_CAPACITY")
@@ -2698,7 +2762,7 @@ def apply_inventory(
     try:
         with db.transaction(tenant) as conn:
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
-            _locked_connection(conn, tenant, connection_id, lease=lease, guarded=True)
+            row = _locked_connection(conn, tenant, connection_id, lease=lease, guarded=True)
             seen: set[tuple[str, str]] = set()
             for item in items:
                 seen.add((item.item_kind, item.external_id))
@@ -2712,14 +2776,17 @@ def apply_inventory(
                     INSERT INTO execbound.monitor_inventory
                     (tenant_id, connection_id, item_kind, external_id, story_external_id, name,
                      name_truncated, item_type, disabled, outbound, first_seen_at, last_seen_at,
-                     source_updated_at)
+                     source_updated_at, host_scope, story_refs, references_capped)
                     VALUES (:t, :c, :kind, :external, :story, :name, :truncated, :type,
-                            :disabled, :outbound, :now, :now, :updated)
+                            :disabled, :outbound, :now, :now, :updated, :scope,
+                            CAST(:stories AS text[]), :capped)
                     ON CONFLICT (tenant_id, connection_id, item_kind, external_id) DO UPDATE
                     SET name=EXCLUDED.name, name_truncated=EXCLUDED.name_truncated,
                         item_type=EXCLUDED.item_type, disabled=EXCLUDED.disabled,
                         outbound=EXCLUDED.outbound, last_seen_at=EXCLUDED.last_seen_at,
-                        source_updated_at=EXCLUDED.source_updated_at, gone_at=NULL
+                        source_updated_at=EXCLUDED.source_updated_at, gone_at=NULL,
+                        host_scope=EXCLUDED.host_scope, story_refs=EXCLUDED.story_refs,
+                        references_capped=EXCLUDED.references_capped
                 """),
                     {
                         "t": tenant,
@@ -2734,6 +2801,15 @@ def apply_inventory(
                         "outbound": item.outbound,
                         "now": now,
                         "updated": item.source_updated_at,
+                        # A credential's scope and the stories that use it (#355); None for
+                        # every other item, which the database holds to.
+                        "scope": getattr(item, "host_scope", None),
+                        "stories": (
+                            None
+                            if getattr(item, "story_refs", None) is None
+                            else list(item.story_refs)
+                        ),
+                        "capped": getattr(item, "references_capped", None),
                     },
                 )
             counts["gone"] = conn.execute(
@@ -2752,6 +2828,10 @@ def apply_inventory(
                 {"now": now, "t": tenant, "c": connection_id, "lease": lease},
             ).rowcount:
                 raise _unleased(conn, tenant, connection_id)
+            if row["kind"] == "tines":
+                from execbound.monitoring import drivers
+
+                drivers.rejoin(conn, tenant, connection_id, now)
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
     except DEPENDENCY_ERRORS:
         raise MonitorError() from None

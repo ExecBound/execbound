@@ -262,6 +262,9 @@ class NotificationDestination(BaseModel):
     # Which approval messages it receives, in the order `pending`, `reminder`, `closed`; empty
     # for the audit export, which announces no approval (#678).
     messages: list[Literal["pending", "reminder", "closed"]]
+    # Which classes it receives (#31), in the order `approvals`, `findings`; empty for the
+    # audit export, which receives neither.
+    classes: list[Literal["approvals", "findings"]]
 
 
 class NotificationDelivery(BaseModel):

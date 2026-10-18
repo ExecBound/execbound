@@ -164,6 +164,8 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
             "audit_failed": 0,
             "audit_backlog": 0,
             "audit_bounded": 0,
+            "sign_ins_failed": 0,
+            "sign_ins_sampled": 0,
         },
         str(second.tenant_id): {
             "collected": 1,
@@ -177,6 +179,8 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
             "audit_failed": 0,
             "audit_backlog": 0,
             "audit_bounded": 0,
+            "sign_ins_failed": 0,
+            "sign_ins_sampled": 0,
         },
     }
     for admin, connection in ((first, tines), (second, entra)):

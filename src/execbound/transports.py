@@ -18,6 +18,11 @@ approval ended and when, with the workspace and the same link. A close-out carri
 rules and less: no target fact, no agent, no person, no control, and a fixed sentence that it
 decides nothing and does not say whether the action ran. An email close-out threads under the
 announcement it follows.
+
+A finding message (#31) is the third: the rule's fixed label, the finding's identifiers, when it
+was raised, the workspace and Space names reduced by `safe_label` and the console's link to the
+finding, with a fixed sentence that monitoring is not enforcement. It carries nothing a source,
+a provider or a person wrote.
 """
 
 import ipaddress
@@ -33,6 +38,8 @@ from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import httpx
+
+from execbound.egress import NOT_PUBLIC, refused
 
 CODE = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
 _FULL_TIME = "%Y-%m-%d %H:%M:%S UTC"
@@ -366,18 +373,29 @@ def _tag(workspace: str | None, ref: str | None) -> str:
 
 
 def render_email(
-    mail: MailConfig, to: str, delivery_id: UUID, message: ApprovalMessage | ClosedMessage
+    mail: MailConfig,
+    to: str,
+    delivery_id: UUID,
+    message: "ApprovalMessage | ClosedMessage | FindingMessage",
 ) -> EmailMessage:
-    """The one `text/plain` message for an approval: fixed subject, fixed body, labels only.
+    """The one `text/plain` message for an approval or a finding: fixed subject, fixed body,
+    labels only.
 
-    A close-out renders its own fixed copy (`_closed_email`); everything below is the
-    announcement's, and a reminder's, which differs only in its subject and first line.
+    A close-out renders its own fixed copy (`_closed_email`), and a finding its own
+    (`_finding_email`); everything below is the announcement's, and a reminder's, which differs
+    only in its subject and first line.
 
     The subject names the workspace, because request references are counted per workspace
     and two workspaces could otherwise send identical subjects. The `Message-ID` is derived
     from the delivery id, so a redelivery after an uncertain attempt collapses into the first
     in the recipient's mailbox.
+
+    A finding's `Message-ID` is its delivery id's too, and a finding message carries that id
+    itself, so a `delivery_id` that differs from it is refused.
     """
+    if isinstance(message, FindingMessage):
+        _own_delivery(delivery_id, message)
+        return _finding_email(mail, to, message)
     if isinstance(message, ClosedMessage):
         return _closed_email(mail, to, delivery_id, message)
     action = safe_label(message.action_label)
@@ -519,17 +537,31 @@ def send_email(
     mail: MailConfig,
     to: str,
     delivery_id: UUID,
-    message: ApprovalMessage | ClosedMessage,
+    message: "ApprovalMessage | ClosedMessage | FindingMessage",
     *,
     context: ssl.SSLContext | None = None,
     timeout: float = 10,
 ) -> SendResult:
-    """One approval notification, of either kind, through the relay.
+    """One approval notification, of any kind, or one finding, rendered and sent through the
+    relay.
 
     `context` is the system trust store unless a caller passes one; the tests pass a context
     that trusts the CA they mint, so verification runs exactly as it does in production.
     """
     email = render_email(mail, to, delivery_id, message)
+    return _deliver(mail, to, email, context=context, timeout=timeout)
+
+
+def deliver_email(
+    mail: MailConfig,
+    to: str,
+    email: EmailMessage,
+    *,
+    context: ssl.SSLContext | None = None,
+    timeout: float = 10,
+) -> SendResult:
+    """One message already rendered, through the relay: the findings drain renders under its
+    lease and sends after it (#31), where `send_email` renders and sends in one call."""
     return _deliver(mail, to, email, context=context, timeout=timeout)
 
 
@@ -609,6 +641,14 @@ _SUMMARY_LINK = re.compile(
     r"https?://[A-Za-z0-9.:\[\]-]{1,253}/weekly-summary/unsubscribe/"
     r"ebw1\.[0-9a-f-]{36}\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}"
 )
+
+
+def is_message_origin(origin: object) -> bool:
+    """Whether a message may build its links from `origin`: lower-case `http` or `https` and an
+    ASCII host, port or bracketed address with nothing after it. `FindingMessage` holds its
+    origin to this, and `configuration.read_outbound` holds `process --deliver`'s to it too
+    (#31), beside the console's own rule, which takes some origins this refuses."""
+    return type(origin) is str and _SUMMARY_ORIGIN.fullmatch(origin) is not None
 
 
 @dataclass(frozen=True)
@@ -743,6 +783,227 @@ def send_weekly_summary(
     """One weekly summary through the relay."""
     email = render_weekly_summary(mail, to, workspace, counts, previous, week_ending, origin, link)
     return _deliver(mail, to, email, context=context, timeout=timeout)
+
+
+# --- Findings delivery (#31): one finding, identifiers and a rule's fixed label only ---
+
+FINDING_DISCLAIMER = (
+    "Monitoring reports what a source or a directory recorded. It is not enforcement, and "
+    "this message decides nothing."
+)
+
+
+@dataclass(frozen=True)
+class FindingMessage:
+    """What every kind renders for one finding and one destination; built in the drain's lease.
+
+    Identifiers, the rule's version and its fixed label (`monitoring.delivery.FINDING_RULES`),
+    when the finding was raised, the workspace and Space names (reduced by `safe_label` where
+    they are rendered) and the console's link to the finding. Never the finding's stored title,
+    its target, story, action or outcome, a person's or an agent's name, or anything a source
+    or a provider supplied. Both names are required, as their columns are never null: a
+    message without one would tell its reader to choose a workspace that does not exist. The
+    time raised must carry its zone, so it is never read as the host's own.
+    """
+
+    tenant_id: UUID
+    finding_id: UUID
+    delivery_id: UUID
+    rule_version: str
+    rule_label: str
+    created_at: datetime
+    origin: str
+    workspace: str
+    space: str
+    source_id: UUID | None = None
+    connection_id: UUID | None = None
+    observation_id: UUID | None = None
+    agent_id: UUID | None = None
+    profile_version: int | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            not is_message_origin(self.origin)
+            or safe_label(self.rule_label) != self.rule_label
+            or safe_label(self.rule_version) != self.rule_version
+            or type(self.workspace) is not str
+            or type(self.space) is not str
+            or not isinstance(self.created_at, datetime)
+            or self.created_at.utcoffset() is None
+        ):
+            raise ValueError("INVALID_NOTIFICATION")
+
+    @property
+    def link(self) -> str:
+        """The console's own address for the finding, which Findings opens in place."""
+        return f"{self.origin}/monitor?view=findings&state=all&open={self.finding_id}"
+
+    def identifiers(self) -> str:
+        found = [f"Finding {self.finding_id}"]
+        for name, value in (
+            ("Source", self.source_id),
+            ("Connection", self.connection_id),
+            ("Observation", self.observation_id),
+            ("Agent", self.agent_id),
+        ):
+            if value is not None:
+                found.append(f"{name} {value}")
+        return " | ".join([*found, f"Delivery {self.delivery_id}"])
+
+
+def _own_delivery(delivery_id: UUID, message: FindingMessage) -> None:
+    """A finding message names its delivery in its identifiers, headers and body; a renderer
+    asked for another delivery would send one id in the message and another in the request."""
+    if delivery_id != message.delivery_id:
+        raise ValueError("INVALID_NOTIFICATION")
+
+
+def _raised(message: FindingMessage) -> str:
+    return message.created_at.astimezone(UTC).strftime(_FULL_TIME)
+
+
+def _choose(message: FindingMessage) -> str:
+    """Hosted has no finding address of its own per workspace (#31), as the weekly summary has
+    none: the console opens the finding in the workspace the person is signed in to."""
+    return f"If you belong to more than one workspace, choose {safe_label(message.workspace)}."
+
+
+def _finding_facts(message: FindingMessage) -> list[tuple[str, str]]:
+    return [
+        ("Workspace", safe_label(message.workspace)),
+        ("Space", safe_label(message.space)),
+        ("Rule", f"{message.rule_label} ({message.rule_version})"),
+        ("Raised", _raised(message)),
+    ]
+
+
+def finding_body(message: FindingMessage) -> bytes:
+    """The signed webhook's `monitor.finding` version 1 body: what the loopback worker always
+    sent, every value a string, with `tenant_id`, `created_at` (to the second) and `finding_url`
+    added. It is built from the finding and the configured origin, which `finding_url` names, so
+    every attempt sends the same bytes while the origin stays the same; a fixture pins them."""
+
+    def value(item: object) -> str | None:
+        return None if item is None else str(item)
+
+    return _encode(
+        {
+            "version": 1,
+            "kind": "monitor.finding",
+            "delivery_id": str(message.delivery_id),
+            "finding_id": str(message.finding_id),
+            "source_id": value(message.source_id),
+            "observation_id": value(message.observation_id),
+            "rule_version": message.rule_version,
+            "profile_version": value(message.profile_version),
+            "tenant_id": str(message.tenant_id),
+            "created_at": message.created_at.astimezone(UTC).isoformat(timespec="seconds"),
+            "finding_url": message.link,
+        }
+    )
+
+
+def _finding_email(mail: MailConfig, to: str, message: FindingMessage) -> EmailMessage:
+    """One `text/plain` message for a finding: a fixed subject naming the workspace and the
+    rule's label, the facts, the identifiers, the link and the fixed sentence. The `Message-ID`
+    is the delivery id's, so a redelivery collapses into the first in the mailbox."""
+    workspace = safe_label(message.workspace)
+    email = EmailMessage()
+    email["From"] = mail.sender
+    email["To"] = to
+    email["Subject"] = f"[{_tag(workspace, None)}] Finding: {message.rule_label}"
+    email["Date"] = formatdate(usegmt=True)
+    email["Message-ID"] = f"<{message.delivery_id}@{_domain(mail)}>"
+    email["Auto-Submitted"] = "auto-generated"
+    email["X-ExecBound-Delivery"] = str(message.delivery_id)
+    email["X-ExecBound-Finding"] = str(message.finding_id)
+    lines = [
+        f"A finding was raised in {workspace} at {_raised(message)}.",
+        "",
+        *(f"{title}: {value}" for title, value in _finding_facts(message)),
+        "",
+        message.identifiers(),
+        "",
+        f"Open the finding: {message.link}",
+        _choose(message),
+        "",
+        FINDING_DISCLAIMER,
+        f"You receive this because this address is a findings destination for {workspace}.",
+        "Sent automatically; replies are not read.",
+    ]
+    # Every line is `safe_label` copy or fixed ASCII, so the source reads as the body does.
+    email.set_content("\n".join(lines) + "\n", cte="7bit")
+    return email
+
+
+def _finding_slack(message: FindingMessage) -> bytes:
+    """Block Kit for a finding: every text object `plain_text`, one link button."""
+    header = f"Finding: {message.rule_label}"
+    return _encode(
+        {
+            "text": f"{header} in {safe_label(message.workspace)}",
+            "blocks": [
+                {"type": "header", "text": _plain(header)},
+                {
+                    "type": "section",
+                    "fields": [_plain(f"{t}: {v}") for t, v in _finding_facts(message)],
+                },
+                {"type": "section", "text": _plain(FINDING_DISCLAIMER)},
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": _plain("Open the finding"),
+                            "url": message.link,
+                            "action_id": "open_finding",
+                        }
+                    ],
+                },
+                {"type": "context", "elements": [_plain(_choose(message))]},
+                {"type": "context", "elements": [_plain(message.identifiers())]},
+            ],
+        }
+    )
+
+
+def _finding_teams(message: FindingMessage) -> bytes:
+    """The Adaptive Card that mirrors `_finding_slack`."""
+    small = {"isSubtle": True, "size": "Small", "wrap": True}
+    card = {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": f"Finding: {message.rule_label}",
+                "weight": "Bolder",
+                "size": "Medium",
+                "wrap": True,
+            },
+            {
+                "type": "FactSet",
+                "facts": [{"title": t, "value": v} for t, v in _finding_facts(message)],
+            },
+            {"type": "TextBlock", "text": FINDING_DISCLAIMER, "wrap": True},
+            {"type": "TextBlock", "text": _choose(message), **small},
+            {"type": "TextBlock", "text": message.identifiers(), **small},
+        ],
+        "actions": [{"type": "Action.OpenUrl", "title": "Open the finding", "url": message.link}],
+    }
+    return _encode(
+        {
+            "type": "message",
+            "attachments": [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": None,
+                    "content": card,
+                }
+            ],
+        }
+    )
 
 
 def chat_url_ok(kind: str, url: object) -> bool:
@@ -961,13 +1222,19 @@ def _closed_teams(delivery_id: UUID, message: ClosedMessage) -> bytes:
     )
 
 
-def render_slack(delivery_id: UUID, message: ApprovalMessage | ClosedMessage) -> bytes:
-    """Block Kit for an incoming webhook: every text object `plain_text`, one link button.
+def render_slack(
+    delivery_id: UUID, message: ApprovalMessage | ClosedMessage | FindingMessage
+) -> bytes:
+    """Block Kit for an incoming webhook: every text object `plain_text`, link buttons only.
 
     `plain_text` means Slack interprets no mention, link or formatting syntax; the labels
-    have been reduced by `safe_label` besides. The button opens the approval's own page and
-    decides nothing.
+    have been reduced by `safe_label` besides. An approval's buttons open its own page, and a
+    finding's opens the finding in the console; neither decides anything. A finding message
+    carries its own delivery id, so a `delivery_id` that differs from it is refused.
     """
+    if isinstance(message, FindingMessage):
+        _own_delivery(delivery_id, message)
+        return _finding_slack(message)
     if isinstance(message, ClosedMessage):
         return _closed_slack(delivery_id, message)
     plain = _plain
@@ -1004,8 +1271,14 @@ def render_slack(delivery_id: UUID, message: ApprovalMessage | ClosedMessage) ->
     )
 
 
-def render_teams(delivery_id: UUID, message: ApprovalMessage | ClosedMessage) -> bytes:
-    """A Workflows `message` carrying one Adaptive Card that mirrors the Slack blocks."""
+def render_teams(
+    delivery_id: UUID, message: ApprovalMessage | ClosedMessage | FindingMessage
+) -> bytes:
+    """A Workflows `message` carrying one Adaptive Card that mirrors the Slack blocks, for an
+    approval or a finding; a finding message's own delivery id must be `delivery_id`."""
+    if isinstance(message, FindingMessage):
+        _own_delivery(delivery_id, message)
+        return _finding_teams(message)
     if isinstance(message, ClosedMessage):
         return _closed_teams(delivery_id, message)
     card = {
@@ -1071,20 +1344,28 @@ def send_chat(
     kind: str,
     url: str,
     delivery_id: UUID,
-    message: ApprovalMessage | ClosedMessage,
+    message: ApprovalMessage | ClosedMessage | FindingMessage,
     client: httpx.Client,
 ) -> SendResult:
-    """One POST to a Slack or Teams webhook; reads only the status and `Retry-After`.
-
-    Slack delivers on 200 and Teams on 200 or 202, since a Workflows trigger accepts the
-    request and runs the flow afterwards. No exception text or response body leaves here,
-    because an error could quote the URL, which is the secret.
-    """
+    """One message rendered for its Slack or Teams destination and posted by `post_chat`."""
     body = (
         render_slack(delivery_id, message)
         if kind == "slack"
         else render_teams(delivery_id, message)
     )
+    return post_chat(kind, url, delivery_id, body, client)
+
+
+def post_chat(
+    kind: str, url: str, delivery_id: UUID, body: bytes, client: httpx.Client
+) -> SendResult:
+    """One POST of a body already rendered to a Slack or Teams webhook; reads only the status
+    and `Retry-After`. The findings drain renders under its lease and posts after it (#31).
+
+    Slack delivers on 200 and Teams on 200 or 202, since a Workflows trigger accepts the
+    request and runs the flow afterwards. No exception text or response body leaves here,
+    because an error could quote the URL, which is the secret.
+    """
     try:
         with client.stream(
             "POST",
@@ -1099,8 +1380,9 @@ def send_chat(
         ) as response:
             status = response.status_code
             retry = response.headers.get("Retry-After")
-    except httpx.HTTPError:
-        return SendResult(False, "RECEIVER_UNAVAILABLE")
+    except httpx.HTTPError as error:
+        # The guard's refusal is told apart; nothing of the error's text leaves here.
+        return SendResult(False, NOT_PUBLIC if refused(error) else "RECEIVER_UNAVAILABLE")
     if status == 200 or (kind == "teams" and status == 202):
         return DELIVERED
     if status == 429:

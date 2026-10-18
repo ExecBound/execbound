@@ -4,6 +4,8 @@
 Nothing here reaches a real host. Each fake checks the content type and the payload shape
 the real service expects, records what it received, and answers with the next scripted
 status (and `Retry-After`), so a test can drive 200, 202, 429, 404 and 500.
+
+A finding message (#31) has a shape of its own, which each fake accepts beside the approval's.
 """
 
 import json
@@ -107,6 +109,56 @@ def teams_shape_ok(body: Any) -> bool:
         return False
 
 
+def finding_slack_shape_ok(body: Any) -> bool:
+    """A finding's blocks (#31): a header, four facts, the fixed sentence, one link button and
+    two context lines, every text object `plain_text`."""
+    try:
+        header, facts, sentence, actions, choose, context = body["blocks"]
+        [button] = actions["elements"]
+        return (
+            set(body) == {"text", "blocks"}
+            and isinstance(body["text"], str)
+            and header["type"] == "header"
+            and _plain(header["text"])
+            and facts["type"] == "section"
+            and len(facts["fields"]) == 4
+            and all(_plain(item) for item in facts["fields"])
+            and sentence["type"] == "section"
+            and _plain(sentence["text"])
+            and actions["type"] == "actions"
+            and button["type"] == "button"
+            and _plain(button["text"])
+            and button["url"].startswith("http")
+            and all(
+                block["type"] == "context" and all(_plain(item) for item in block["elements"])
+                for block in (choose, context)
+            )
+        )
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
+def finding_teams_shape_ok(body: Any) -> bool:
+    """A finding's Workflows message: one Adaptive Card, its facts, three text blocks and one
+    open-URL action."""
+    try:
+        [attachment] = body["attachments"]
+        card = attachment["content"]
+        [action] = card["actions"]
+        return (
+            body["type"] == "message"
+            and attachment["contentType"] == ADAPTIVE
+            and card["type"] == "AdaptiveCard"
+            and card["version"] == "1.4"
+            and [item["type"] for item in card["body"]]
+            == ["TextBlock", "FactSet", "TextBlock", "TextBlock", "TextBlock"]
+            and action["type"] == "Action.OpenUrl"
+            and action["url"].startswith("http")
+        )
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
 def _app(state: ChatFake) -> FastAPI:
     app = FastAPI()
 
@@ -116,7 +168,11 @@ def _app(state: ChatFake) -> FastAPI:
             body = json.loads(raw)
         except ValueError:
             body = None
-        shaped = slack_shape_ok(body) if kind == "slack" else teams_shape_ok(body)
+        shaped = (
+            slack_shape_ok(body) or finding_slack_shape_ok(body)
+            if kind == "slack"
+            else teams_shape_ok(body) or finding_teams_shape_ok(body)
+        )
         if request.headers.get("content-type") != "application/json" or not shaped:
             state.refused.append(kind)
             return Response(status_code=400)

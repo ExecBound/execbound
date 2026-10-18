@@ -35,8 +35,16 @@ const DISABLE: ApprovalWindow = {
   known: false,
 };
 
-const EMAIL: NotificationDestination = { destination_id: "jane", kind: "email", host: "", approvers: null, messages: ["pending"] };
-const AUDIT: NotificationDestination = { destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [] };
+const EMAIL: NotificationDestination = { destination_id: "jane", kind: "email", host: "", approvers: null, messages: ["pending"], classes: ["approvals"] };
+const AUDIT: NotificationDestination = { destination_id: "audit", kind: "security-events", host: "siem.example.net", approvers: null, messages: [], classes: [] };
+const FINDINGS_ONLY: NotificationDestination = {
+  destination_id: "hook",
+  kind: "webhook",
+  host: "alerts.example.net",
+  approvers: null,
+  messages: ["pending"],
+  classes: ["findings"],
+};
 
 const DEFAULT: ApprovalWindowSpace = {
   space_id: "5a5a5a5a-0000-4000-8000-000000000001",
@@ -66,7 +74,7 @@ afterEach(() => {
   clearToasts();
 });
 
-const WARNING = "are announced nowhere but this console. Unless a reviewer is watching Approvals, they lapse.";
+const WARNING = "are announced only in this console. Unless a reviewer is watching Approvals, they lapse.";
 
 /** The warning's paragraph, matched on its whole text: the Approvals link sits inside it. */
 function warning(scope: Awaited<ReturnType<typeof card>>) {
@@ -130,7 +138,7 @@ describe("the approval readiness card (#678, AR10, AR11)", () => {
     const readiness = await card();
     const shown = warning(readiness);
     if (shown === null) throw new Error("no warning");
-    expect(shown).toHaveTextContent(/^Held requests here wait at most 5 minutes and are announced nowhere but this console\./);
+    expect(shown).toHaveTextContent(/^Held requests here wait at most 5 minutes and are announced only in this console\./);
     expect(within(shown).getByRole("link", { name: "Approvals" })).toHaveAttribute("href", "/approvals");
     expect(
       readiness.getByText(
@@ -159,6 +167,20 @@ describe("the approval readiness card (#678, AR10, AR11)", () => {
     answerWith({});
     renderPage(<ApprovalReadiness view={view({ destinations: [AUDIT] })} workspace />);
     expect(warning(await card())).toBeInTheDocument();
+  });
+
+  it("warns the same where the only destination receives findings alone (#31)", async () => {
+    answerWith({});
+    renderPage(<ApprovalReadiness view={view({ destinations: [FINDINGS_ONLY] })} workspace />);
+    expect(warning(await card())).toBeInTheDocument();
+  });
+
+  it("says no approval destination is configured where the server lists no destination (#31)", async () => {
+    answerWith({});
+    renderPage(<ApprovalReadiness view={view()} workspace />);
+    expect(
+      (await card()).getByText("No approval destination is configured, so pending approvals are announced only in this console."),
+    ).toHaveClass("muted");
   });
 
   it.each([

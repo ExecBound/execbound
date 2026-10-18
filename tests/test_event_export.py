@@ -8,6 +8,7 @@ import sys
 from datetime import timedelta
 from uuid import UUID
 
+import httpx
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -406,3 +407,22 @@ def test_each_destinations_run_is_logged_with_its_state_count_and_code(
     text_logged = captured.getvalue()
     assert local.url not in text_logged and local.secret not in text_logged
     assert "leaked-secret-value" not in text_logged
+
+
+def test_fd12_the_security_event_export_still_counts_only_200_and_204(
+    db, world, admin_engine, receiver, monkeypatch
+):
+    """Decision 8 covers approvals and findings: an export receiver that answers 201 has not
+    taken the batch, and the cursor does not move (ruling 6)."""
+    tenant = world["identity"].tenant_id
+    append(db, world, 1)
+    original = httpx.Client
+
+    def answering_201(**kwargs):
+        return original(transport=httpx.MockTransport(lambda r: httpx.Response(201)), **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", answering_201)
+    result = export_events(db, world["admin"], [destination(world, receiver)], clock=world["clock"])
+    assert result["siem"]["exported"] == 0
+    siem = cursor(admin_engine, tenant, "siem")
+    assert (siem["last_sequence"], siem["last_error"]) == (0, "RECEIVER_UNAVAILABLE")

@@ -181,6 +181,32 @@ ACCEPTANCE_PREFIXES: dict[str, tuple[str, ...]] = {
     # Scheduled audit-chain verification (AV1 to AV7). Every workspace's chain read again on the
     # live database, and each retained checkpoint placed on it (THREAT_MODEL.md T2.4).
     "AV": ("tests/test_audit_verify.py::test_av",),
+    # Findings delivery (FD1 to FD15): each finding routed once, at drain time, to the
+    # destinations whose classes, rules and Spaces admit it, and sent through its kind under the
+    # egress guard and the shared email cap (THREAT_MODEL.md T6.4, T6.42 and T6.43, the burst
+    # and alert-loop rows). Every test in the three files written for the router, the drain,
+    # the configuration and the commands is evidence, its name `test_fd` or not; elsewhere,
+    # the FD tests and the few others the rows cite: the jobs command's wiring,
+    # the start-up readers' recursion limit and the drain's crash recovery. The egress guard's
+    # wall-clock seconds (`tests/test_egress_deadline.py`) take the timing lock, so they are
+    # `timed` and are not here; FD11's lock tests hold a drain on real PostgreSQL and are not
+    # timed.
+    "FD": (
+        "tests/test_findings_delivery.py::test_",
+        "tests/test_findings_delivery_config.py::test_",
+        "tests/test_findings_delivery_cli.py::test_",
+        "tests/test_findings_messages.py::test_fd",
+        "tests/test_egress.py::test_fd",
+        "tests/test_findings_destinations_migration.py::test_fd",
+        "tests/test_monitoring_schema.py::test_fd15",
+        "tests/test_jobs_schedule.py::test_fd14",
+        "tests/test_jobs_schedule.py::"
+        "test_the_jobs_command_schedules_the_drain_from_the_configuration_it_runs_with",
+        "tests/test_jobs_schedule.py::"
+        "test_a_configuration_nested_past_the_recursion_limit_answers_no_at_start",
+        "tests/test_event_export.py::test_fd12",
+        "tests/test_monitoring_worker.py::test_receipt_then_worker_crash_recovers_same_delivery",
+    ),
     # Self-hosted export (EX1 to EX10). Only the rows whose tests the export carries: EX5's
     # stage list, the service links (EX8), a plugin's token routes (EX9) and the release's
     # preflight and provenance (EX10). EX1 to EX4, EX6, EX7 and the release workflow's shape

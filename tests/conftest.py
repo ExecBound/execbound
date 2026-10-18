@@ -254,6 +254,24 @@ tenant_fence.install()
 
 
 @pytest.fixture(autouse=True)
+def reports_pacer(monkeypatch):
+    """Every Graph read is paced by a clock that moves only when the pacer waits, so a test that
+    makes more than five reports requests waits on nothing; the pacer's own tests give it a clock
+    of their own (#355). The pacer still counts, waits and refuses exactly as it does live."""
+    from execbound.monitoring import graph
+
+    def pacer() -> graph.Pace:
+        moment = [0.0]
+
+        def sleep(seconds: float) -> None:
+            moment[0] += seconds
+
+        return graph.Pace(monotonic=lambda: moment[0], sleep=sleep)
+
+    monkeypatch.setattr(graph, "PACER", pacer)
+
+
+@pytest.fixture(autouse=True)
 def tenant_fence_guard():
     """Fail a test whose owner read, behind a tenant fence, saw rows the fence excludes."""
     tenant_fence.take()
@@ -323,7 +341,7 @@ def seeded(admin_engine):
                 # which a directory sign-in row points at, and before `principals`.
                 "execbound.federated_sign_ins, execbound.identity_invitations, "
                 "execbound.identity_links, execbound.identity_providers, "
-                "execbound.monitor_reach_exceptions, "
+                "execbound.monitor_actor_drivers, execbound.monitor_reach_exceptions, "
                 "execbound.monitor_agent_reach, "
                 "execbound.monitor_agent_grants, execbound.monitor_agents, "
                 # Entra consent (0088): attempts before the connections they update, and the
@@ -567,6 +585,7 @@ TIMED_FIRST = (
     "tests/test_browser_approval_speed.py",
     "tests/test_browser_console_soak.py",
     "tests/test_context_provisioning.py",
+    "tests/test_egress_deadline.py",
 )
 
 

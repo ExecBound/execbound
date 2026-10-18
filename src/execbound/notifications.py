@@ -29,7 +29,7 @@ pending announcement, the only message that can still be acted on.
 import ipaddress
 import ssl
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Container, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -42,12 +42,13 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import SQLAlchemyError
 
 from execbound.db import Database, check_runtime
+from execbound.egress import guarded_client
 from execbound.execution import store
 from execbound.execution.models import ExecutionError
 from execbound.execution.scheduled import ScheduledActor, scheduled_check
 from execbound.identity import Identity
 from execbound.logging_schema import log_event
-from execbound.monitoring.delivery import send_notification
+from execbound.monitoring.delivery import FINDING_RULES, send_notification
 from execbound.resolution.models import Clock, SystemClock
 from execbound.transports import (
     CHAT_KINDS,
@@ -94,6 +95,30 @@ KIND_MESSAGE = {
 # How a close-out reports each approval outcome on the webhook, and the stored codes.
 OUTCOMES = ("APPROVED", "REFUSED", "LAPSED", "WITHDRAWN")
 
+# The classes a destination may carry (#179 decision 4, #31), in the one order every reader
+# shows them: `approvals` announces held requests and `findings` sends monitoring findings. A
+# destination the configuration gives none is an approval destination, as every one was.
+APPROVALS = "approvals"
+FINDINGS = "findings"
+CLASS_ORDER = (APPROVALS, FINDINGS)
+DEFAULT_CLASSES = frozenset({APPROVALS})
+
+
+def _narrowing(
+    value: object, item_type: type, findings: bool, known: Container[str] | None = None
+) -> bool:
+    """None, or a non-empty frozenset of `item_type` on a findings destination, every item in
+    `known` unless `known` is None. An empty `known` admits nothing."""
+    if value is None:
+        return True
+    return (
+        findings
+        and type(value) is frozenset
+        and bool(value)
+        and all(type(item) is item_type for item in value)
+        and (known is None or all(item in known for item in value))
+    )
+
 
 @dataclass(frozen=True)
 class Destination:
@@ -103,6 +128,8 @@ class Destination:
     secret; an `email` destination is one bare address sent through the deployment's `mail`
     relay and carries no URL and no secret; a `slack` or `teams` destination is a pinned-host
     webhook URL that is itself the secret. The URL and the secret never appear in a repr.
+    Its `classes` say what it receives (#31): approval announcements, monitoring findings or
+    both, a findings destination narrowed by `rules` and `spaces`.
     """
 
     destination_id: str
@@ -116,6 +143,13 @@ class Destination:
     # where a close-out follows only a message the destination received. The default is the
     # one announcement every destination always received.
     messages: frozenset[str] = DEFAULT_MESSAGES
+    # Which classes it receives (#31): a non-empty subset of `CLASS_ORDER`. `messages` and
+    # `approvers` are an approval destination's alone, and an audit export keeps the default.
+    classes: frozenset[str] = DEFAULT_CLASSES
+    # A findings destination's narrowing: the rules and the Spaces whose findings it receives,
+    # or every one where None.
+    rules: frozenset[str] | None = None
+    spaces: frozenset[UUID] | None = None
 
     def __post_init__(self) -> None:
         import re
@@ -126,6 +160,20 @@ class Destination:
             or not self.messages <= set(MESSAGE_ORDER)
             or ("closed" in self.messages and not self.messages & {"pending", "reminder"})
             or (self.kind == "security-events" and self.messages != DEFAULT_MESSAGES)
+        ):
+            raise ValueError("Invalid notification destination")
+        findings = FINDINGS in self.classes if type(self.classes) is frozenset else False
+        if (
+            type(self.classes) is not frozenset
+            or not self.classes
+            or not self.classes <= set(CLASS_ORDER)
+            or (self.kind == "security-events" and self.classes != DEFAULT_CLASSES)
+            or (
+                APPROVALS not in self.classes
+                and (self.messages != DEFAULT_MESSAGES or self.approvers is not None)
+            )
+            or not _narrowing(self.rules, str, findings, FINDING_RULES)
+            or not _narrowing(self.spaces, UUID, findings)
         ):
             raise ValueError("Invalid notification destination")
         if (
@@ -172,6 +220,14 @@ class Destination:
 # The kinds an approval is announced through; `security-events` is the audit export.
 APPROVAL_KINDS = frozenset({"webhook", "email", "slack", "teams"})
 
+
+def announces_approvals(destination: Destination) -> bool:
+    """Whether a destination announces approvals: an approval kind whose classes include
+    `approvals` (#31). Every approval reader keeps only these, so a findings-only destination
+    is never queued, drained or counted for an approval."""
+    return destination.kind in APPROVAL_KINDS and APPROVALS in destination.classes
+
+
 # Who may decide an approval: the active scopes on its execution's stored target, action and
 # Space. The one routing rule, shared by `matching_destinations` and the reminder scan.
 _ASSIGNED = (
@@ -205,7 +261,7 @@ def matching_destinations(
         d
         for d in destinations
         if d.tenant_id == tenant
-        and d.kind in APPROVAL_KINDS
+        and announces_approvals(d)
         and message in d.messages
         and (d.approvers is None or d.approvers & assigned)
     ]
@@ -393,7 +449,23 @@ def _admin(conn: Connection, admin: Identity | ScheduledActor, clock: Clock) -> 
         store.identity_check(conn, admin, clock, "ADMIN")
 
 
-def _email_capped(
+# The lock a workspace's email is counted under (`email_capped`), one key per workspace: the
+# cap is a workspace's, so one workspace's drains never wait on another's.
+EMAIL_CAP_LOCK = "email-cap:{tenant}"
+
+_EMAIL_COUNTED = text("""
+    SELECT (SELECT count(*) FROM execbound.approval_notifications
+             WHERE tenant_id = :t AND destination_id = ANY(CAST(:ids AS text[]))
+               AND ((state = 'DELIVERED' AND delivered_at > :since)
+                    OR (state = 'IN_FLIGHT' AND lease_until > :now)))
+         + (SELECT count(*) FROM execbound.monitor_deliveries
+             WHERE tenant_id = :t AND destination_id = ANY(CAST(:ids AS text[]))
+               AND ((state = 'DELIVERED' AND delivered_at > :since)
+                    OR (state = 'IN_FLIGHT' AND lease_until > :now)))
+""")
+
+
+def email_capped(
     conn: Connection,
     tenant: UUID,
     now: datetime,
@@ -402,24 +474,57 @@ def _email_capped(
     *,
     reserve: int = 0,
 ) -> bool:
-    """True when this tenant's email deliveries in the last 24 hours reached the cap.
+    """True when this tenant's email in the last 24 hours, delivered or being sent, reached
+    the cap.
 
-    Every kind counts toward the relay's limit. `reserve` is the headroom a follow-up must
-    leave: a reminder or a close-out is sent only below `daily_limit - reserve`, so the last of
-    the cap stays for a new request's announcement (#678).
+    Every message counts toward the relay's limit, an approval's and a finding's alike (#31):
+    both outboxes are read, for every email destination the configuration names for the
+    workspace (`email_destination_ids`). `reserve` is the headroom a message that can no longer
+    be acted on must leave: a follow-up or a finding is sent only below `daily_limit - reserve`,
+    so the last of the cap stays for a new request's announcement (#678).
+
+    A message counts once it is delivered or while a drain holds it under a live lease, so a
+    send in flight is counted before it settles. The row a drain has in hand never counts
+    itself: a drain takes only a `PENDING` row or one whose lease has lapsed. A message the
+    relay took from a drain that died before settling it is not counted once its lease lapses,
+    and is counted again when it is resent, so on such a day the relay holds one more than the
+    count.
+
+    The count is read under one transaction-scoped advisory lock per workspace
+    (`EMAIL_CAP_LOCK`), taken here, as the first statement, so every caller takes it: the
+    approval drain's announcement and follow-up and the findings drain alike. The caller writes
+    its lease in the same transaction, so the lock is held until that lease is committed, and a
+    second drain counts only once the first's lease is there to count: two drains cannot both
+    take the last of the cap or of a share. The order in both drains is the row's lock first
+    (`FOR UPDATE ... SKIP LOCKED`, which never waits), then this lock, the count, the lease and
+    the commit, and nothing waits on a row lock while this one is held, so two drains never
+    wait on each other. This lock is never taken before the row is chosen. It holds only under
+    READ COMMITTED, `Database.transaction`'s default, where the count's snapshot is taken after
+    the lock is granted; under `snapshot=True` (REPEATABLE READ) the snapshot predates the wait
+    and would miss the other drain's lease. The lock is held for a count, a few reads, a render
+    and a lease; a wait past the transaction's `lock_timeout` stops the drain as any database
+    failure does, with nothing leased.
     """
+    conn.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": EMAIL_CAP_LOCK.format(tenant=tenant)},
+    )
     sent = conn.execute(
-        text(
-            "SELECT count(*) FROM execbound.approval_notifications WHERE tenant_id=:t "
-            "AND state='DELIVERED' AND destination_id = ANY(CAST(:ids AS text[])) "
-            "AND delivered_at > :since"
-        ),
-        {"t": tenant, "ids": email_ids, "since": now - timedelta(days=1)},
+        _EMAIL_COUNTED,
+        {"t": tenant, "ids": email_ids, "since": now - timedelta(days=1), "now": now},
     ).scalar_one()
     return int(sent) >= mail.daily_limit - reserve
 
 
-def followup_headroom(mail: MailConfig) -> int:
+def email_destination_ids(destinations: Sequence[Destination], tenant: UUID) -> list[str]:
+    """Every email destination the configuration names for a workspace, whatever its classes:
+    the set the one cap counts (#31)."""
+    return sorted(
+        d.destination_id for d in destinations if d.tenant_id == tenant and d.kind == "email"
+    )
+
+
+def announcement_reserve(mail: MailConfig) -> int:
     """The last tenth of the daily email cap, at least one message, kept for announcements."""
     return max(1, mail.daily_limit // 10)
 
@@ -645,12 +750,14 @@ def deliver_pending(
     by_id = {
         d.destination_id: d
         for d in destinations
-        if d.tenant_id == admin.tenant_id and d.kind in APPROVAL_KINDS
+        if d.tenant_id == admin.tenant_id and announces_approvals(d)
     }
     email_ids = sorted(d.destination_id for d in by_id.values() if d.kind == "email")
     if email_ids and type(mail) is not MailConfig:
         # A caller's mistake, refused before anything is leased rather than failed row by row.
         raise ExecutionError("INVALID_CONFIGURATION")
+    # The one cap counts every email destination of the workspace, findings ones too (#31).
+    counted = email_destination_ids(destinations, admin.tenant_id)
     counts = {"delivered": 0, "failed": 0, "closed": 0}
     last_chat: dict[str, float] = {}
     following = sorted(
@@ -665,7 +772,7 @@ def deliver_pending(
                 _admin(conn, admin, clock)
                 _enqueue_followups(conn, admin.tenant_id, store.now(clock), following)
                 _admin(conn, admin, clock)
-        with httpx.Client(trust_env=False, follow_redirects=False, timeout=5) as client:
+        with guarded_client() as client:
             for _ in range(limit):
                 lease = uuid4()
                 with db.transaction(admin.tenant_id) as conn:
@@ -740,13 +847,13 @@ def deliver_pending(
                         destination.kind == "email"
                         and mail is not None
                         and followup
-                        and _email_capped(
+                        and email_capped(
                             conn,
                             admin.tenant_id,
                             now,
                             mail,
-                            email_ids,
-                            reserve=followup_headroom(mail),
+                            counted,
+                            reserve=announcement_reserve(mail),
                         )
                     ):
                         # A follow-up never spends the last tenth of the cap, and is refused
@@ -758,7 +865,7 @@ def deliver_pending(
                         destination.kind == "email"
                         and mail is not None
                         and not followup
-                        and _email_capped(conn, admin.tenant_id, now, mail, email_ids)
+                        and email_capped(conn, admin.tenant_id, now, mail, counted)
                     ):
                         # The cap defers an hour where the approval would still be open, and
                         # fails at once where it would not: either way the row keeps its
@@ -909,8 +1016,9 @@ def deliver_pending(
 def destination_tenants(destinations: Sequence[Destination]) -> list[UUID]:
     """The workspaces a scheduled drain visits (#503): every one an approval can be announced
     to. A row is queued only for a configured destination, so no other workspace can have
-    anything to deliver; audit-export destinations announce nothing and are left out."""
-    return sorted({d.tenant_id for d in destinations if d.kind in APPROVAL_KINDS})
+    anything to deliver; audit-export and findings-only destinations announce nothing and are
+    left out."""
+    return sorted({d.tenant_id for d in destinations if announces_approvals(d)})
 
 
 def notify_scheduled(
@@ -975,7 +1083,7 @@ def settle_orphaned(
     configured = sorted(
         d.destination_id
         for d in destinations
-        if d.tenant_id == actor.tenant_id and d.kind in APPROVAL_KINDS
+        if d.tenant_id == actor.tenant_id and announces_approvals(d)
     )
     with db.transaction(actor.tenant_id) as conn:
         _admin(conn, actor, clock)

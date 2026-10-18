@@ -13,6 +13,7 @@ read that fails once the tokens loaded leaves them in place.
 
 import json
 import re
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -117,7 +118,13 @@ def test_tenant_settings_changes_the_mode_refuses_a_bad_deadline_and_stops_with_
         "Workspace settings"
     )
     expect(console_page.get_by_text("Enforcing").first).to_be_visible()
-    expect(console_page.get_by_text("No destinations configured", exact=False)).to_be_visible()
+    expect(
+        console_page.get_by_text(
+            "No approval destination is configured, so pending approvals are announced only in "
+            "this console.",
+            exact=True,
+        )
+    ).to_be_visible()
     clean(console_page, "tenant")
 
     # Mode: a reason is required, the server decides, and the pill in the top bar follows.
@@ -459,17 +466,31 @@ def test_where_approvals_are_announced_wraps_inside_its_card(
     console_page, admin_engine, world, runtime
 ):
     """The destinations sat in a table wider than the narrow Approval readiness card, cut at its
-    edge with the empty sentence half hidden (#678): each now wraps inside the card."""
+    edge with the empty sentence half hidden (#678): each now wraps inside the card, the sixth
+    column, Classes (#31), with its widest value among them."""
     sign_in_as(console_page, admin_engine, world["admin"])
     for announced in (False, True):
         if announced:
             announcing(runtime, world, admin_engine)
+            soc, jane = runtime.notifications
+            runtime.notifications = (
+                replace(soc, classes=frozenset({"approvals", "findings"})),
+                jane,
+            )
         for scheme, width in VIEWS:
             console_page.emulate_media(color_scheme=scheme)
             console_page.set_viewport_size({"width": width, "height": 900})
             console_page.goto("/tenant")
             heading = console_page.get_by_role("heading", name="Where approvals are announced")
             expect(heading).to_be_visible()
+            if announced:
+                table = console_page.get_by_role(
+                    "table", name=re.compile("notification destinations")
+                )
+                expect(table.get_by_role("columnheader")).to_have_count(6)
+                expect(table.get_by_role("columnheader", name="Classes")).to_be_attached()
+                expect(table.get_by_text("Approvals, Findings", exact=True)).to_be_visible()
+                expect(table.get_by_text("Approvals", exact=True)).to_be_visible()
             settled(console_page)
             geometry = console_page.evaluate(ANNOUNCED)
             assert geometry["hidden"] <= 0, (announced, scheme, width, geometry)
@@ -529,7 +550,7 @@ def test_ar13_readiness_is_accessible(console_page, admin_engine, world, runtime
         ).to_be_visible()
         warning = card.locator(".readiness-warning")
         expect(warning).to_contain_text(
-            "Held requests here wait at most 2 minutes and are announced nowhere but this console."
+            "Held requests here wait at most 2 minutes and are announced only in this console."
         )
         expect(warning.get_by_role("link", name="Approvals")).to_have_attribute(
             "href", "/approvals"

@@ -36,11 +36,13 @@ pytestmark = pytest.mark.integration
 
 def test_sj3_destination_tenants_are_the_approval_kinds_only():
     a, b = UUID(int=1), UUID(int=2)
+    # Each stand-in carries the classes every destination has unless it opts out (#31).
+    approvals = frozenset({"approvals"})
     destinations = [
-        SimpleNamespace(tenant_id=b, kind="email"),
-        SimpleNamespace(tenant_id=a, kind="slack"),
-        SimpleNamespace(tenant_id=a, kind="webhook"),
-        SimpleNamespace(tenant_id=UUID(int=3), kind="security-events"),
+        SimpleNamespace(tenant_id=b, kind="email", classes=approvals),
+        SimpleNamespace(tenant_id=a, kind="slack", classes=approvals),
+        SimpleNamespace(tenant_id=a, kind="webhook", classes=approvals),
+        SimpleNamespace(tenant_id=UUID(int=3), kind="security-events", classes=approvals),
     ]
     assert destination_tenants(destinations) == [a, b]
 

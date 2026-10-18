@@ -413,7 +413,10 @@ def collect_workspace(
     refused, `audit_backlog` those whose read stopped at its pages before catching up with the
     log, and `audit_bounded` those whose read met the connection's observation bound and kept
     of each new entry only what the rules would miss without it (`store._AtBound`); none
-    changes a run's outcome.
+    changes a run's outcome. Nor does a read of the directory's service principal sign-ins:
+    `sign_ins_failed` counts the runs whose read Graph refused, or the reports budget before its
+    first page, and `sign_ins_sampled` those whose read stopped at its bound with the rest of its
+    window unread.
     """
     counts = dict.fromkeys(
         (
@@ -428,19 +431,25 @@ def collect_workspace(
             "audit_failed",
             "audit_backlog",
             "audit_bounded",
+            "sign_ins_failed",
+            "sign_ins_sampled",
         ),
         0,
     )
 
     def audited(outcome: object) -> None:
         # An audit-log read that was refused, has not caught up or met the observation bound
-        # changes no run's outcome, so it is counted here (#355).
+        # changes no run's outcome, so it is counted here (#355); so does a sign-in read that
+        # was refused or stopped at its bound.
         audit = (outcome.get("audit") or {}) if isinstance(outcome, dict) else {}
         state = audit.get("state")
         if state in {"failed", "backlog"}:
             counts[f"audit_{state}"] += 1
         if audit.get("bounded"):
             counts["audit_bounded"] += 1
+        sign_ins = (outcome.get("sign_ins") or {}) if isinstance(outcome, dict) else {}
+        if sign_ins.get("state") in {"failed", "sampled"}:
+            counts[f"sign_ins_{sign_ins['state']}"] += 1
 
     try:
         with db.transaction(actor.tenant_id) as conn:

@@ -72,8 +72,15 @@ EVENTS = frozenset(
         "signal.refused",
         # One approval notification's delivery attempt, once settled, and one destination's
         # run of the security event export: identifiers, the resulting state, a count or the
-        # attempts, and a code; never a destination's URL or secret.
+        # attempts, and a code; never a destination's URL or secret; and one finding delivery's
+        # settled attempt or its closing unsent, uncertain or given up at the email cap, by
+        # finding and destination (#31).
         "notifications.delivered",
+        "monitor.delivered",
+        # A `process --deliver` pass that evaluated and did not deliver, because its runtime
+        # configuration did not read (#31): the command, the code and, for one workspace, its
+        # id; nothing of the file. A dependency that did not answer is `dependency.unavailable`.
+        "monitor.delivery_refused",
         "export.completed",
         "command.completed",
         "dependency.unavailable",
@@ -205,6 +212,8 @@ FIELDS = frozenset(
         "approval_id",
         "source_id",
         "destination_id",
+        # A monitoring finding's own id (#31), never its title or anything a source reported.
+        "finding_id",
         "surface",
         "status",
         "state",
@@ -223,14 +232,17 @@ FIELDS = frozenset(
         "failed",
         "not_reached",
         "no_key_file",
-        # A scheduled collection's Entra delta passes: those that completed, and the rest; and
-        # its runs whose read of a directory's audit log was refused, has not caught up, or met
-        # the connection's observation bound.
+        # A scheduled collection's Entra delta passes: those that completed, and the rest; its
+        # runs whose read of a directory's audit log was refused, has not caught up, or met the
+        # connection's observation bound; and those whose read of its sign-ins was refused or
+        # stopped at its bound.
         "delta",
         "delta_failed",
         "audit_failed",
         "audit_backlog",
         "audit_bounded",
+        "sign_ins_failed",
+        "sign_ins_sampled",
         # A monitoring connection's own id (#678), never its label, origin or key.
         "connection_id",
         # The interval a scheduled run belongs to: `floor(now / seconds)`, the number two
@@ -239,6 +251,8 @@ FIELDS = frozenset(
         "key_state",
         "decision",
         "invitation_id",
+        # Whether the jobs service runs `monitor-process` with `--deliver` (`jobs.started`, #31).
+        "deliver",
         # A weekly summary's outbox row (#678); an identifier, never the recipient.
         "message_id",
         "slot",
