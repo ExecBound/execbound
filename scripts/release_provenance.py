@@ -4,7 +4,10 @@
 The provenance document answers one question a reviewer or an auditor asks: which exact
 revision, locked inputs and base images produced this artifact, and what was checked before
 it existed. It also carries a licence disposition derived from the image's own SBOM, so an
-undeclared or copyleft component cannot enter a release without appearing here.
+undeclared or copyleft component cannot enter a release without appearing here, and cannot
+enter one at all unless `releases/licence-allowances.json` allows it, matched on its name and
+its exact licence text, with the reason written beside it. An allowance nothing matches any
+more fails too, so the list never outlives what it was written for.
 
 A build's document records its signature and registry digest as absent, because a CI build
 is never pushed or signed. `--amend` fills both in for a release, and only after the release
@@ -41,6 +44,8 @@ DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 # A registry path with no tag and no digest, which is what `cosign verify` takes before `@`.
 REFERENCE = re.compile(r"[a-z0-9][a-z0-9.-]*(?::[0-9]+)?(?:/[a-z0-9][a-z0-9._-]*)+")
 SIGNING_METHOD = "cosign keyless: a Sigstore certificate for the GitHub Actions OIDC identity"
+# The reviewed decisions for the components the disposition names, read from the source tree.
+ALLOWANCES = Path("releases/licence-allowances.json")
 
 
 class AmendRefused(ValueError):
@@ -49,6 +54,10 @@ class AmendRefused(ValueError):
 
 class NestRefused(ValueError):
     """Crates that cannot be listed as the ones compiled into a release SBOM's component."""
+
+
+class AllowancesRefused(ValueError):
+    """A licence allowance list that cannot stand for a reviewed decision."""
 
 
 def digest(path: Path) -> str | None:
@@ -237,10 +246,86 @@ def drift(sbom: Path, image: Path) -> tuple[list[str], list[str]] | None:
     )
 
 
+def _allowance_key(name: object, found: object) -> tuple[str, frozenset[str]]:
+    licences = found if isinstance(found, list) else []
+    return _canonical(name), frozenset(str(value) for value in licences)
+
+
+def read_allowances(path: Path) -> list[dict[str, Any]]:
+    """The allowances at `path`, each a component, its exact licence text and why.
+
+    No file is no allowance. A file that is there must be readable and every entry complete:
+    an allowance without a reason is not a decision anyone made.
+    """
+    if not path.exists():
+        return []
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise AllowancesRefused(f"{path} is not readable JSON") from None
+    entries = document.get("allowances") if isinstance(document, dict) else None
+    if not isinstance(entries, list):
+        raise AllowancesRefused(f'{path} needs an "allowances" list')
+    seen: set[tuple[str, frozenset[str]]] = set()
+    for index, entry in enumerate(entries):
+        complete = (
+            isinstance(entry, dict)
+            and isinstance(entry.get("component"), str)
+            and entry["component"].strip() != ""
+            and isinstance(entry.get("licenses"), list)
+            and entry["licenses"] != []
+            and all(isinstance(value, str) and value.strip() for value in entry["licenses"])
+            and isinstance(entry.get("why"), str)
+            and entry["why"].strip() != ""
+        )
+        if not complete:
+            raise AllowancesRefused(
+                f"{path}: allowance {index} needs a component, its licences and why"
+            )
+        key = _allowance_key(entry["component"], entry["licenses"])
+        if key in seen:
+            raise AllowancesRefused(f"{path}: {entry['component']} is allowed twice")
+        seen.add(key)
+    return entries
+
+
+def allow(summary: dict[str, Any], allowances: list[dict[str, Any]]) -> dict[str, Any]:
+    """Mark each named component with the reason it is allowed, and list what is not.
+
+    A match is the component's name, compared as Python compares distribution names, and its
+    licence text exactly: a component whose licence changed is a new decision, and the
+    allowance written for the old text is then stale.
+    """
+    used: set[int] = set()
+    unallowed = []
+    for item in summary["needs_decision"]:
+        key = _allowance_key(item["component"], item["licenses"])
+        index = next(
+            (
+                position
+                for position, entry in enumerate(allowances)
+                if _allowance_key(entry["component"], entry["licenses"]) == key
+            ),
+            None,
+        )
+        if index is None:
+            unallowed.append({k: v for k, v in item.items() if k != "reasons"})
+        else:
+            item["allowed"] = allowances[index]["why"]
+            used.add(index)
+    summary["unallowed"] = unallowed
+    summary["stale_allowances"] = [
+        {"component": entry["component"], "licenses": entry["licenses"]}
+        for position, entry in enumerate(allowances)
+        if position not in used
+    ]
+    return summary
+
+
 def provenance(args: argparse.Namespace, root: Path) -> dict[str, Any]:
     dockerfile = (root / args.dockerfile).read_text(encoding="utf-8")
     sbom = root / args.sbom
-    licence_summary = disposition(sbom)
+    licence_summary = allow(disposition(sbom), read_allowances(root / ALLOWANCES))
     # An SBOM that does not describe the artifact is worse than none: it is evidence for
     # something that did not ship. Record the comparison rather than assume it.
     difference = drift(sbom, root / args.image_distributions) if args.image_distributions else None
@@ -440,7 +525,11 @@ def main(argv: list[str] | None = None) -> None:
         args.amend.write_text(json.dumps(amended, indent=2, sort_keys=True), encoding="utf-8")
         print(json.dumps({"registry_digest": args.registry_digest, "signed": True}))
         return
-    document = provenance(args, Path.cwd())
+    try:
+        document = provenance(args, Path.cwd())
+    except AllowancesRefused as error:
+        print(f"release_provenance: {error}", file=sys.stderr)
+        raise SystemExit(1) from None
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(document, indent=2, sort_keys=True), encoding="utf-8")
     summary = document["licenses"]
@@ -459,13 +548,32 @@ def main(argv: list[str] | None = None) -> None:
     )
     for item in summary["needs_decision"]:
         inside = f" inside {' > '.join(item['within'])}" if item.get("within") else ""
+        allowed = f" allowed: {item['allowed']}" if item.get("allowed") else ""
         print(
             f"  {item['component']} {item['version']}{inside}: {item['licenses']}"
-            f" ({item['reasons']})"
+            f" ({item['reasons']}){allowed}"
+        )
+    failed = False
+    for item in summary["unallowed"]:
+        inside = f" inside {' > '.join(item['within'])}" if item.get("within") else ""
+        print(
+            f"licence finding with no allowance: {item['component']} {item['version']}{inside}:"
+            f" {item['licenses']}"
+        )
+        failed = True
+    for entry in summary["stale_allowances"]:
+        print(f"allowance that matches nothing: {entry['component']} {entry['licenses']}")
+        failed = True
+    if failed:
+        print(
+            f"Each copyleft or undeclared component needs an allowance in {ALLOWANCES}, with "
+            "its exact licence text and why; an allowance nothing matches is removed."
         )
     if document["artifact"]["sbom_matches_image"] is False:
         difference = document["artifact"]["sbom_drift"]
         print(f"SBOM does not describe the image: {json.dumps(difference)}")
+        failed = True
+    if failed:
         raise SystemExit(1)
 
 

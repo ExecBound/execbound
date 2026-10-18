@@ -215,6 +215,9 @@ def test_the_runbook_leads_with_the_three_commands():
     assert first < second < third
     # The container writes into a directory on the host; as the image's own user it could not.
     assert text.index('-u "$(id -u):$(id -g)"') < second
+    # A mount directory Docker creates is root's where Docker runs as root, and the container,
+    # running as you, cannot write it: the first command makes `execbound/` itself.
+    assert text.index("mkdir execbound && docker run") < first
     # Nobody invents a password any more: `init` generates both.
     assert "openssl rand" not in text
     assert "measured rather than claimed" in text.lower() or "fresh-machine" in text

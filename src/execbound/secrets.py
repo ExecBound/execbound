@@ -67,9 +67,9 @@ SECRET_TEXT = re.compile(
     # equals. A placeholder starting `<`, `$` or `"` never enters the set at all.
     r"\bBearer\s+(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=-])[A-Za-z0-9._~+/=-]{8,}"
     # Agent credential, human session, monitoring source, onboarding code, invitation code,
-    # set-password code, security signal producer, weekly summary unsubscribe link and a
-    # Microsoft Entra consent attempt's OAuth state (#678).
-    r"|\b(?:eb1|hs1|mo1|ebi1|ebv1|ebp1|sg1|ebw1|mc1)\.[0-9a-fA-F-]{36}\.[0-9a-fA-F-]{36}\.[A-Za-z0-9_-]+"
+    # set-password code, security signal producer, weekly summary unsubscribe link, an approval
+    # email's unsubscribe link (#179) and a Microsoft Entra consent attempt's OAuth state (#678).
+    r"|\b(?:eb1|hs1|mo1|ebi1|ebv1|ebp1|sg1|ebw1|eba1|mc1)\.[0-9a-fA-F-]{36}\.[0-9a-fA-F-]{36}\.[A-Za-z0-9_-]+"
     # Two-segment email links, a signup verification link and a password reset link: a
     # UUID and a 256-bit base64url secret. The three-segment alternative above never
     # matched them.

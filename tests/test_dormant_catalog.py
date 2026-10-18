@@ -54,6 +54,9 @@ EXPECTED_TABLES = {
     "account_messages",
     # The advance dormancy warning (0092, #439).
     "dormancy_warnings",
+    # Approval emails (0096, #179).
+    "approval_email_subscriptions",
+    "approval_emails",
 }
 EXPECTED_FUNCTIONS = {
     "product_count",
@@ -87,19 +90,26 @@ EXPECTED_FUNCTIONS = {
     "dormancy_warn",
     "dormancy_warnings_due",
     "dormancy_warnings_sent",
+    # Approval emails (0096, #179), born dormant too.
+    "approval_email_change",
+    "approval_email_queue",
+    "approval_email_tenants",
+    "approval_email_due",
+    "approval_email_sent",
+    "approval_email_unsubscribe",
 }
 
 
 def test_dc1_the_catalog_marks_the_dormant_objects_inside_the_core_catalog():
     assert set(DORMANT_TABLES) <= set(TABLES)
     assert set(DORMANT_FUNCTIONS) <= set(FUNCTIONS)
-    assert len(set(DORMANT_TABLES)) == len(DORMANT_TABLES) == 10
+    assert len(set(DORMANT_TABLES)) == len(DORMANT_TABLES) == 12
     names = {name for name, _ in DORMANT_FUNCTIONS}
-    assert len(names) == len(DORMANT_FUNCTIONS) == 27
+    assert len(names) == len(DORMANT_FUNCTIONS) == 33
     assert set(DORMANT_TABLES) == EXPECTED_TABLES
     assert names == EXPECTED_FUNCTIONS
     assert DORMANT == EXPECTED_TABLES | EXPECTED_FUNCTIONS
-    assert len(DORMANT) == 37
+    assert len(DORMANT) == 45
     # Workspace switching (0054), teammate invitations (0059), sample targets (0060),
     # personal access tokens (0063) and the scheduled jobs' directory and scheduler (0064) are
     # core; 0061 patched core functions and 0062 added a core trigger function.
@@ -218,6 +228,20 @@ AT_BASE = {
             "dormancy_warn",
             "dormancy_warnings_due",
             "dormancy_warnings_sent",
+        )
+    },
+    # Approval emails (#179): created by 0096, so absent here too.
+    **{
+        name: frozenset()
+        for name in (
+            "approval_email_subscriptions",
+            "approval_emails",
+            "approval_email_change",
+            "approval_email_queue",
+            "approval_email_tenants",
+            "approval_email_due",
+            "approval_email_sent",
+            "approval_email_unsubscribe",
         )
     },
 }

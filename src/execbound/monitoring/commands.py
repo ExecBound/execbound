@@ -696,9 +696,11 @@ def _collect_due(db: Database, args: argparse.Namespace) -> dict[str, Any]:
         # A delta pass records nothing on its connection, so this line is where one is seen.
         delta=sum(int(outcome.get("delta", 0)) for outcome in outcomes),
         delta_failed=sum(int(outcome.get("delta_failed", 0)) for outcome in outcomes),
-        # Nor does an audit-log read that was refused or has not caught up (#355).
+        # Nor does an audit-log read that was refused, has not caught up or met the
+        # connection's observation bound (#355).
         audit_failed=sum(int(outcome.get("audit_failed", 0)) for outcome in outcomes),
         audit_backlog=sum(int(outcome.get("audit_backlog", 0)) for outcome in outcomes),
+        audit_bounded=sum(int(outcome.get("audit_bounded", 0)) for outcome in outcomes),
     )
     return report
 

@@ -2,7 +2,7 @@
 
 What an ExecBound release publishes, how to check that an image is the one the project published before you run it, and how a release is made.
 
-**No release has been published yet.** Until the first one, install from an image you build yourself, as [Install on one host](INSTALL.md) describes. Everything below describes the release workflow as it is written. That workflow first runs on the first version tag.
+Releases are listed on the [Releases page](https://github.com/ExecBound/execbound/releases), the newest first. [Install on one host](INSTALL.md#the-one-substitution) says how to run one.
 
 ## What a release publishes
 
@@ -79,7 +79,7 @@ The checklist, in order:
    - an image name, the repository variable `RELEASE_IMAGE`, that is not on `ghcr.io` or carries a tag or a digest;
    - a commit on which `ci.yml` has not passed for a push to `main`.
 
-   It then builds and smoke-tests the image and writes the SBOM, the distributions and the provenance. It fails if the SBOM does not describe the image.
+   It then builds and smoke-tests the image and writes the SBOM, the distributions and the provenance. It fails if the SBOM does not describe the image, if the licence disposition names a copyleft or undeclared component that `releases/licence-allowances.json` does not allow, or if an allowance there matches nothing.
 5. **A maintainer approves the run** in the `release` environment, after reading `build`'s log. This approval is the publication gate. Nothing is pushed without it, and the release record names who gave it.
 6. **`publish` publishes.** It:
    - refuses unless the run carries that approval, even where the environment has lost its protection rule;

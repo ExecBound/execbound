@@ -524,7 +524,8 @@ def test_the_command_line_says_which_component_a_named_crate_is_inside(
     nested_sbom(tmp_path, crate("gpl-crate", "2", [{"expression": "GPL-3.0-only"}]))
     image_distributions(tmp_path, [["cedarpy", CEDARPY], ["anyio", "4.11.0"]])
     monkeypatch.chdir(tmp_path)
-    written(tmp_path)
+    with pytest.raises(SystemExit):
+        written(tmp_path)
     lines = capsys.readouterr().out.splitlines()
     assert "  gpl-crate 2 inside cedarpy: ['GPL-3.0-only'] (['copyleft'])" in lines
     assert "  cedarpy 4.12.1: ['(none declared)'] (['undeclared'])" in lines
@@ -619,3 +620,130 @@ def test_the_command_line_leaves_an_sbom_it_cannot_nest_into_as_it_was(tmp_path,
         assert stopped.value.code == 1
         assert path.read_text(encoding="utf-8") == content
         assert capsys.readouterr().err.startswith("release_provenance: ")
+
+
+def allowances(tmp_path: Path, entries: object) -> None:
+    path = tmp_path / "releases" / "licence-allowances.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps({"allowances": entries}), encoding="utf-8")
+
+
+def allowance(name: str, licenses: list[str], why: str = "its reason") -> dict:
+    return {"component": name, "licenses": licenses, "why": why}
+
+
+def flagged_project(tmp_path: Path) -> None:
+    project(tmp_path)
+    sbom(
+        tmp_path,
+        [
+            component("only", "1", [{"license": {"id": "MIT"}}]),
+            component("weak-copyleft", "2", [{"license": {"id": "MPL-2.0"}}]),
+            component("silent", "3"),
+        ],
+    )
+    image_distributions(tmp_path, [["only", "1"], ["weak-copyleft", "2"], ["silent", "3"]])
+
+
+def test_a_licence_finding_with_no_allowance_fails_the_build(tmp_path, monkeypatch, capsys):
+    flagged_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as stopped:
+        written(tmp_path)
+    assert stopped.value.code == 1
+    out = capsys.readouterr().out
+    assert "licence finding with no allowance: weak-copyleft 2: ['MPL-2.0']" in out
+    assert "licence finding with no allowance: silent 3: ['(none declared)']" in out
+    # The document is still written, so the reviewer reads exactly what failed.
+    document = json.loads((tmp_path / "provenance.json").read_text(encoding="utf-8"))
+    assert {item["component"] for item in document["licenses"]["unallowed"]} == {
+        "weak-copyleft",
+        "silent",
+    }
+
+
+def test_an_allowed_finding_passes_and_the_document_records_why(tmp_path, monkeypatch, capsys):
+    flagged_project(tmp_path)
+    allowances(
+        tmp_path,
+        [
+            allowance("weak-copyleft", ["MPL-2.0"], "used unmodified, with its notice"),
+            allowance("silent", ["(none declared)"], "ships Apache-2.0 text"),
+        ],
+    )
+    monkeypatch.chdir(tmp_path)
+    document = written(tmp_path)
+    summary = document["licenses"]
+    reasons = {item["component"]: item["allowed"] for item in summary["needs_decision"]}
+    assert reasons == {
+        "weak-copyleft": "used unmodified, with its notice",
+        "silent": "ships Apache-2.0 text",
+    }
+    assert summary["unallowed"] == [] and summary["stale_allowances"] == []
+    assert "allowed: used unmodified, with its notice" in capsys.readouterr().out
+
+
+def test_an_allowance_does_not_cover_a_component_whose_licence_changed(tmp_path, monkeypatch):
+    flagged_project(tmp_path)
+    allowances(
+        tmp_path,
+        [allowance("weak-copyleft", ["MPL-1.1"]), allowance("silent", ["(none declared)"])],
+    )
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        written(tmp_path)
+    licences = json.loads((tmp_path / "provenance.json").read_text(encoding="utf-8"))["licenses"]
+    assert [item["component"] for item in licences["unallowed"]] == ["weak-copyleft"]
+    # The allowance written for the old licence now matches nothing, and says so.
+    assert licences["stale_allowances"] == [{"component": "weak-copyleft", "licenses": ["MPL-1.1"]}]
+
+
+def test_an_allowance_that_matches_nothing_fails_the_build(tmp_path, monkeypatch, capsys):
+    project(tmp_path)
+    allowances(tmp_path, [allowance("gone", ["GPL-3.0-only"])])
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as stopped:
+        written(tmp_path)
+    assert stopped.value.code == 1
+    assert "allowance that matches nothing: gone ['GPL-3.0-only']" in capsys.readouterr().out
+
+
+def test_a_component_name_matches_as_python_names_do(tmp_path, monkeypatch):
+    flagged_project(tmp_path)
+    allowances(
+        tmp_path,
+        [allowance("Weak_Copyleft", ["MPL-2.0"]), allowance("silent", ["(none declared)"])],
+    )
+    monkeypatch.chdir(tmp_path)
+    assert written(tmp_path)["licenses"]["unallowed"] == []
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [{"component": "silent", "licenses": ["(none declared)"]}],
+        [{"component": "silent", "licenses": ["(none declared)"], "why": "  "}],
+        [{"component": "silent", "licenses": [], "why": "a reason"}],
+        [{"component": "", "licenses": ["(none declared)"], "why": "a reason"}],
+        [allowance("silent", ["(none declared)"]), allowance("Silent", ["(none declared)"])],
+        {"silent": "not a list"},
+    ],
+)
+def test_an_allowance_with_no_reason_or_no_licence_is_refused(
+    tmp_path, monkeypatch, capsys, entries
+):
+    flagged_project(tmp_path)
+    allowances(tmp_path, entries)
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as stopped:
+        written(tmp_path)
+    assert stopped.value.code == 1
+    assert "releases/licence-allowances.json" in capsys.readouterr().err
+
+
+def test_the_committed_allowances_each_give_their_reason():
+    document = json.loads(Path("releases/licence-allowances.json").read_text(encoding="utf-8"))
+    entries = release_provenance.read_allowances(Path("releases/licence-allowances.json"))
+    assert entries == document["allowances"] and entries
+    for entry in entries:
+        assert len(entry["why"].split()) >= 8, entry["component"]

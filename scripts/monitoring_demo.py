@@ -117,6 +117,9 @@ def run(private: Path, output: Path) -> None:
                             # and no actor's first consequential action is raised (#355).
                             "reach": 0,
                             "actions": 0,
+                            # Nor has it a directory connection, so the pass's last step finds
+                            # no audit observation to purge (#355).
+                            "purged": 0,
                         }
                 for view in ("connections", "activity", "findings", "alerts"):
                     response = page.goto(gateway + "/monitor?view=" + view)

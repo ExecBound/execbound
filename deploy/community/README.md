@@ -10,7 +10,7 @@ the image and no repository, and one copy of a file cannot drift from another.
 nothing else to a governed decision:
 
 ```sh
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
+mkdir execbound && docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
 cd execbound && docker compose up -d
 docker compose run --rm gateway execbound quickstart
 ```

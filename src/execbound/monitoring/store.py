@@ -22,9 +22,10 @@ from execbound import bindings
 from execbound.administration import AdministrationError
 from execbound.audit import acted_with, append_event
 from execbound.db import Database, UnsafeDatabaseRole, check_runtime
-from execbound.execution.models import ExecutionError
+from execbound.execution.models import UNSETTLED, ExecutionError
 from execbound.execution.scheduled import ScheduledActor, scheduled_check
 from execbound.identity import AuthenticationFailed, Identity, Reason
+from execbound.logging_schema import log_event
 from execbound.monitoring import ai_publishers, reach
 from execbound.monitoring.grant_catalog import ENTRA, PRODUCTION_GRANTS
 from execbound.monitoring.models import (
@@ -2108,6 +2109,16 @@ def collection_reporting(row: Mapping[str, Any], now: datetime) -> bool:
 MAX_CONNECTIONS = 20
 MAX_INVENTORY = 6000
 MAX_CONNECTION_EVENTS = 200000
+
+
+def bound_released(held: int) -> bool:
+    """Whether a Microsoft Entra connection holding `held` observations has room enough to end
+    an episode at its observation bound (#355): a tenth of the bound under it. A directory whose
+    month of evidence fills the bound sits at it, each purge bringing it just under and the next
+    read filling it again, and that is one episode and one finding, not one at every purge."""
+    return held < MAX_CONNECTION_EVENTS - MAX_CONNECTION_EVENTS // 10
+
+
 # How long a Microsoft Entra connection's audit reads may go without catching up with the log
 # before the health finding says so (#355): longer than a quiet directory's first look-back
 # takes, short of the seven days Graph keeps the log on Entra ID Free.
@@ -2144,9 +2155,14 @@ HEALTH_TITLES = {
     "BACKLOG": "Collection has not caught up with the platform's audit backlog",
     "FOREIGN_TENANT": "A response claimed a different platform tenant and was quarantined",
     "CAPABILITY_LOST": "A collection capability that was available is now refused",
-    # A directory's audit read refused by the connection's observation bound (#355): nothing
-    # removes an observation, so no later read records more.
-    "CAPACITY": "Collection reached the connection's observation bound and records no more",
+    # A directory's audit reads meeting the connection's observation bound (#355), which keep
+    # of each new entry only what the rules would miss without it (`_AtBound`), until the
+    # scheduled purge brings the connection under it. Findings raised before 0095 keep the
+    # title they were raised with, "...and records no more".
+    "CAPACITY": (
+        "Collection reached the connection's observation bound and keeps only each actor's "
+        "first action"
+    ),
 }
 
 
@@ -2376,7 +2392,8 @@ def revoke_connection(
     clock: Clock = SYSTEM_CLOCK,
     session: Session | None = None,
 ) -> None:
-    """Stop collecting a connection for good, keeping its row and its evidence.
+    """Stop collecting a connection for good, keeping its row and its evidence, to which the
+    retention of directory audit observations still applies (`purge_audit_observations`).
 
     The statement that clears `active` also ends any lease a run holds (0086's trigger), so a
     run in progress writes nothing more. One administrator narrowed to other spaces is refused;
@@ -3903,22 +3920,36 @@ SETTLED_ALLOWANCE = timedelta(minutes=10)
 # again hold copies of the same entries, which are one change, not two acting in the window.
 # The database cannot recognise ExecBound's own service principal, whose client id lives only
 # in runtime configuration, so the match is the test. The one definition: Home's board reads it
-# too, so what the rule leaves out is never drawn as ungoverned. It is a common table
-# expression, `settled`, bound by `:t`, `:allowance` and `:settled_since`, which must be no
-# later than the earliest observation the reader asks about, or null for every one.
-SETTLED_OBSERVATIONS = """
+# too, so what the rule leaves out is never drawn as ungoverned, and the observation bound and
+# the purge read its parts, so neither can leave out what the rule does not. It is a common
+# table expression, `settled`, beside `matched`, the pairs of observation and execution it
+# counts, bound by `:t`, `:allowance` and `:settled_since`, which must be no later than the
+# earliest observation the reader asks about, or null for every one.
+#
+# An execution `e` of the workspace `:t` that settled through the Graph provider.
+_SETTLED_EXECUTION = """e.tenant_id = :t AND e.state = 'EXECUTED'
+          AND e.frozen->'intent'->>'provider' = 'graph'
+          AND e.dispatch_attempted_at IS NOT NULL"""
+
+
+def _accounts_for(record: str) -> str:
+    """Whether execution `e` could account for `record`, a directory's record of an action: the
+    same action on the same target object id, inside the allowance either side of its dispatch
+    and its settlement."""
+    return f"""{record}.action = e.frozen->'intent'->>'action'
+         AND {record}.target_ref = lower(e.frozen->>'resource_provider_id')
+         AND {record}.occurred_at >= e.dispatch_attempted_at - :allowance
+         AND {record}.occurred_at <= e.changed_at + :allowance"""
+
+
+_SETTLED_OBSERVATIONS_SQL = """
     matched AS (
         SELECT o.observation_id, o.connection_id, e.execution_id
         FROM execbound.executions e
         JOIN execbound.monitor_observations o
           ON o.tenant_id = e.tenant_id AND o.kind = 'entra_audit' AND o.outcome = 'success'
-         AND o.action = e.frozen->'intent'->>'action'
-         AND o.target_ref = lower(e.frozen->>'resource_provider_id')
-         AND o.occurred_at >= e.dispatch_attempted_at - :allowance
-         AND o.occurred_at <= e.changed_at + :allowance
-        WHERE e.tenant_id = :t AND e.state = 'EXECUTED'
-          AND e.frozen->'intent'->>'provider' = 'graph'
-          AND e.dispatch_attempted_at IS NOT NULL
+         AND {accounts}
+        WHERE {executions}
           AND (CAST(:settled_since AS timestamptz) IS NULL
                OR e.changed_at > CAST(:settled_since AS timestamptz) - :allowance)
     ),
@@ -3932,6 +3963,9 @@ SETTLED_OBSERVATIONS = """
         WHERE n.observations = 1 AND n.executions = 1
     )
 """
+SETTLED_OBSERVATIONS = _SETTLED_OBSERVATIONS_SQL.format(
+    accounts=_accounts_for("o"), executions=_SETTLED_EXECUTION
+)
 # Whether observation `o` is news about its actor, on connection `c`: a consequential action
 # after the connection's baseline and within the thirty days observations stay current. A
 # directory's audit-log observation is news only when it succeeded, when a read after the
@@ -4101,6 +4135,237 @@ def evaluate_actions(
     except DEPENDENCY_ERRORS:
         raise MonitorError() from None
     return counts
+
+
+# How many observations one call of the purge function may name, which it refuses more than,
+# and how many calls a workspace gets in one pass, or one for each of its Microsoft Entra
+# connections when it holds more; the next pass continues (#355).
+AUDIT_PURGE_BATCH = 1000
+AUDIT_PURGE_BATCHES = 10
+# The thirty days evidence stays current, `reach.EVIDENCE_VALIDITY`, as the seconds the purge's
+# queries subtract from the database's moment (`make_interval(secs => :window)`), as
+# `monitor_audit_purge` subtracts its 720 hours: exactly the rules' horizon, `now -
+# reach.EVIDENCE_VALIDITY`. An interval of days would keep the wall-clock time in the database
+# session's time zone, and so be an hour shorter or longer across a change of its clocks (#355).
+_EVIDENCE_SECONDS = reach.EVIDENCE_VALIDITY.total_seconds()
+# The executions that may yet account for an observation a read has still to store (#355): one
+# through the Graph provider that was dispatched and has not settled, which may still settle
+# `EXECUTED` with a window from its dispatch to its settlement, so its window has no end yet
+# (`ends` null); and one that settled `EXECUTED` with its window reaching into the thirty days
+# evidence stays current by the database's own clock, as the purge's own test of age is, where
+# an entry still to be read may fall. Each is given by the action, the target and the window it
+# could account for, as `_accounts_for` reads them.
+_OPEN_EXECUTIONS_SQL = """
+    open_executions AS (
+        SELECT e.frozen->'intent'->>'action' AS action,
+               lower(e.frozen->>'resource_provider_id') AS target_ref,
+               e.dispatch_attempted_at - :allowance AS starts,
+               CASE WHEN e.state = 'EXECUTED' THEN e.changed_at + :allowance END AS ends
+        FROM execbound.executions e
+        WHERE e.tenant_id = :t AND e.frozen->'intent'->>'provider' = 'graph'
+          AND e.dispatch_attempted_at IS NOT NULL
+          AND (e.state IN ({unsettled})
+               OR (e.state = 'EXECUTED'
+                   AND e.changed_at + :allowance
+                       > statement_timestamp() - make_interval(secs => :window)))
+    )
+"""
+
+
+def _open_covers(record: str) -> str:
+    """Whether open execution `u` could account for `record`."""
+    return f"""u.action = {record}.action AND u.target_ref = {record}.target_ref
+              AND {record}.occurred_at >= u.starts
+              AND (u.ends IS NULL OR {record}.occurred_at <= u.ends)"""
+
+
+# The directory audit observations a purge of connection `:c` may remove, oldest first (#355, as
+# ruled on 17 October 2026): those the purge function admits (evaluated, cited by no finding and
+# past the thirty days evidence stays current by the database's own clock), except what the rules
+# still read or may yet read. Kept are, first, for each principal the connection holds, live or
+# gone, and each action, its earliest observation `first-consequential-action.v1` counts as
+# baseline acting, exactly as `_FIRST_ACTIONS` reads one at any age, of those no unsettled
+# execution could account for, which could become ExecBound's own when it settles; so an actor
+# in the baseline stays in it once its observations are a month old, whatever settles later.
+# Second, every successful one an open execution could account for (`_OPEN_EXECUTIONS_SQL`),
+# since an entry a read has still to store, or an execution that has still to settle, could
+# otherwise be the one observation its execution accounts for. Third, every observation an
+# execution could account for that also accounts for an observation that stays, the second's
+# included, since deleting it could leave the one that stays the only observation that
+# execution accounts for, and so taken for ExecBound's own. One that the third alone keeps,
+# through another execution, needs nothing more: two executions account for it, and the settled
+# match leaves out none that two account for, whatever is deleted. The settled match reads every
+# execution here (`:settled_since` null), as `_FIRST_ACTIONS` does.
+_PURGEABLE_SQL = """
+    WITH {settled}, {open_executions},
+    keepers AS (
+        SELECT DISTINCT ON (o.actor_ref, o.action) o.observation_id
+        FROM execbound.monitor_observations o
+        JOIN execbound.monitor_connections c
+          ON c.tenant_id = o.tenant_id AND c.connection_id = o.connection_id
+        WHERE o.tenant_id = :t AND o.connection_id = :c AND o.kind = 'entra_audit'
+          AND o.outcome = 'success'
+          AND EXISTS (
+              SELECT 1 FROM execbound.monitor_agents a
+              WHERE a.tenant_id = o.tenant_id AND a.connection_id = o.connection_id
+                AND a.platform_ref = o.actor_ref)
+          AND (c.audit_baseline_at IS NULL OR o.received_at <= c.audit_baseline_at
+               OR o.occurred_at <= c.baseline_at)
+          AND NOT EXISTS (SELECT 1 FROM settled s WHERE s.observation_id = o.observation_id)
+          AND NOT EXISTS (
+              SELECT 1 FROM open_executions u WHERE u.ends IS NULL AND {open_covers_o})
+        ORDER BY o.actor_ref, o.action, o.occurred_at, o.observation_id
+    ),
+    aged AS (
+        SELECT o.observation_id, o.occurred_at, o.action, o.target_ref, o.outcome
+        FROM execbound.monitor_observations o
+        WHERE o.tenant_id = :t AND o.connection_id = :c AND o.kind = 'entra_audit'
+          AND o.evaluation_state = 'COMPLETED'
+          AND o.occurred_at <= statement_timestamp() - make_interval(secs => :window)
+          AND NOT EXISTS (
+              SELECT 1 FROM execbound.monitor_findings f
+              WHERE f.tenant_id = o.tenant_id AND f.observation_id = o.observation_id)
+          AND NOT EXISTS (SELECT 1 FROM keepers k WHERE k.observation_id = o.observation_id)
+    ),
+    doomed AS (
+        SELECT d.observation_id, d.occurred_at FROM aged d
+        WHERE NOT (d.outcome = 'success'
+                   AND EXISTS (SELECT 1 FROM open_executions u WHERE {open_covers_d}))
+    )
+    SELECT d.observation_id FROM doomed d
+    WHERE NOT EXISTS (
+        SELECT 1 FROM matched m
+        JOIN matched n ON n.execution_id = m.execution_id AND n.connection_id = m.connection_id
+        WHERE m.observation_id = d.observation_id AND n.observation_id <> d.observation_id
+          AND NOT EXISTS (SELECT 1 FROM doomed a WHERE a.observation_id = n.observation_id))
+    ORDER BY d.occurred_at, d.observation_id
+    LIMIT :limit
+"""
+_PURGEABLE = text(
+    _PURGEABLE_SQL.format(
+        settled=SETTLED_OBSERVATIONS,
+        open_executions=_OPEN_EXECUTIONS_SQL.format(
+            unsettled=", ".join(f"'{state}'" for state in UNSETTLED)
+        ),
+        open_covers_o=_open_covers("o"),
+        open_covers_d=_open_covers("d"),
+    )
+)
+
+
+def _purgeable(conn: Connection, tenant: UUID, connection_id: UUID) -> list[UUID]:
+    """The next batch `_PURGEABLE` chooses on the connection, whose row the caller holds
+    locked."""
+    return list(
+        conn.execute(
+            _PURGEABLE,
+            {
+                "t": tenant,
+                "c": connection_id,
+                "window": _EVIDENCE_SECONDS,
+                "settled_since": None,
+                "allowance": SETTLED_ALLOWANCE,
+                "limit": AUDIT_PURGE_BATCH,
+            },
+        ).scalars()
+    )
+
+
+def _purge_batch(
+    db: Database,
+    actor: Identity | ScheduledActor,
+    connection_id: UUID,
+    clock: Clock,
+) -> tuple[list[UUID], int]:
+    """One batch of the purge on one connection, in one transaction that holds the connection's
+    row, as a read's write does, so no read stores an observation between the choice and the
+    delete: what `_purgeable` chose, and how many `monitor_audit_purge` removed. A connection
+    whose row a collection holds is passed over rather than waited on, so a collection never
+    makes the purge, or the `process` pass it ends, fail on a lock; the next pass reaches it."""
+    tenant = actor.tenant_id
+    with db.transaction(tenant) as conn:
+        _check_actor(conn, actor, clock)
+        if (
+            conn.execute(
+                text(
+                    "SELECT 1 FROM execbound.monitor_connections "
+                    "WHERE tenant_id=:t AND connection_id=:c FOR UPDATE SKIP LOCKED"
+                ),
+                {"t": tenant, "c": connection_id},
+            ).first()
+            is None
+        ):
+            return [], 0
+        chosen = _purgeable(conn, tenant, connection_id)
+        removed = 0
+        if chosen:
+            removed = int(
+                conn.execute(
+                    text("SELECT execbound.monitor_audit_purge(:c, CAST(:observations AS uuid[]))"),
+                    {"c": connection_id, "observations": chosen},
+                ).scalar_one()
+            )
+        _check_actor(conn, actor, clock)
+    return chosen, removed
+
+
+def purge_audit_observations(
+    db: Database, actor: Identity | ScheduledActor, *, clock: Clock = SYSTEM_CLOCK
+) -> dict[str, int]:
+    """Remove the directory audit observations no rule reads any more, or may yet read (#355),
+    as `process`'s last step, so a connection's observation bound limits a month of evidence
+    rather than a lifetime.
+
+    Every Microsoft Entra connection of the workspace, active or revoked, gets a batch each
+    pass, oldest first, however many the workspace holds, so the one connected last, often the
+    only active one, is never left out; what is left of `AUDIT_PURGE_BATCHES` then goes, in
+    turn, to the connections whose batch was full. Each batch (`_purge_batch`) is one
+    transaction that holds the connection's row, passing over a connection a collection holds;
+    chooses up to `AUDIT_PURGE_BATCH` observations by `_PURGEABLE` (`_purgeable`), which keeps
+    whatever an entry still to be read, or an execution still to settle, could pair with, so
+    the order of a purge and a read never decides what is reported; and hands them to
+    `monitor_audit_purge`, the definer function that is the runtime's only way to remove an
+    observation and that removes only what its own conditions admit, whatever it is handed.
+    The next pass continues. It appends no audit event, since observations were never in the
+    chain, and logs one line with the count when it removed anything, a pass that fails after
+    a batch committed included.
+    """
+    tenant = actor.tenant_id
+    purged = 0
+    try:
+        with db.transaction(tenant) as conn:
+            _check_actor(conn, actor, clock)
+            connections = list(
+                conn.execute(
+                    text(
+                        "SELECT connection_id FROM execbound.monitor_connections "
+                        "WHERE tenant_id=:t AND kind='entra_agent_id' "
+                        "ORDER BY created_at, connection_id"
+                    ),
+                    {"t": tenant},
+                ).scalars()
+            )
+        budget = max(AUDIT_PURGE_BATCHES, len(connections))
+        turn = connections
+        while turn and budget:
+            full: list[UUID] = []
+            for connection_id in turn:
+                if not budget:
+                    break
+                budget -= 1
+                chosen, removed = _purge_batch(db, actor, connection_id, clock)
+                purged += removed
+                if len(chosen) == AUDIT_PURGE_BATCH:
+                    full.append(connection_id)
+            turn = full
+    except DEPENDENCY_ERRORS:
+        raise MonitorError() from None
+    finally:
+        # Each batch commits on its own: what the earlier ones removed is logged even when a
+        # later one fails, since this line is the purge's only record.
+        if purged:
+            log_event("monitor.audit_purged", tenant_id=tenant, count=purged)
+    return {"purged": purged}
 
 
 def _derived(
@@ -4468,6 +4733,268 @@ def ingest_collected_page(
     return counts
 
 
+# Each pair of actor and action a connection holds a current, successful audit observation of
+# (#355), with the moment of the newest of them, whether one of them is an action outside
+# ExecBound's own executions, and whether one of them was received since `:episode`, the start
+# of the bound's episode: what the observation bound reads to tell an actor's first action from
+# a repeat, a repeat that keeps a principal's reach current from one that does not, and which
+# actors not yet inventoried the episode stored an entry of. Observed reach reads every
+# successful observation, ExecBound's own included, so the newest is of them all.
+#
+# An observation is outside ExecBound's own executions only when the settled match can never
+# leave it out, now or once what has yet to settle settles, as `_AtBound._may_be_left_out` asks
+# of an entry the bound keeps for an execution: the match leaves it in now, and either an
+# execution that settled accounts for it, which the match then never leaves out (two of them
+# account for it, or one accounts for another observation beside it, and executions that settle
+# later only add to either), or none has and no execution still to settle could account for it
+# alone (`alone`, read as the purge reads one, its window not yet ended). The match counts only
+# executions that settled `EXECUTED`, so one still to settle that could account for this
+# observation alone may yet make it ExecBound's own: until that execution settles in another
+# state or could account for another observation beside it, this one is no action outside
+# ExecBound.
+_CURRENT_PAIRS_SQL = """
+    WITH {settled},
+    alone AS (
+        SELECT n.observation_id FROM (
+            SELECT o.observation_id,
+                   count(*) OVER (PARTITION BY u.execution_id) AS observations
+            FROM (
+                SELECT e.execution_id, e.frozen->'intent'->>'action' AS action,
+                       lower(e.frozen->>'resource_provider_id') AS target_ref,
+                       e.dispatch_attempted_at - :allowance AS starts,
+                       CAST(NULL AS timestamptz) AS ends
+                FROM execbound.executions e
+                WHERE e.tenant_id = :t AND e.frozen->'intent'->>'provider' = 'graph'
+                  AND e.dispatch_attempted_at IS NOT NULL AND e.state IN ({unsettled})
+            ) u
+            JOIN execbound.monitor_observations o
+              ON o.tenant_id = :t AND o.connection_id = :c AND o.kind = 'entra_audit'
+             AND o.outcome = 'success' AND {covers}
+        ) n
+        WHERE n.observations = 1
+    )
+    SELECT o.actor_ref, o.action, max(o.occurred_at) AS newest,
+           bool_or(
+               NOT EXISTS (SELECT 1 FROM settled s WHERE s.observation_id = o.observation_id)
+               AND (EXISTS (SELECT 1 FROM matched m WHERE m.observation_id = o.observation_id)
+                    OR NOT EXISTS (
+                        SELECT 1 FROM alone a WHERE a.observation_id = o.observation_id))
+           ) AS outside,
+           bool_or(o.received_at >= :episode) AS in_episode
+    FROM execbound.monitor_observations o
+    WHERE o.tenant_id = :t AND o.connection_id = :c AND o.kind = 'entra_audit'
+      AND o.outcome = 'success' AND o.occurred_at > :horizon
+    GROUP BY o.actor_ref, o.action
+"""
+_CURRENT_PAIRS = text(
+    _CURRENT_PAIRS_SQL.format(
+        settled=SETTLED_OBSERVATIONS,
+        unsettled=", ".join(f"'{state}'" for state in UNSETTLED),
+        covers=_open_covers("o"),
+    )
+)
+# Each execution that could account for one of a read's entries (`r`, by its position), whether
+# it has yet to settle, and how many successful audit observations the connection holds that it
+# could account for, as the settled match counts them. An execution dispatched through the Graph
+# provider that has not settled may yet settle `EXECUTED`, so it is read as one whose window has
+# no end yet, as the purge reads it (`_OPEN_EXECUTIONS_SQL`): whatever a read finds before it
+# settles was logged before then, so it falls inside the window it settles with, and so does
+# every observation the connection held, which earlier reads found. The settled match counts it
+# only once it has settled, so the bound tells the two apart.
+_ACCOUNTING_SQL = """
+    WITH accounting AS (
+        SELECT e.execution_id, e.frozen->'intent'->>'action' AS action,
+               lower(e.frozen->>'resource_provider_id') AS target_ref,
+               e.dispatch_attempted_at - :allowance AS starts,
+               CASE WHEN e.state = 'EXECUTED' THEN e.changed_at + :allowance END AS ends
+        FROM execbound.executions e
+        WHERE e.tenant_id = :t AND e.frozen->'intent'->>'provider' = 'graph'
+          AND e.dispatch_attempted_at IS NOT NULL
+          AND e.state IN ('EXECUTED', {unsettled})
+    )
+    SELECT r.position, u.execution_id, u.ends IS NULL AS unsettled,
+           (SELECT count(*) FROM execbound.monitor_observations o
+             WHERE o.tenant_id = :t AND o.connection_id = :c
+               AND o.kind = 'entra_audit' AND o.outcome = 'success'
+               AND {held}) AS held
+    FROM unnest(CAST(:positions AS integer[]), CAST(:actions AS text[]),
+                CAST(:targets AS text[]), CAST(:moments AS timestamptz[]))
+         AS r(position, action, target_ref, occurred_at)
+    JOIN accounting u ON {read}
+"""
+_ACCOUNTING = text(
+    _ACCOUNTING_SQL.format(
+        unsettled=", ".join(f"'{state}'" for state in UNSETTLED),
+        held=_open_covers("o"),
+        read=_open_covers("r"),
+    )
+)
+
+
+# How much older than a principal's repeat its newest current observation of that action must be
+# for the observation bound to keep the repeat (#355, as ruled on 18 October 2026): fifteen days,
+# half the thirty days evidence stays current (`reach.EVIDENCE_VALIDITY`), so observed reach,
+# which lasts thirty days from the newest, stays current for a principal acting at least that
+# often, and the bound keeps at most two current observations of each principal and action.
+BOUND_RENEWAL = timedelta(days=15)
+
+
+class _AtBound:
+    """What a read at the connection's observation bound keeps, decided in read order (#355, as
+    ruled on 17 October 2026, each actor's first current observation of each action kept and only
+    repeats dropped, and on 18 October 2026, a principal's reach kept current and actors not yet
+    inventoried kept within the inventory's limit).
+
+    An entry is dropped when it is no evidence the rules read: a failed or unknown outcome, or a
+    moment older than the thirty days evidence stays current. It is kept, whoever its actor is,
+    while an execution that could account for it, settled or still to settle (`_ACCOUNTING`),
+    accounts for fewer than two observations the connection holds or this read kept. The first
+    is the one the settled match would leave out as ExecBound's own, and is kept so that
+    whatever comes beside it later, in this read or the next, is never the one observation that
+    execution accounts for, and taken for ExecBound's own and hidden; the second leaves out
+    neither. Two are all the match needs, so an execution keeps no more.
+
+    Otherwise an entry by a live principal of the connection is kept as the principal's first
+    current observation of its action that the settled match can never leave out, so the
+    executor's own executions, settled or still to settle, never stand in for its first action
+    outside ExecBound; and, when it is not that first, as a repeat more than `BOUND_RENEWAL`
+    after the principal's newest current observation of the action, of any the connection holds
+    or this read kept, ExecBound's own included, since observed reach reads every one. Reach
+    lasts thirty days from the newest, so it stays current for a principal acting at least every
+    fifteen days, and the bound keeps at most two current observations of each principal and
+    action. An entry by an actor not yet inventoried, such as a principal created since the last
+    full collection, is kept only as its first current observation of the action that the
+    settled match can never leave out, and only while the actors the bound counts, the live
+    principals and the actors not yet inventoried with a current entry stored in this episode,
+    this one included, are no more than the inventory's limit (`MAX_AGENTS`); a repeat of it is
+    dropped, since reach is derived only for the principals the inventory holds, and once the
+    next collection inventories it, its repeats renew as a principal's do. An entry stored
+    before the episode began was stored under the bound and counts for nothing.
+
+    An entry an execution keeps, and an observation the connection holds, whichever read stored
+    it and whether under the bound or at it, count as such a first only when the match can never
+    leave them out: the match counts only executions that settled `EXECUTED`, so one that one of
+    them alone accounts for, beside others that have yet to settle, or that one still to settle
+    may come to account for alone, may be ExecBound's own (`_may_be_left_out`, and for what the
+    connection holds `_CURRENT_PAIRS`). What the connection holds is read once, when the bound
+    first applies, and every kept entry joins it.
+    """
+
+    def __init__(
+        self,
+        conn: Connection,
+        tenant: UUID,
+        connection_id: UUID,
+        entries: Sequence[Any],
+        now: datetime,
+        episode: datetime,
+    ) -> None:
+        self.horizon = now - reach.EVIDENCE_VALIDITY
+        self.live = set(
+            conn.execute(
+                text(
+                    "SELECT platform_ref FROM execbound.monitor_agents "
+                    "WHERE tenant_id=:t AND connection_id=:c AND gone_at IS NULL"
+                ),
+                {"t": tenant, "c": connection_id},
+            ).scalars()
+        )
+        # The pairs held current outside ExecBound's own executions, settled or still to
+        # settle, the newest current observation of each pair held, and the actors not yet
+        # inventoried with a current entry stored in the episode.
+        self.outside: set[tuple[str, str]] = set()
+        self.newest: dict[tuple[str, str], datetime] = {}
+        self.strangers: set[str] = set()
+        for row in conn.execute(
+            _CURRENT_PAIRS,
+            {
+                "t": tenant,
+                "c": connection_id,
+                "horizon": self.horizon,
+                "episode": episode,
+                "settled_since": self.horizon,
+                "allowance": SETTLED_ALLOWANCE,
+            },
+        ).mappings():
+            pair = (row["actor_ref"], row["action"])
+            self.newest[pair] = row["newest"]
+            if row["outside"]:
+                self.outside.add(pair)
+            if row["in_episode"] and row["actor_ref"] not in self.live:
+                self.strangers.add(row["actor_ref"])
+        evidence = [(at, entry) for at, entry in enumerate(entries) if self._evidence(entry)]
+        # The executions each entry could account for, how many observations each accounts for
+        # (`held`), those kept here included, and which of them have yet to settle.
+        self.accounts: dict[int, set[UUID]] = {}
+        self.held: dict[UUID, int] = {}
+        self.unsettled: set[UUID] = set()
+        if evidence:
+            for row in conn.execute(
+                _ACCOUNTING,
+                {
+                    "t": tenant,
+                    "c": connection_id,
+                    "allowance": SETTLED_ALLOWANCE,
+                    "positions": [at for at, _ in evidence],
+                    "actions": [entry.action for _, entry in evidence],
+                    "targets": [entry.target_ref for _, entry in evidence],
+                    "moments": [entry.occurred_at for _, entry in evidence],
+                },
+            ).mappings():
+                self.accounts.setdefault(row["position"], set()).add(row["execution_id"])
+                self.held[row["execution_id"]] = int(row["held"])
+                if row["unsettled"]:
+                    self.unsettled.add(row["execution_id"])
+
+    def _evidence(self, entry: Any) -> bool:
+        return bool(entry.outcome == "success" and entry.occurred_at > self.horizon)
+
+    def _may_be_left_out(self, executions: set[UUID]) -> bool:
+        """Whether the settled match leaves out, now or once what has yet to settle settles,
+        an entry these executions could account for and no observation held beside it: the
+        settled match counts only executions that settled `EXECUTED`, and leaves an entry out
+        when exactly one of them accounts for it and for nothing else. So it may when one has
+        settled and accounts for nothing else, whatever the rest do, or none has and one that
+        accounts for nothing else may settle alone."""
+        settled = executions - self.unsettled
+        if settled:
+            return len(settled) == 1 and all(self.held[execution] == 0 for execution in settled)
+        return any(self.held[execution] == 0 for execution in executions)
+
+    def _counted(self, actor: str) -> bool:
+        """Whether an actor not yet inventoried is within the inventory's limit: the live
+        principals and the actors not yet inventoried with a current entry stored in the episode,
+        `actor` among them, are no more than `MAX_AGENTS`."""
+        return len(self.live) + len(self.strangers | {actor}) <= MAX_AGENTS
+
+    def keeps(self, position: int, entry: Any) -> bool:
+        if not self._evidence(entry):
+            return False
+        executions = self.accounts.get(position, set())
+        actor, pair = entry.actor_ref, (entry.actor_ref, entry.action)
+        if any(self.held[execution] < 2 for execution in executions):
+            # An entry the settled match may leave out as ExecBound's own is no action outside
+            # ExecBound, so it never makes the actor's next of that action a repeat; any other
+            # the match never leaves out, so it does.
+            if not self._may_be_left_out(executions):
+                self.outside.add(pair)
+            for execution in executions:
+                self.held[execution] += 1
+        elif actor in self.live:
+            # A repeat, kept only when the principal's reach of the action would lapse sooner.
+            if pair in self.outside and entry.occurred_at - self.newest[pair] <= BOUND_RENEWAL:
+                return False
+            self.outside.add(pair)
+        elif pair in self.outside or not self._counted(actor):
+            return False
+        else:
+            self.outside.add(pair)
+        self.newest[pair] = max(self.newest.get(pair, entry.occurred_at), entry.occurred_at)
+        if actor not in self.live:
+            self.strangers.add(actor)
+        return True
+
+
 def apply_directory_audit(
     db: Database,
     actor: Identity | ScheduledActor,
@@ -4482,8 +5009,8 @@ def apply_directory_audit(
 ) -> dict[str, int]:
     """Persist one read of a directory's audit log in one transaction (#355): an `entra_audit`
     observation for each entry it mapped, the cursor, how long the reads have gone without
-    catching up, and, when it is the connection's first read that caught up (`caught_up`), the
-    activity baseline.
+    catching up, how long they have met the connection's observation bound, and, when it is the
+    connection's first read that caught up (`caught_up`), the activity baseline.
 
     The baseline is dated by receipt, not by the entries' own moments: what this read and the
     reads before it stored is the actors' habit, and what a later read stores is news, however
@@ -4497,21 +5024,31 @@ def apply_directory_audit(
     one change the directory logged twice is or an entry read again is. Its identifier names
     everything it asserts, so no two observations under one identifier can differ: an entry
     asserting something else, even under an entry id already read, is another change and an
-    observation of its own, and so is the same change logged later. The connection's
-    observation bound refuses the rest of the read like any refused read: it moves neither the
-    cursor nor the baseline, so nothing past what was kept is skipped, and it records nothing on
-    the connection's outcome or last refusal. Nothing removes an observation, so the bound
-    refuses every later read too, and its first refusal raises `collection-health.v1` at once,
-    once an episode. The cursor never moves back, and every write proves the run's lease.
+    observation of its own, and so is the same change logged later.
+
+    Once the connection holds `MAX_CONNECTION_EVENTS` observations, the read still moves on:
+    the cursor and the baseline move as for any read, and of each new entry only what the rules
+    or reach would miss without it is kept (`_AtBound`), counted as `kept_at_bound`, and the
+    rest is dropped (`dropped_at_bound`). `audit_bound_since` dates the episode of reads the
+    bound applies to, from the first such read to the first that ends with the connection a
+    tenth of the bound under it (`bound_released`), which the scheduled purge makes possible
+    (`purge_audit_observations`), and raises `collection-health.v1` at once, once an episode.
+    The cursor never moves back, and every write proves the run's lease.
 
     `audit_behind_since` dates the episode of reads that have not caught up, from the first such
     read to the next that does, or to a run that does not read (`end_audit_episode`). It raises
     `collection-health.v1` once an episode, when the episode has run `AUDIT_BEHIND_ALERT`, and
     once an episode when a read starts from a cursor Graph's retention has passed (`gap`).
-    Neither changes the connection's health state, which stays its inventory's.
+    None of them changes the connection's health state, which stays its inventory's.
     """
     now = _now(clock)
-    counts = {"accepted": 0, "duplicates": 0, "capacity": 0}
+    counts = {
+        "accepted": 0,
+        "duplicates": 0,
+        "bounded": 0,
+        "kept_at_bound": 0,
+        "dropped_at_bound": 0,
+    }
     tenant = actor.tenant_id
     try:
         with db.transaction(tenant) as conn:
@@ -4530,7 +5067,8 @@ def apply_directory_audit(
             baseline: datetime | None = row["audit_baseline_at"]
             # After the baseline whatever the host's clock says, so a read after it is news.
             received = now if baseline is None or now > baseline else baseline + _AFTER
-            for entry in entries:
+            at_bound: _AtBound | None = None
+            for position, entry in enumerate(entries):
                 # The identifiers are the change's in the entry's window and either neighbour,
                 # so one held under any of them is within two windows; the moments decide.
                 # Everything an observation asserts is in its identifier, so one found under it
@@ -4552,9 +5090,20 @@ def apply_directory_audit(
                     counts["duplicates"] += 1
                     continue
                 if retained + counts["accepted"] >= MAX_CONNECTION_EVENTS:
-                    # Counted in the read's own result, as any refused read is.
-                    counts["capacity"] = 1
-                    break
+                    counts["bounded"] = 1
+                    if at_bound is None:
+                        at_bound = _AtBound(
+                            conn,
+                            tenant,
+                            connection_id,
+                            entries,
+                            now,
+                            row["audit_bound_since"] or now,
+                        )
+                    if not at_bound.keeps(position, entry):
+                        counts["dropped_at_bound"] += 1
+                        continue
+                    counts["kept_at_bound"] += 1
                 conn.execute(
                     text("""
                     INSERT INTO execbound.monitor_observations
@@ -4585,8 +5134,8 @@ def apply_directory_audit(
                     },
                 )
                 counts["accepted"] += 1
-            refused = bool(counts["capacity"])
-            caught_up = caught_up and not refused
+            bounded = bool(counts["bounded"])
+            released = bound_released(retained + counts["accepted"])
             if caught_up and baseline is None:
                 # Everything this read and the reads before it stored, received no later.
                 latest = conn.execute(
@@ -4597,27 +5146,33 @@ def apply_directory_audit(
                     {"t": tenant, "c": connection_id},
                 ).scalar_one()
                 baseline = now if latest is None else max(now, latest)
-            # The episode this read belongs to: the one already open, or one it opens.
+            # The episodes this read belongs to: the ones already open, or ones it opens.
             episode: datetime = row["audit_behind_since"] or now
+            bound_episode: datetime = row["audit_bound_since"] or now
             if not conn.execute(
                 text("""
                 UPDATE execbound.monitor_connections
                 SET audit_cursor=CASE
-                        WHEN CAST(:cursor AS timestamptz) IS NOT NULL AND NOT :refused
+                        WHEN CAST(:cursor AS timestamptz) IS NOT NULL
                          AND (audit_cursor IS NULL OR audit_cursor < :cursor)
                         THEN :cursor ELSE audit_cursor END,
                     audit_baseline_at=coalesce(audit_baseline_at, CAST(:baseline AS timestamptz)),
                     audit_behind_since=CASE
-                        WHEN :caught THEN NULL ELSE CAST(:episode AS timestamptz) END
+                        WHEN :caught THEN NULL ELSE CAST(:episode AS timestamptz) END,
+                    audit_bound_since=CASE
+                        WHEN :bounded THEN CAST(:bound AS timestamptz)
+                        WHEN :released THEN NULL ELSE audit_bound_since END
                 WHERE tenant_id=:t AND connection_id=:c
                   AND (CAST(:lease AS uuid) IS NULL OR (collecting_lease = :lease AND active))
             """),
                 {
                     "cursor": cursor,
-                    "refused": refused,
                     "caught": caught_up,
                     "baseline": baseline,
                     "episode": episode,
+                    "bounded": bounded,
+                    "bound": bound_episode,
+                    "released": released,
                     "t": tenant,
                     "c": connection_id,
                     "lease": lease,
@@ -4626,9 +5181,9 @@ def apply_directory_audit(
                 raise _unleased(conn, tenant, connection_id)
             if gap:
                 _health_finding(conn, tenant, connection_id, "RETENTION_GAP", episode, now)
-            if refused:
-                # At once: unlike a backlog, it does not pass by itself.
-                _health_finding(conn, tenant, connection_id, "CAPACITY", episode, now)
+            if bounded:
+                # At once: what the bound drops is gone until a purge brings the connection under.
+                _health_finding(conn, tenant, connection_id, "CAPACITY", bound_episode, now)
             if not caught_up and now - episode >= AUDIT_BEHIND_ALERT:
                 _health_finding(conn, tenant, connection_id, "BACKLOG", episode, now)
             _check_actor(conn, actor, clock, collecting=True, lease=lease)

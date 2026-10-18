@@ -292,6 +292,8 @@ def seeded(admin_engine):
                 "execbound.account_messages, execbound.account_recoveries, "
                 # Dormancy warnings (#439): before the principals they are addressed to.
                 "execbound.dormancy_warnings, "
+                # Approval emails (#179): before the approvals and principals they point at.
+                "execbound.approval_emails, execbound.approval_email_subscriptions, "
                 "execbound.job_tenants, "
                 "execbound.workspace_memberships, execbound.user_passwords, "
                 "execbound.user_identities, execbound.user_factors, execbound.user_passkeys, "

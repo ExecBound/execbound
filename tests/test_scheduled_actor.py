@@ -331,11 +331,15 @@ PINNED = {
         # read it ends, inside the run's lease (#355).
         "apply_directory_audit",
         "end_audit_episode",
-        # The scheduled evaluation, which appends no event and writes no principal.
+        # The scheduled evaluation, which appends no event and writes no principal, and its last
+        # step, the purge of the directory audit observations no rule reads any more, one batch
+        # of it a transaction (#355).
         "evaluate_pending",
         "evaluate_health",
         "derive_reach",
         "evaluate_actions",
+        "purge_audit_observations",
+        "_purge_batch",
     },
     "execbound/monitoring/worker.py": {"evaluate_scheduled"},
     "execbound/monitoring/collection.py": {"run", "_collect_audit"},

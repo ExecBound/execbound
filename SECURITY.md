@@ -36,7 +36,7 @@ This policy does not authorise access to any third party's systems.
 
 ## Supported versions
 
-Security fixes are made in the latest release only, so upgrade to it to receive them. Until the first release is published, fixes are made on the default branch.
+Security fixes are made in the latest release only, so upgrade to it to receive them.
 
 ## Scope
 

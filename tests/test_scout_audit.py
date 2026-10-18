@@ -1297,54 +1297,6 @@ def test_sr22_a_cursor_retention_has_passed_raises_one_retention_gap_finding(
     assert len(health(db, tenant)) == 1
 
 
-def test_sr22_a_connection_at_its_observation_bound_keeps_its_cursor_and_its_health(
-    db, admins, clock, monkeypatch
-):
-    """A connection holding as many observations as it may is refused the rest of the read,
-    which is counted like any refused read: the cursor stays, and neither a full collection's
-    outcome nor the connection's last refusal changes, after a delta pass as after a full one.
-    Nothing removes an observation, so no later read gets further, and the first read the bound
-    refuses says so at once, in a finding of its own rather than a backlog's a day later; the
-    reads after it raise no second."""
-    admin = admins[0]
-    connection_id = connect(db, admin, clock)
-    tenant = admin.tenant_id
-    monkeypatch.setattr(store, "MAX_CONNECTION_EVENTS", 2)
-    when = clock.value - timedelta(hours=1)
-    entries = [
-        entry(when + timedelta(minutes=index), target=f"d0d0d0d0-0000-4000-8000-{index:012d}")
-        for index in range(3)
-    ]
-    began = clock.value
-    with serving(directory(*entries)) as server:
-        result = full(db, admin, clock, connection_id, server)
-        assert result["outcome"] == "COMPLETE"
-        assert (result["audit"]["state"], result["audit"]["error_code"]) == ("failed", "CAPACITY")
-        assert result["audit"]["accepted"] == 2
-        (raised,) = health(db, tenant)
-        assert raised["title"] == store.HEALTH_TITLES["CAPACITY"]
-        assert raised["connection_id"] == connection_id and raised["delivered"]
-        result = later(db, admin, clock, connection_id, server, entries)
-        assert (result["audit"]["state"], result["audit"]["error_code"]) == (
-            "failed",
-            "CAPACITY",
-        )
-        assert (result["audit"]["accepted"], result["audit"]["duplicates"]) == (0, 2)
-        stored = connection_row(db, tenant, connection_id)
-        assert stored["audit_cursor"] is None and stored["audit_baseline_at"] is None
-        assert (stored["last_outcome"], stored["last_error_code"]) == ("COMPLETE", None)
-        assert store.collection_reporting(stored, clock.value)
-        assert stored["audit_behind_since"] == began
-        assert len(health(db, tenant)) == 1
-        # A day of it is also a backlog's day, raised once as any is.
-        clock.value = began + store.AUDIT_BEHIND_ALERT
-        later(db, admin, clock, connection_id, server, entries, minutes=0)
-        later(db, admin, clock, connection_id, server, entries)
-    titles = [row["title"] for row in health(db, tenant)]
-    assert titles == [store.HEALTH_TITLES["CAPACITY"], store.HEALTH_TITLES["BACKLOG"]]
-    assert len(observations(db, tenant)) == 2
-
-
 def test_sr22_collect_due_counts_a_failed_and_a_backlogged_audit_read(db, admins, clock, tmp_path):
     """A failed read and one that has not caught up change no outcome, so the scheduled pass's
     own counts, and its log line, are where each is seen."""

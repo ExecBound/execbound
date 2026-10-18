@@ -21,6 +21,7 @@ from execbound.monitoring.store import (
     evaluate_actions,
     evaluate_health,
     evaluate_pending,
+    purge_audit_observations,
 )
 from execbound.resolution.models import Clock, SystemClock
 
@@ -147,6 +148,9 @@ def process(
     # An actor's first consequential action is read from the observations just derived (#355).
     actions = evaluate_actions(db, identity)
     delivered = deliver_pending(db, identity, receiver, limit=limit) if receiver else 0
+    # Last, once every rule has read them and what they raised is delivered: the audit
+    # observations none reads any more, so a purge that fails never holds back a finding.
+    purged = purge_audit_observations(db, identity)
     log_event("monitor.processed", tenant_id=identity.tenant_id, count=evaluated + delivered)
     return {
         "evaluated": evaluated,
@@ -154,6 +158,7 @@ def process(
         "delivered": delivered,
         "reach": derived["verified"] + derived["observed"],
         "actions": actions["raised"],
+        "purged": purged["purged"],
     }
 
 
@@ -161,10 +166,10 @@ def evaluate_scheduled(
     db: Database, tenant: UUID, *, limit: int = 50, clock: Clock = SYSTEM_CLOCK
 ) -> dict[str, int]:
     """The scheduled pass's evaluation in one workspace (#503): its pending observations, its
-    sources' health, its derived reach and the actions first observed from it (#355), as the
-    workspace's scheduled actor with no credential, each step under the workspace's own fence.
-    It delivers nothing: a receiver is a deployment's configuration, which only
-    `process --config` names."""
+    sources' health, its derived reach, the actions first observed from it and, last, the purge
+    of the directory audit observations no rule reads any more (#355), as the workspace's
+    scheduled actor with no credential, each step under the workspace's own fence. It delivers
+    nothing: a receiver is a deployment's configuration, which only `process --config` names."""
     if type(limit) is not int or not 1 <= limit <= 50:
         raise MonitorError("INVALID_LIMIT")
     actor = ScheduledActor(tenant)
@@ -172,9 +177,11 @@ def evaluate_scheduled(
     health_changes = evaluate_health(db, actor, clock=clock)
     derived = derive_reach(db, actor, clock=clock)
     actions = evaluate_actions(db, actor, clock=clock)
+    purged = purge_audit_observations(db, actor, clock=clock)
     return {
         "evaluated": evaluated,
         "health_changes": health_changes,
         "reach": derived["verified"] + derived["observed"],
         "actions": actions["raised"],
+        "purged": purged["purged"],
     }

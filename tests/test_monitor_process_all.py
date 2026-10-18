@@ -171,6 +171,7 @@ def test_mc21_one_pass_evaluates_every_active_workspace_and_delivers_nothing(
             "health_changes": 1,
             "reach": 1,
             "actions": 0,
+            "purged": 0,
         }
         assert after["pending"] == 0
         # The reported action became a finding and the quiet source a health finding.

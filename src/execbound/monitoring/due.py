@@ -409,9 +409,11 @@ def collect_workspace(
     delta pass (#355), the one whose link is oldest first: `delta` counts the passes that
     completed and `delta_failed` the rest. A delta pass records nothing on the connection's
     outcome or health, a refused credential included; the next full collection does.
-    `audit_failed` counts the runs, full or delta, whose read of the directory's audit log was
-    refused, by Graph or by the connection's observation bound, and `audit_backlog` those whose
-    read stopped at its pages before catching up with the log; neither changes a run's outcome.
+    `audit_failed` counts the runs, full or delta, whose read of the directory's audit log Graph
+    refused, `audit_backlog` those whose read stopped at its pages before catching up with the
+    log, and `audit_bounded` those whose read met the connection's observation bound and kept
+    of each new entry only what the rules would miss without it (`store._AtBound`); none
+    changes a run's outcome.
     """
     counts = dict.fromkeys(
         (
@@ -425,16 +427,20 @@ def collect_workspace(
             "delta_failed",
             "audit_failed",
             "audit_backlog",
+            "audit_bounded",
         ),
         0,
     )
 
     def audited(outcome: object) -> None:
-        # An audit-log read that was refused or has not caught up changes no run's outcome, so
-        # it is counted here (#355).
-        state = (outcome.get("audit") or {}).get("state") if isinstance(outcome, dict) else None
+        # An audit-log read that was refused, has not caught up or met the observation bound
+        # changes no run's outcome, so it is counted here (#355).
+        audit = (outcome.get("audit") or {}) if isinstance(outcome, dict) else {}
+        state = audit.get("state")
         if state in {"failed", "backlog"}:
             counts[f"audit_{state}"] += 1
+        if audit.get("bounded"):
+            counts["audit_bounded"] += 1
 
     try:
         with db.transaction(actor.tenant_id) as conn:

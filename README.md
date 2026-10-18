@@ -51,10 +51,10 @@ This repository is self-hosted Community: the gateway and its console, the Pytho
 
 ## Install it
 
-Nothing is published to a registry yet, so first build the `execbound:community` image: run `docker build --tag execbound:community .` in a clone of this repository. Then run three commands in a directory outside the clone, on a host with Docker and nothing else:
+First get the `execbound:community` image. Either verify the [latest release](https://github.com/ExecBound/execbound/releases)'s signature as [Releases](docs/RELEASE.md#verify-an-image-before-you-run-it) describes, pull it by the digest you verified and tag it: `docker pull ghcr.io/execbound/execbound@sha256:<digest>`, then `docker tag ghcr.io/execbound/execbound@sha256:<digest> execbound:community`. Or build it in a clone of this repository with `docker build --tag execbound:community .`. Then run three commands in an empty directory (outside the clone, if you built the image), on a host with Docker and nothing else:
 
 ```sh
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
+mkdir execbound && docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
 cd execbound && docker compose up -d
 docker compose run --rm gateway execbound quickstart
 ```
@@ -105,7 +105,7 @@ The documents under [docs](docs/) are also published at [docs.execbound.ai](http
 
 ## Support
 
-Community is supported by the community, with no guarantee. Ask questions in Discussions and report bugs in issues. Report a vulnerability privately, as [SECURITY.md](SECURITY.md) describes, and never in a public issue. Security fixes are made in the latest release only; until the first release is published, they are made on `main`.
+Community is supported by the community, with no guarantee. Ask questions in Discussions and report bugs in issues. Report a vulnerability privately, as [SECURITY.md](SECURITY.md) describes, and never in a public issue. Security fixes are made in the latest release only.
 
 ## Contributing
 
