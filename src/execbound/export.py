@@ -24,7 +24,7 @@ from execbound.execution import store
 from execbound.execution.models import ExecutionError
 from execbound.identity import Identity
 from execbound.logging_schema import log_event
-from execbound.monitoring.delivery import send_notification
+from execbound.monitoring.delivery import EXPORT_ACCEPTED, send_notification
 from execbound.notifications import BACKOFF, MAX_ATTEMPTS, Destination
 from execbound.replay.models import AuditEvent
 from execbound.replay.verify import ReplayValidationError, reject_secrets
@@ -217,7 +217,9 @@ def _export_one(
         batch_id = uuid5(BATCH_NAMESPACE, f"{name}:{last_hash}:{last_window}")
         _update(conn, tenant, name, lease_token=lease, lease_until=now + timedelta(seconds=30))
         _admin(conn, admin, clock)
-    accepted = send_notification(destination, batch_id, body, client, max_bytes=MAX_BATCH_BYTES)
+    accepted = send_notification(
+        destination, batch_id, body, client, max_bytes=MAX_BATCH_BYTES, accepted=EXPORT_ACCEPTED
+    )
     with db.transaction(tenant) as conn:
         _admin(conn, admin, clock)
         now = store.now(clock)

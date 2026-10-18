@@ -349,24 +349,6 @@ describe("cross-links between Monitoring's rows (MQ10, MQ11)", () => {
     expect(reportCommand("9".repeat(91))).toBeNull();
     expect(reportCommand("9".repeat(90))).not.toBeNull();
   });
-
-  it("says where findings appear, folds the test receiver, and links a delivery to its finding", async () => {
-    answerWith({
-      [SNAPSHOT]: {
-        body: snapshot({
-          deliveries: [{ delivery_id: "d0d0d0d0-0000-4000-8000-000000000001", finding_id: FINDING, created_at: "2026-09-19T05:00:00+00:00", state: "PENDING", attempts: 0, last_error: null }],
-        }),
-      },
-    });
-    renderMonitor("/monitor?view=alerts");
-    expect(await screen.findByRole("heading", { name: "Where findings appear" })).toBeInTheDocument();
-    expect(screen.getByText(/Findings are not sent outside the console in this release/)).toBeInTheDocument();
-    const receiver = screen.getByText("Local test receiver").closest("details");
-    if (receiver === null) throw new Error("No receiver");
-    expect(receiver).not.toHaveAttribute("open");
-    expect(receiver).not.toHaveTextContent("Production destinations");
-    expect(within(receiver).getByRole("link", { name: "f1f1f1f1" })).toHaveAttribute("href", `/monitor?view=findings&state=all&open=${FINDING}`);
-  });
 });
 
 describe("monitoring setup by address (UX18, #678)", () => {

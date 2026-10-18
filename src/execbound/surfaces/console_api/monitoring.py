@@ -15,17 +15,19 @@ external platform supplied (a label, a story name, a display name, a tag) travel
 the client renders it as text.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, cast
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from execbound.monitoring import due
+from execbound.monitoring import due, egress
 from execbound.monitoring import store as monitor_store
 from execbound.monitoring.models import MonitorError
+from execbound.notifications import FINDINGS, Destination
 from execbound.runtime import Runtime
 from execbound.surfaces.console_api.bodies import body
 from execbound.surfaces.console_api.errors import ApiError
@@ -86,6 +88,13 @@ class MonitorConnection(BaseModel):
     consented_at: datetime | None
     consented_by: PrincipalRef | None
     consent_needs_update: bool
+    # Where a directory's next read of its service principal sign-ins starts (#355), and for a
+    # Tines connection the addresses an administrator recorded as the tenant's egress, with
+    # when and by whom: recorded by an administrator, never read from Tines.
+    sign_in_cursor: datetime | None
+    egress_addresses: list[str]
+    egress_recorded_at: datetime | None
+    egress_recorded_by: PrincipalRef | None
 
 
 class MonitorSource(BaseModel):
@@ -203,6 +212,9 @@ class MonitorFindingCounts(BaseModel):
 class MonitorDelivery(BaseModel):
     delivery_id: UUID
     finding_id: UUID
+    # The destination a delivery goes to; null for a finding's intent that is waiting to be
+    # routed or was closed without one (#31).
+    destination_id: str | None
     created_at: datetime
     state: str
     attempts: int
@@ -214,6 +226,29 @@ class MonitorProfile(BaseModel):
     created_at: datetime
 
 
+class MonitorDestinationSpace(BaseModel):
+    space_id: UUID
+    name: str
+
+
+class MonitorDestination(BaseModel):
+    """One findings destination (#31), as the private configuration names it: its id, kind,
+    host, rules and Spaces, never its URL, address or secret. `rules` and `spaces` are null
+    where it takes every one; a configured Space the reader cannot read is counted in
+    `other_spaces`, never named. For a reader of every Space, `other_spaces` is 0 and a
+    configured id that is no Space of this workspace is counted in `unknown_spaces`; for any
+    other reader such an id is counted in `other_spaces`, so a hidden Space and a mistaken id
+    look the same."""
+
+    destination_id: str
+    kind: str
+    host: str
+    rules: list[str] | None
+    spaces: list[MonitorDestinationSpace] | None
+    other_spaces: int
+    unknown_spaces: int
+
+
 class MonitorSnapshot(BaseModel):
     connections: list[MonitorConnection]
     sources: list[MonitorSource]
@@ -222,6 +257,8 @@ class MonitorSnapshot(BaseModel):
     observations: list[MonitorObservation]
     findings: list[MonitorFinding]
     deliveries: list[MonitorDelivery]
+    # The workspace's findings destinations, for every administrator (#31, ruling 12).
+    destinations: list[MonitorDestination]
     profile: MonitorProfile | None
     open_findings: int
 
@@ -291,6 +328,50 @@ class MonitorAgentIdentity(BaseModel):
     linked_principal_ref: PrincipalRef | None
     first_seen_at: datetime
     observed_at: datetime
+    # The leading product token of the user agent its newest successful sign-in sent, and when
+    # (#355). A client chooses its own user agent: a hint, never evidence of a driver.
+    user_agent_hint: str | None
+    user_agent_seen_at: datetime | None
+
+
+class MonitorDriver(BaseModel):
+    """One piece of evidence of who drives an actor (#355), kept apart from what it can reach.
+
+    `declared`: the directory names the driver, as the AI publisher catalog's entry for the
+    principal's application or an agent identity's blueprint. `network`: its successful sign-ins
+    came from a range the reviewed egress catalog attributes to a platform, or from an address an
+    administrator recorded as the Space's Tines tenant's egress; it names a platform, never a
+    workflow. `joined`: that Tines evidence plus every story in the Tines tenant that uses a
+    credential allowed to call Microsoft Graph or Microsoft sign-in (`story_ids`, "at least" where
+    `stories_capped`); it never names one story as the one that acted. A catalog row names its
+    source and the day it was read; a Tines row counts the tenant's credentials with no host
+    restriction, which are never joined. `label` is a catalog's name or, for a Tines tenant, the
+    connection's own name, and renders as text.
+    """
+
+    evidence: Literal["declared", "network", "joined"]
+    platform_kind: Literal["publisher", "blueprint", "egress", "tines"]
+    platform_ref: str
+    label: str
+    source: str | None
+    retrieved: date | None
+    catalog_version: str | None
+    story_ids: list[str]
+    stories_capped: bool
+    unrestricted_credentials: int | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+    gone_at: datetime | None
+
+
+class MonitorDriverGaps(BaseModel):
+    """What no network evidence can name: platforms that publish no stable egress, whose actors
+    cannot be attributed by network, and those whose published feed has not been read into the
+    catalog yet."""
+
+    catalog_version: str
+    unattributable: list[str]
+    pending: list[str]
 
 
 class MonitorGrant(BaseModel):
@@ -342,6 +423,9 @@ class MonitorAgentDetail(BaseModel):
     findings: list[MonitorAgentFinding]
     observations: list[MonitorAgentObservation]
     unresolved: int
+    # Who drives it, and how that is known; none is unattributed, not "nobody" (#355).
+    drivers: list[MonitorDriver]
+    driver_gaps: MonitorDriverGaps
 
 
 class AcknowledgeFinding(BaseModel):
@@ -442,6 +526,8 @@ _CONNECTION_COMPUTED = frozenset(
         "consent_needs_update",
         "collecting",
         "next_due_at",
+        "egress_addresses",
+        "egress_recorded_by",
     }
 )
 
@@ -470,11 +556,63 @@ def _connection(
         consent_needs_update=bool(row["consent_needs_update"]),
         collecting=row["collecting_until"] is not None and row["collecting_until"] > now,
         next_due_at=due.due_at(row, now),
+        egress_addresses=[str(address) for address in row["egress_addresses"] or []],
+        egress_recorded_by=principal_ref(row["egress_recorded_by"], facts),
     )
 
 
+def _findings_destinations(runtime: Runtime, session: Session) -> list[Destination]:
+    """The workspace's findings destinations, in configuration order (#31)."""
+    return [
+        d
+        for d in runtime.notifications
+        if d.tenant_id == session.identity.tenant_id and FINDINGS in d.classes
+    ]
+
+
+def _destinations(
+    destinations: list[Destination], names: dict[UUID, str], *, reads_every_space: bool
+) -> list[MonitorDestination]:
+    """The findings destinations as Alert settings lists them (#31, ruling 12).
+
+    `names` holds the configured Spaces of this workspace the reader may read. Any other
+    configured id is counted and never named. A reader of every Space can read each Space of
+    the workspace, so for them an id outside `names` is no Space of it, a mistake in the
+    configuration, and is counted apart. A reader narrowed to Spaces gets one count for both,
+    so they learn neither a hidden Space's name nor its identifier, nor whether it exists.
+    """
+    listed = []
+    for d in destinations:
+        spaces = None if d.spaces is None else sorted(d.spaces)
+        unnamed = 0 if spaces is None else sum(1 for s in spaces if s not in names)
+        listed.append(
+            MonitorDestination(
+                destination_id=d.destination_id,
+                kind=d.kind,
+                host=urlsplit(d.url).hostname or "",
+                rules=None if d.rules is None else sorted(d.rules),
+                spaces=None
+                if spaces is None
+                else [
+                    MonitorDestinationSpace(space_id=space, name=names[space])
+                    for space in spaces
+                    if space in names
+                ],
+                other_spaces=0 if reads_every_space else unnamed,
+                unknown_spaces=unnamed if reads_every_space else 0,
+            )
+        )
+    return listed
+
+
 def read_snapshot(runtime: Runtime, session: Session) -> MonitorSnapshot:
-    rows = monitor_store.snapshot(runtime.db, session, clock=runtime.clock)
+    destinations = _findings_destinations(runtime, session)
+    rows = monitor_store.snapshot(
+        runtime.db,
+        session,
+        clock=runtime.clock,
+        spaces={space for d in destinations for space in d.spaces or ()},
+    )
     now = runtime.clock.now()
     acknowledgers = _facts(rows.get("acknowledgers"))
     requesters = _facts(rows.get("requesters"))
@@ -513,6 +651,11 @@ def read_snapshot(runtime: Runtime, session: Session) -> MonitorSnapshot:
             MonitorDelivery(**{key: row[key] for key in MonitorDelivery.model_fields})
             for row in rows["deliveries"]
         ],
+        destinations=_destinations(
+            destinations,
+            {row["space_id"]: str(row["name"]) for row in rows["space_names"]},
+            reads_every_space=bool(rows["reads_every_space"]),
+        ),
         profile=_profile(rows["profile"]),
         # Counted in SQL under the same predicate, so it is right beyond the 200 shown.
         open_findings=int(rows["counts"]["open"]),
@@ -607,6 +750,31 @@ def read_agent(runtime: Runtime, session: Session, agent_id: UUID) -> MonitorAge
             for row in detail["observations"]
         ],
         unresolved=int(detail["unresolved"]),
+        drivers=[
+            MonitorDriver(
+                evidence=row["evidence"],
+                platform_kind=row["kind"],
+                platform_ref=row["platform_ref"],
+                label=str(row["label"]),
+                source=row["source"],
+                retrieved=row["retrieved"],
+                catalog_version=row["catalog_version"],
+                story_ids=list(row["detail_refs"]),
+                stories_capped=bool(row["detail_capped"]),
+                unrestricted_credentials=row["unrestricted_credentials"],
+                first_seen_at=row["first_seen_at"],
+                last_seen_at=row["last_seen_at"],
+                gone_at=row["gone_at"],
+            )
+            for row in detail["drivers"]
+        ],
+        driver_gaps=MonitorDriverGaps(
+            catalog_version=egress.VERSION,
+            unattributable=[platform.label for platform in egress.PRODUCTION.unattributable],
+            pending=[
+                platform.label for platform in egress.PRODUCTION.platforms if platform.pending
+            ],
+        ),
     )
 
 

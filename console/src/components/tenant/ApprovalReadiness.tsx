@@ -140,7 +140,7 @@ function Warning({ view }: { view: TenantSettingsView }) {
     <div className="notice notice-hold readiness-warning">
       <p>
         {all ? "Held requests" : "Some held requests"} here wait at most {spanWords(Math.max(...short))} and are announced
-        nowhere but this console. Unless a reviewer is watching <Link to="/approvals">Approvals</Link>, they lapse.
+        only in this console. Unless a reviewer is watching <Link to="/approvals">Approvals</Link>, they lapse.
       </p>
       {ApprovalRemedy !== null ? <ApprovalRemedy /> : <OperatorRemedy />}
     </div>

@@ -242,6 +242,7 @@ CONSOLE = {
     ("/api/console/v1/monitor/connections/{connection_id}/key", "POST"): SESSION,
     ("/api/console/v1/monitor/connections/{connection_id}/collect", "POST"): SESSION,
     ("/api/console/v1/monitor/connections/{connection_id}/schedule", "POST"): SESSION,
+    ("/api/console/v1/monitor/connections/{connection_id}/egress", "POST"): SESSION,
     ("/api/console/v1/monitor/connections/{connection_id}/revoke", "POST"): SESSION,
     ("/api/console/v1/monitor/connections/entra/start", "POST"): SESSION,
     # Reporting sources from the console (#678): minting and rotation answer

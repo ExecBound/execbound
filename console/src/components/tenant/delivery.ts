@@ -19,6 +19,12 @@ export const MESSAGE_LABELS: Record<NotificationDestination["messages"][number],
   closed: "Outcomes",
 };
 
+/** What each class a destination may receive is called, in the server's order (#31). */
+export const CLASS_LABELS: Record<NotificationDestination["classes"][number], string> = {
+  approvals: "Approvals",
+  findings: "Findings",
+};
+
 /**
  * The deadline the dialog warns under: three times the measured 90th percentile, so at least two
  * thirds of the window remain after nine in ten notifications have arrived, for an approver to
@@ -31,9 +37,14 @@ export function durationWords(seconds: number): string {
   return seconds < 120 ? `${String(seconds)} s` : `${String(Math.ceil(seconds / 60))} min`;
 }
 
+/** Whether a destination announces approvals: an approval kind whose classes include them (#31). */
+function announcing(destination: NotificationDestination): boolean {
+  return APPROVAL_KINDS.has(destination.kind) && destination.classes.includes("approvals");
+}
+
 /** Whether any destination announces approvals. */
 export function announces(destinations: readonly NotificationDestination[]): boolean {
-  return destinations.some((destination) => APPROVAL_KINDS.has(destination.kind));
+  return destinations.some(announcing);
 }
 
 /** A destination's messages as a reader names them, joined in the order received. */
@@ -41,6 +52,17 @@ export function messageWords(destination: NotificationDestination): string {
   return destination.messages.length === 0
     ? "Audit export"
     : destination.messages.map((message) => MESSAGE_LABELS[message]).join(", ");
+}
+
+/** Who a destination announces approvals to; one that announces none, the audit export among them, announces to nobody. */
+export function approverWords(destination: NotificationDestination): string {
+  if (!announcing(destination)) return "None";
+  return destination.approvers === null ? "every approver" : String(destination.approvers);
+}
+
+/** A destination's classes as a reader names them; the audit export receives neither. */
+export function classWords(destination: NotificationDestination): string {
+  return destination.classes.length === 0 ? "None" : destination.classes.map((item) => CLASS_LABELS[item]).join(", ");
 }
 
 /**
@@ -93,7 +115,7 @@ export function deadlineHint(
   if (p90 !== null && seconds < DELIVERY_MULTIPLE * p90) {
     return `Nine in ten notifications here arrived within ${durationWords(p90)} over the last ${String(delivery.window_days)} days. A deadline under ${durationWords(DELIVERY_MULTIPLE * p90)} can lapse before an approver has read the message.`;
   }
-  if (seconds === 120 && destinations.some((destination) => destination.kind === "email")) {
+  if (seconds === 120 && destinations.some((destination) => destination.kind === "email" && announcing(destination))) {
     return "Email can arrive after a 2-minute deadline. Approvers who rely on email may not get the message in time.";
   }
   return null;

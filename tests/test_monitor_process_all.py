@@ -251,6 +251,7 @@ def test_mc21_each_workspace_is_evaluated_under_its_own_fence(db, admin_engine, 
     [
         (["--all-tenants", "--config", "monitor.json"], "--all-tenants takes no --config"),
         (["--all-tenants", "--deliver-local"], "--all-tenants takes no --config"),
+        (["--all-tenants", "--deliver", "--deliver-local"], "--deliver takes no --deliver-local"),
         ([], "give --config or --all-tenants"),
         (["--all-tenants", "--limit", "0"], "--limit must be 1 to 50"),
         (["--all-tenants", "--limit", "51"], "--limit must be 1 to 50"),

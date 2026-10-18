@@ -16,6 +16,7 @@ from test_monitoring_store import admins as admins
 from test_monitoring_store import api as api
 from test_monitoring_store import observation
 from test_monitoring_store import setup_monitor as setup_monitor
+from test_monitoring_worker import deliver_local
 from test_monitoring_worker import receiver as receiver
 
 from execbound.db import UPDATE_COLUMNS, check_runtime
@@ -171,8 +172,8 @@ def test_sh6_health_findings_deliver_once_through_the_outbox(db, setup_monitor, 
     local, output = receiver
     clock.value += timedelta(seconds=601)
     assert store.evaluate_health(db, admins[0], clock=clock) == 1
-    assert worker.deliver_pending(db, admins[0], local, clock=clock) == 1
-    assert worker.deliver_pending(db, admins[0], local, clock=clock) == 0
+    assert deliver_local(db, admins[0], local, clock) == 1
+    assert deliver_local(db, admins[0], local, clock) == 0
     [delivered] = [p for p in output.glob("*.json")]
     payload = json.loads(delivered.read_text(encoding="utf-8"))
     assert payload["rule_version"] == HEALTH and payload["source_id"] == str(source.source_id)

@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 from uuid import UUID, uuid4
 
 import httpx
@@ -34,10 +34,11 @@ from execbound.logging_schema import log_event
 from execbound.monitoring.collection import fingerprint
 from execbound.monitoring.collection import run as collection_run
 from execbound.monitoring.delivery import LocalReceiver
+from execbound.monitoring.drivers import set_egress_addresses
 from execbound.monitoring.graph import GRAPH_ORIGIN, EntraConfig, PlatformApp
 from execbound.monitoring.graph import fingerprint as graph_fingerprint
 from execbound.monitoring.graph import run as graph_run
-from execbound.monitoring.models import DetectionProfile, MonitorError
+from execbound.monitoring.models import DELIVERY_STATES, DetectionProfile, MonitorError
 from execbound.monitoring.receiver import make_receiver
 from execbound.monitoring.store import (
     MAX_CONNECTIONS,
@@ -53,6 +54,9 @@ from execbound.monitoring.store import (
 )
 from execbound.monitoring.tines import TinesConfig, check_connection
 from execbound.plugins import PluginError, database_refusal, load_command_plugins
+
+if TYPE_CHECKING:
+    from execbound.monitoring.worker import Outbound
 
 
 class ProfileFileError(ValueError):
@@ -556,6 +560,19 @@ def build_parser() -> argparse.ArgumentParser:
         link.add_argument("--agent", required=True, help="The directory object identifier")
         if name == "link-agent":
             link.add_argument("--principal", type=UUID, required=True)
+    egress = sub.add_parser(
+        "record-egress",
+        help="Record the addresses a Tines tenant's HTTP requests leave from, as a current ADMIN",
+    )
+    egress.add_argument("--credential-file", type=Path, required=True)
+    egress.add_argument("--connection", type=UUID, required=True, help="The Tines connection")
+    egress.add_argument(
+        "--address",
+        action="append",
+        default=[],
+        help="One egress address as Tines shows it at /info; give it again for each, at most 8",
+    )
+    egress.add_argument("--clear", action="store_true", help="Clear the recorded addresses")
     accept = sub.add_parser("accept-reach", help="Record that an ADMIN accepts one ungoverned path")
     accept.add_argument("--credential-file", type=Path, required=True)
     accept.add_argument("--connection", type=UUID, required=True)
@@ -574,11 +591,18 @@ def build_parser() -> argparse.ArgumentParser:
     set_profile_parser.add_argument("--input", type=Path, required=True)
     show_profile_parser = sub.add_parser("show-profile", help="Show the active detection profile")
     show_profile_parser.add_argument("--credential-file", type=Path, required=True)
+    deliveries_parser = sub.add_parser(
+        "deliveries", help="List finding deliveries and their state as a current ADMIN"
+    )
+    deliveries_parser.add_argument("--credential-file", type=Path, required=True)
+    deliveries_parser.add_argument(
+        "--state", choices=DELIVERY_STATES, help="List only the deliveries in this state"
+    )
     for name, description in (
         ("serve", "Serve monitoring with no configured execution connectors"),
         ("receiver", "Run the authenticated loopback test receiver"),
         ("emit-demo", "Send synthetic heartbeat and tool result to the loopback gateway"),
-        ("process", "Evaluate a bounded batch; optionally deliver to the local receiver"),
+        ("process", "Evaluate a bounded batch; optionally deliver findings"),
     ):
         command = sub.add_parser(name, help=description)
         # `process` runs either as the configuration's administrator or, for the schedule, in
@@ -590,9 +614,25 @@ def build_parser() -> argparse.ArgumentParser:
             command.add_argument(
                 "--all-tenants",
                 action="store_true",
-                help="Evaluate every active workspace as its scheduled actor; delivers nothing",
+                help=(
+                    "Evaluate every active workspace as its scheduled actor; with --deliver, "
+                    "send its findings"
+                ),
             )
-            command.add_argument("--deliver-local", action="store_true")
+            command.add_argument(
+                "--deliver-local",
+                action="store_true",
+                help=(
+                    "Send findings to the monitoring file's loopback test receiver; refused "
+                    "(FINDINGS_DESTINATIONS_CONFIGURED) where EXECBOUND_RUNTIME_CONFIG names a "
+                    "findings destination"
+                ),
+            )
+            command.add_argument(
+                "--deliver",
+                action="store_true",
+                help="Send findings to the destinations EXECBOUND_RUNTIME_CONFIG names",
+            )
             command.add_argument("--limit", type=int, default=50)
     describe_common(parser)
     return parser
@@ -603,7 +643,10 @@ def _check_process(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     another mode reads: it holds no credential and has no receiver, so a configuration's
     administrator token or its local receiver beside it is refused rather than ignored. A
     limit every workspace would refuse is refused once here, rather than by each workspace
-    while the run exits 0 having done nothing."""
+    while the run exits 0 having done nothing. `--deliver` reads the runtime configuration and
+    is refused beside `--deliver-local`, the loopback receiver's own destination."""
+    if args.deliver and args.deliver_local:
+        parser.error("--deliver takes no --deliver-local")
     if args.all_tenants:
         if args.config is not None or args.deliver_local:
             parser.error("--all-tenants takes no --config or --deliver-local")
@@ -626,6 +669,12 @@ def _check_collect_due(parser: argparse.ArgumentParser, args: argparse.Namespace
         parser.error(f"--per-tenant must be 1 to {MAX_CONNECTIONS}")
     if not 1 <= args.budget_seconds <= 3600:
         parser.error("--budget-seconds must be 1 to 3600")
+
+
+def _check_record_egress(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """`record-egress` takes addresses or `--clear`, never both and never neither."""
+    if bool(args.address) == args.clear:
+        parser.error("give --address, or --clear alone")
 
 
 def _check_reseal(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
@@ -701,6 +750,9 @@ def _collect_due(db: Database, args: argparse.Namespace) -> dict[str, Any]:
         audit_failed=sum(int(outcome.get("audit_failed", 0)) for outcome in outcomes),
         audit_backlog=sum(int(outcome.get("audit_backlog", 0)) for outcome in outcomes),
         audit_bounded=sum(int(outcome.get("audit_bounded", 0)) for outcome in outcomes),
+        # Nor a sign-in read that was refused or stopped at its bound.
+        sign_ins_failed=sum(int(outcome.get("sign_ins_failed", 0)) for outcome in outcomes),
+        sign_ins_sampled=sum(int(outcome.get("sign_ins_sampled", 0)) for outcome in outcomes),
     )
     return report
 
@@ -722,14 +774,43 @@ class _Busy(Exception):
     """Another run holds the connection's lease."""
 
 
-def _process_all(db: Database, limit: int) -> dict[str, Any]:
-    """`process --all-tenants`: the scheduled evaluation in every active workspace (#503)."""
+def _runtime_outbound() -> "Outbound":
+    """The destinations, relay and origin `EXECBOUND_RUNTIME_CONFIG` names, as `--deliver`
+    reads them (#31). A file that cannot be read raises `read_outbound`'s one opaque
+    `ValueError`."""
+    from execbound.surfaces.configuration import read_outbound
+
+    return read_outbound(Path(os.environ["EXECBOUND_RUNTIME_CONFIG"]))
+
+
+def _delivery_refused(tenant: UUID | None = None) -> None:
+    """The one line `process --deliver` logs once it has evaluated without delivery because its
+    runtime configuration did not read (#31), so an operator can tell that from a dependency
+    that did not answer. An evaluation that stops the pass writes none. Under `--all-tenants` a
+    contained per-workspace refusal does not stop it: it is counted in `monitor.process_all`'s
+    `failed`, and this line still follows. The code only; nothing of the file."""
+    fields: dict[str, Any] = {} if tenant is None else {"tenant_id": tenant}
+    log_event(
+        "monitor.delivery_refused",
+        level="ERROR",
+        command="process",
+        code="INVALID_CONFIGURATION",
+        **fields,
+    )
+
+
+def _process_all(db: Database, limit: int, outbound: "Outbound | None" = None) -> dict[str, Any]:
+    """`process --all-tenants`: the scheduled evaluation in every active workspace (#503), and
+    with `--deliver` each workspace's findings routed and sent under its own fence (#31)."""
     from execbound.jobs import every_workspace
     from execbound.monitoring.worker import evaluate_scheduled
 
-    report = every_workspace(
-        db, lambda tenant: evaluate_scheduled(db, tenant, limit=limit), command="process"
-    )
+    def step(tenant: UUID) -> dict[str, int]:
+        # Delivery runs inside the evaluation, before its last step, the purge, so a purge that
+        # fails never keeps the workspace's findings from their destinations (#31, #355).
+        return evaluate_scheduled(db, tenant, limit=limit, outbound=outbound)
+
+    report = every_workspace(db, step, command="process")
     log_event(
         "monitor.process_all",
         count=sum(
@@ -754,6 +835,8 @@ def main() -> None:
         _check_collect_due(parser, args)
     if args.command == "collector-reseal":
         _check_reseal(parser, args)
+    if args.command == "record-egress":
+        _check_record_egress(parser, args)
     try:
         # The plugins EXECBOUND_PLUGINS names, before anything reaches the database, so this
         # process's `check_runtime` expects the dormant grants they claim, as `execbound` does.
@@ -812,10 +895,47 @@ def main() -> None:
             print("Synthetic heartbeat and reported tool result accepted.")
             return
         load_dotenv()
+        if (
+            args.command == "process"
+            and args.deliver
+            and not os.environ.get("EXECBOUND_RUNTIME_CONFIG")
+        ):
+            parser.exit(2, "--deliver needs EXECBOUND_RUNTIME_CONFIG.\n")
+        if (
+            args.command == "process"
+            and args.deliver_local
+            and os.environ.get("EXECBOUND_RUNTIME_CONFIG")
+        ):
+            # Imported here: `execbound.notifications` imports cleanly only once
+            # `execbound.execution` has loaded it, so this module never imports it at the top.
+            from execbound.notifications import FINDINGS
+
+            try:
+                named = _runtime_outbound().destinations
+            except ValueError:
+                named = ()
+            if any(FINDINGS in item.classes for item in named):
+                # A finding is routed once: a loopback run would take every pending one from
+                # the destinations the configuration names (ruling 22).
+                parser.exit(
+                    2,
+                    "--deliver-local refused: FINDINGS_DESTINATIONS_CONFIGURED. This deployment "
+                    "sends findings to the destinations its runtime configuration names; run "
+                    "process --deliver.\n",
+                )
         db = Database(os.environ["DATABASE_URL"])
         try:
             if args.command == "process" and args.all_tenants:
-                print(json.dumps(_process_all(db, args.limit)))
+                try:
+                    outbound = _runtime_outbound() if args.deliver else None
+                except ValueError:
+                    # The jobs service decides `--deliver` when it starts (ruling 21): a file
+                    # that read then and does not now stops no evaluation. The pass evaluates
+                    # without delivery, then fails, so the job still shows the failure.
+                    _process_all(db, args.limit, None)
+                    _delivery_refused()
+                    raise
+                print(json.dumps(_process_all(db, args.limit, outbound)))
                 return
             if args.command == "collector-reseal":
                 from execbound.monitoring import due, sealing
@@ -866,6 +986,18 @@ def main() -> None:
                 )
                 print("Private source credential created.")
                 return
+            if args.command == "deliveries":
+                from execbound.monitoring.worker import list_deliveries
+
+                if args.credential_file.stat().st_size > 1024:
+                    raise ValueError
+                identity = authenticate(
+                    db, args.credential_file.read_text(encoding="utf-8").strip()
+                )
+                listed = list_deliveries(db, identity, state=args.state)
+                # Identifiers, states and codes only: no URL, address or secret is in a row.
+                print(json.dumps([vars(row) for row in listed], default=str))
+                return
             if args.command in {"set-profile", "show-profile"}:
                 if args.credential_file.stat().st_size > 1024:
                     raise ValueError
@@ -890,6 +1022,19 @@ def main() -> None:
                         }
                     )
                 )
+                return
+            if args.command == "record-egress":
+                if args.credential_file.stat().st_size > 1024:
+                    raise ValueError
+                identity = authenticate(
+                    db, args.credential_file.read_text(encoding="utf-8").strip()
+                )
+                # What was recorded, in the form the console shows it; a refusal names nothing
+                # it was given.
+                recorded = set_egress_addresses(
+                    db, identity, args.connection, [] if args.clear else list(args.address)
+                )
+                print(json.dumps({"connection_id": str(args.connection), "addresses": recorded}))
                 return
             if args.command == "accept-reach":
                 if args.credential_file.stat().st_size > 1024 or not 0 <= args.days <= 365:
@@ -1043,17 +1188,28 @@ def main() -> None:
             config = read_private(args.config)
             identity = authenticate(db, config["admin_token"])
             if args.command == "process":
-                from execbound.monitoring.worker import process
+                from execbound.monitoring.worker import local_outbound, process
 
-                receiver = (
-                    LocalReceiver(
-                        f"http://127.0.0.1:{config['receiver_port']}/alerts",
-                        config["receiver_secret"],
+                if args.deliver:
+                    try:
+                        outbound = _runtime_outbound()
+                    except ValueError:
+                        # As for `--all-tenants`: evaluate without delivery, then fail.
+                        process(db, identity, None, limit=args.limit)
+                        _delivery_refused(identity.tenant_id)
+                        raise
+                elif args.deliver_local:
+                    outbound = local_outbound(
+                        LocalReceiver(
+                            f"http://127.0.0.1:{config['receiver_port']}/alerts",
+                            config["receiver_secret"],
+                        ),
+                        identity.tenant_id,
+                        f"http://127.0.0.1:{config['gateway_port']}",
                     )
-                    if args.deliver_local
-                    else None
-                )
-                print(json.dumps(process(db, identity, receiver, limit=args.limit)))
+                else:
+                    outbound = None
+                print(json.dumps(process(db, identity, outbound, limit=args.limit)))
             elif args.command == "serve":
                 from execbound.app import create_app
                 from execbound.runtime import Runtime

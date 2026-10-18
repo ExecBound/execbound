@@ -30,9 +30,10 @@ from test_runtime import runtime as runtime
 from test_scout_run import AGENT_ONE, agent, detailed_scenario
 from test_tines_collection import FIXTURE, KEY, SECRETS, scenario
 
-from execbound.monitoring import collection, due
+from execbound.monitoring import collection, due, worker
 from execbound.monitoring import store as monitor_store
 from execbound.monitoring.models import DetectionProfile
+from execbound.notifications import Destination
 from execbound_harness.fake_tines import BASE_URL, serving, transport
 
 ZERO = "00000000-0000-0000-0000-000000000000"
@@ -302,6 +303,18 @@ def test_the_agent_views_state_their_denominator_and_show_every_path(
         assert any(row["value"] == "allAllowed" and row["inherited"] for row in body["grants"])
         assert any(row["actions"] == [] for row in body["grants"])
         assert body["unresolved"] >= 1
+        # Who drives it (#355): the directory declares its blueprint, and the catalog says what
+        # no network evidence can name.
+        assert [
+            (row["evidence"], row["platform_kind"], row["label"], row["story_ids"])
+            for row in body["drivers"]
+        ] == [("declared", "blueprint", "Agent identity blueprint", [])]
+        assert body["driver_gaps"] == {
+            "catalog_version": "egress.2026-10-18",
+            "unattributable": ["Zapier", "n8n Cloud"],
+            "pending": ["OpenAI", "Power Automate and Logic Apps"],
+        }
+        assert body["agent"]["user_agent_hint"] is None
         assert "person@synthetic.invalid" not in detail.text and "A Person" not in detail.text
         # Another tenant's agent, or no agent at all, is an address that does not exist.
         assert admin.get(API + f"/monitor/agents/{uuid4()}").status_code == 404
@@ -727,3 +740,339 @@ def test_mq14_a_token_cannot_acknowledge_in_bulk(db, runtime, admin_engine, worl
     assert [event["actor_credential_id"] for event in events] == [
         str(backing_credential(admin_engine, token))
     ]
+
+
+def test_mq11_the_snapshot_names_each_findings_destination_and_never_its_address(
+    db, runtime, admin_engine, world, monkeypatch
+):
+    tenant = world["admin"].tenant_id
+    with admin_engine.connect() as conn:
+        space = default_space(conn, tenant)
+        name = conn.execute(
+            text("SELECT name FROM execbound.spaces WHERE tenant_id = :t AND space_id = :s"),
+            {"t": tenant, "s": space},
+        ).scalar_one()
+    monkeypatch.setattr(
+        runtime,
+        "notifications",
+        (
+            Destination(
+                "soc-hook",
+                tenant,
+                "https://alerts.example.net/execbound/hook",
+                "s3cr3t-" + "x" * 32,
+                classes=frozenset({"findings"}),
+                rules=frozenset({"sensitive-action.v2"}),
+                spaces=frozenset({space, uuid4()}),
+            ),
+            Destination(
+                "jane",
+                tenant,
+                "",
+                "",
+                kind="email",
+                to="jane@example.com",
+                classes=frozenset({"approvals", "findings"}),
+            ),
+            Destination("approvals-only", tenant, "https://alerts.example.net/a", "s" * 40),
+            Destination(
+                "elsewhere",
+                uuid4(),
+                "https://alerts.example.net/b",
+                "s" * 40,
+                classes=frozenset({"findings"}),
+            ),
+        ),
+    )
+    with console_client(db, runtime, admin_engine, world["admin"]) as admin:
+        response = admin.get(API + "/monitor")
+    assert response.status_code == 200, response.text
+    assert response.json()["destinations"] == [
+        {
+            "destination_id": "soc-hook",
+            "kind": "webhook",
+            "host": "alerts.example.net",
+            "rules": ["sensitive-action.v2"],
+            "spaces": [{"space_id": str(space), "name": name}],
+            # The workspace-wide administrator reads every Space, so the random id is no
+            # Space of this workspace, not one they cannot see.
+            "other_spaces": 0,
+            "unknown_spaces": 1,
+        },
+        {
+            "destination_id": "jane",
+            "kind": "email",
+            "host": "",
+            "rules": None,
+            "spaces": None,
+            "other_spaces": 0,
+            "unknown_spaces": 0,
+        },
+    ]
+    for private in ("s3cr3t-", "/execbound/hook", "jane@example.com"):
+        assert private not in response.text
+
+
+def test_mq11_a_reader_narrowed_to_one_space_never_sees_another_spaces_name(
+    db, runtime, admin_engine, world, monkeypatch
+):
+    """Ruling 12: every administrator sees every findings destination, and a configured Space
+    by name only where they may read it. An administrator seated in one Space, reading a
+    destination that names two, sees their own by name and the other counted, never its name
+    or its identifier; a destination naming only the other Space is listed with none named.
+    The workspace-wide administrator sees both by name."""
+    tenant = world["admin"].tenant_id
+    narrowed = provision_identity(admin_engine, db, tenant, "ADMIN", world["clock"].now())
+    with admin_engine.begin() as conn:
+        conn.execute(text("SELECT set_config('execbound.tenant_id', :t, true)"), {"t": str(tenant)})
+        own = default_space(conn, tenant)
+        other = make_space(conn, tenant, "Customer B hidden name")
+        seat(conn, tenant, own, narrowed.principal_id, "ADMIN")
+        own_name = conn.execute(
+            text("SELECT name FROM execbound.spaces WHERE tenant_id = :t AND space_id = :s"),
+            {"t": tenant, "s": own},
+        ).scalar_one()
+    url, secret = "https://alerts.example.net/execbound/narrow", "n4rr0w-" + "y" * 32
+    monkeypatch.setattr(
+        runtime,
+        "notifications",
+        (
+            Destination(
+                "both-spaces",
+                tenant,
+                url,
+                secret,
+                classes=frozenset({"findings"}),
+                spaces=frozenset({own, other}),
+            ),
+            Destination(
+                "other-only",
+                tenant,
+                url,
+                secret,
+                classes=frozenset({"findings"}),
+                spaces=frozenset({other}),
+            ),
+        ),
+    )
+    with console_client(db, runtime, admin_engine, narrowed) as reader:
+        response = reader.get(API + "/monitor")
+    assert response.status_code == 200, response.text
+    assert [
+        (d["destination_id"], d["spaces"], d["other_spaces"], d["unknown_spaces"])
+        for d in response.json()["destinations"]
+    ] == [
+        ("both-spaces", [{"space_id": str(own), "name": own_name}], 1, 0),
+        ("other-only", [], 1, 0),
+    ]
+    for private in ("Customer B hidden name", str(other), secret, "/execbound/narrow"):
+        assert private not in response.text, private
+    with console_client(db, runtime, admin_engine, world["admin"]) as admin:
+        everything = admin.get(API + "/monitor")
+    assert everything.status_code == 200, everything.text
+    named = {own: own_name, other: "Customer B hidden name"}
+    assert [
+        (d["destination_id"], d["spaces"], d["other_spaces"], d["unknown_spaces"])
+        for d in everything.json()["destinations"]
+    ] == [
+        (
+            "both-spaces",
+            [{"space_id": str(s), "name": named[s]} for s in sorted((own, other))],
+            0,
+            0,
+        ),
+        ("other-only", [{"space_id": str(other), "name": "Customer B hidden name"}], 0, 0),
+    ]
+    assert secret not in everything.text and "/execbound/narrow" not in everything.text
+
+
+def mistaken_id_destinations(tenant, own, other, mistaken):
+    """Two findings destinations naming a Space id that is no Space of the workspace: one beside
+    the reader's own Space and another, one naming nothing else."""
+    url, secret = "https://alerts.example.net/execbound/mistaken", "m1st4k3n-" + "z" * 32
+    return (
+        Destination(
+            "three-ids",
+            tenant,
+            url,
+            secret,
+            classes=frozenset({"findings"}),
+            spaces=frozenset({own, other, mistaken}),
+        ),
+        Destination(
+            "mistaken-only",
+            tenant,
+            url,
+            secret,
+            classes=frozenset({"findings"}),
+            spaces=frozenset({mistaken}),
+        ),
+    )
+
+
+def test_mq11_a_narrowed_reader_counts_a_mistaken_space_id_as_a_space_they_cannot_see(
+    db, runtime, admin_engine, world, monkeypatch
+):
+    """A configured id that is no Space of this workspace, as a typo, another workspace's Space
+    or a deleted one is, is counted in `other_spaces` for a reader narrowed to Spaces, never
+    apart: telling it from a Space they cannot see would tell them which Spaces exist."""
+    tenant = world["admin"].tenant_id
+    narrowed = provision_identity(admin_engine, db, tenant, "ADMIN", world["clock"].now())
+    mistaken = uuid4()
+    with admin_engine.begin() as conn:
+        conn.execute(text("SELECT set_config('execbound.tenant_id', :t, true)"), {"t": str(tenant)})
+        own = default_space(conn, tenant)
+        other = make_space(conn, tenant, "Customer C hidden name")
+        seat(conn, tenant, own, narrowed.principal_id, "ADMIN")
+    monkeypatch.setattr(
+        runtime, "notifications", mistaken_id_destinations(tenant, own, other, mistaken)
+    )
+    with console_client(db, runtime, admin_engine, narrowed) as reader:
+        response = reader.get(API + "/monitor")
+    assert response.status_code == 200, response.text
+    assert [
+        (
+            d["destination_id"],
+            [space["space_id"] for space in d["spaces"]],
+            d["other_spaces"],
+            d["unknown_spaces"],
+        )
+        for d in response.json()["destinations"]
+    ] == [("three-ids", [str(own)], 2, 0), ("mistaken-only", [], 1, 0)]
+    for private in ("Customer C hidden name", str(other), str(mistaken)):
+        assert private not in response.text, private
+
+
+def test_mq11_a_workspace_wide_reader_sees_a_mistaken_space_id_as_unknown_never_unseen(
+    db, runtime, admin_engine, world, monkeypatch
+):
+    """The workspace-wide administrator reads every Space, so a configured id outside them is no
+    Space of this workspace: it is counted in `unknown_spaces`, and `other_spaces` stays 0. A
+    destination narrowed to such an id alone receives nothing, which Alert settings can say."""
+    tenant = world["admin"].tenant_id
+    mistaken = uuid4()
+    with admin_engine.begin() as conn:
+        conn.execute(text("SELECT set_config('execbound.tenant_id', :t, true)"), {"t": str(tenant)})
+        own = default_space(conn, tenant)
+        other = make_space(conn, tenant, "Customer D")
+    monkeypatch.setattr(
+        runtime, "notifications", mistaken_id_destinations(tenant, own, other, mistaken)
+    )
+    with console_client(db, runtime, admin_engine, world["admin"]) as admin:
+        response = admin.get(API + "/monitor")
+    assert response.status_code == 200, response.text
+    assert [
+        (
+            d["destination_id"],
+            [space["space_id"] for space in d["spaces"]],
+            d["other_spaces"],
+            d["unknown_spaces"],
+        )
+        for d in response.json()["destinations"]
+    ] == [
+        ("three-ids", [str(s) for s in sorted((own, other))], 0, 1),
+        ("mistaken-only", [], 0, 1),
+    ]
+    assert str(mistaken) not in response.text
+
+
+def test_mq11_another_workspaces_space_is_unknown_here_and_never_named(
+    db, runtime, admin_engine, world, seeded, monkeypatch
+):
+    """A configured id that is a real Space of another workspace is no Space of this one. The
+    workspace-wide administrator counts it in `unknown_spaces`, as any mistaken id, and never
+    reads its name or its identifier; a destination naming it alone is listed with no Space."""
+    tenant = world["admin"].tenant_id
+    elsewhere = next(other for other in seeded["tenants"] if other != tenant)
+    with admin_engine.begin() as conn:
+        conn.execute(
+            text("SELECT set_config('execbound.tenant_id', :t, true)"), {"t": str(elsewhere)}
+        )
+        rival = make_space(conn, elsewhere, "Rival Holdings")
+    with admin_engine.connect() as conn:
+        own = default_space(conn, tenant)
+        name = conn.execute(
+            text("SELECT name FROM execbound.spaces WHERE tenant_id = :t AND space_id = :s"),
+            {"t": tenant, "s": own},
+        ).scalar_one()
+    url, secret = "https://alerts.example.net/execbound/rival", "r1v4l-" + "q" * 32
+    monkeypatch.setattr(
+        runtime,
+        "notifications",
+        (
+            Destination(
+                "beside-own",
+                tenant,
+                url,
+                secret,
+                classes=frozenset({"findings"}),
+                spaces=frozenset({own, rival}),
+            ),
+            Destination(
+                "rival-only",
+                tenant,
+                url,
+                secret,
+                classes=frozenset({"findings"}),
+                spaces=frozenset({rival}),
+            ),
+        ),
+    )
+    with console_client(db, runtime, admin_engine, world["admin"]) as admin:
+        response = admin.get(API + "/monitor")
+    assert response.status_code == 200, response.text
+    assert [
+        (d["destination_id"], d["spaces"], d["other_spaces"], d["unknown_spaces"])
+        for d in response.json()["destinations"]
+    ] == [
+        ("beside-own", [{"space_id": str(own), "name": name}], 0, 1),
+        ("rival-only", [], 0, 1),
+    ]
+    for private in ("Rival Holdings", str(rival), "r1v4l-", "/execbound/rival"):
+        assert private not in response.text
+
+
+def test_mq11_the_snapshot_reads_the_names_of_only_the_spaces_a_destination_names(
+    db, runtime, admin_engine, world, monkeypatch
+):
+    """Every reader of the monitoring snapshot pays for its Space names, so it reads only the
+    Spaces a findings destination names, and none where no destination names one, however many
+    Spaces the workspace has."""
+    tenant = world["admin"].tenant_id
+    with admin_engine.begin() as conn:
+        conn.execute(text("SELECT set_config('execbound.tenant_id', :t, true)"), {"t": str(tenant)})
+        own = default_space(conn, tenant)
+        make_space(conn, tenant, "Named by no destination")
+    read = []
+    snapshot = monitor_store.snapshot
+
+    def spy(*args, **kwargs):
+        rows = snapshot(*args, **kwargs)
+        read.append(sorted(str(row["space_id"]) for row in rows["space_names"]))
+        return rows
+
+    monkeypatch.setattr(monitor_store, "snapshot", spy)
+    url, secret = "https://alerts.example.net/execbound/fetch", "f3tch-" + "w" * 32
+    every = Destination("every-space", tenant, url, secret, classes=frozenset({"findings"}))
+    one = Destination(
+        "one-space", tenant, url, secret, classes=frozenset({"findings"}), spaces=frozenset({own})
+    )
+    with console_client(db, runtime, admin_engine, world["admin"]) as admin:
+        for destinations in ((every,), (every, one)):
+            monkeypatch.setattr(runtime, "notifications", destinations)
+            assert admin.get(API + "/monitor").status_code == 200
+    assert read == [[], [str(own)]]
+
+
+def test_mq11_each_listed_delivery_names_its_destination(db, runtime, admin_engine, world):
+    seed_tines(db, world)
+    tenant = world["admin"].tenant_id
+    soc = Destination(
+        "soc", tenant, "http://127.0.0.1:9/alerts", "k" * 32, classes=frozenset({"findings"})
+    )
+    worker.route_findings(db, world["admin"], (soc,), clock=runtime.clock)
+    with console_client(db, runtime, admin_engine, world["admin"]) as admin:
+        view = admin.get(API + "/monitor").json()
+    assert view["deliveries"]
+    assert {row["destination_id"] for row in view["deliveries"]} == {"soc"}
+    assert all(row["state"] == "PENDING" for row in view["deliveries"])

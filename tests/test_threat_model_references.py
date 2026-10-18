@@ -60,12 +60,17 @@ STATUS = re.compile(
     r"^(?P<word>" + "|".join(STATUS_WORDS) + r")(?:, in review)?(?:, see R\d+(?:, R\d+)*)?$"
 )
 
-# One row carries a status that splits across two of those words because the row itself
-# splits. It is recorded verbatim against its row id, so a status of this shape on any other
-# row, or a new wording on this one, fails rather than passing quietly.
+# Some rows carry a status that splits across two of those words because the row itself
+# splits. Each is recorded verbatim against its row id, so a status of this shape on any other
+# row, or a new wording on one of these rows, fails rather than passing quietly.
 COMPOUND_STATUSES = frozenset(
     {
         ("T5.4", "Verified for facts and incidents; Accepted for canonical mapping, see R10"),
+        (
+            "T6.4",
+            "Verified for approval and findings destinations; "
+            "Partial for the security event export",
+        ),
     }
 )
 

@@ -25,7 +25,12 @@ from execbound.execution.models import (
     ExecutionError,
 )
 from execbound.monitoring import store as monitor_store
-from execbound.notifications import APPROVAL_KINDS, MESSAGE_ORDER
+from execbound.notifications import (
+    APPROVAL_KINDS,
+    CLASS_ORDER,
+    MESSAGE_ORDER,
+    announces_approvals,
+)
 from execbound.runtime import Runtime
 from execbound.spaces import space_clause, visible_spaces
 from execbound.surfaces.names import principal_facts
@@ -318,7 +323,8 @@ def tenant_overview(runtime: Runtime, session: Session) -> dict[str, Any]:
         store.identity_check(conn, identity, runtime.clock, "ADMIN")
         check_session(conn, session, runtime.clock)
     # Destinations are configuration, not rows: id, kind, host and how many approvers, never
-    # the URL or the secret.
+    # the URL or the secret. A findings-only destination is listed on Alert settings, not here
+    # (#31).
     destinations = [
         {
             "destination_id": d.destination_id,
@@ -329,9 +335,13 @@ def tenant_overview(runtime: Runtime, session: Session) -> dict[str, Any]:
             "messages": (
                 [m for m in MESSAGE_ORDER if m in d.messages] if d.kind in APPROVAL_KINDS else []
             ),
+            "classes": (
+                [c for c in CLASS_ORDER if c in d.classes] if d.kind in APPROVAL_KINDS else []
+            ),
         }
         for d in runtime.notifications
         if d.tenant_id == identity.tenant_id
+        and (d.kind == "security-events" or announces_approvals(d))
     ]
     delivered = int(delivery["delivered"])
     enough = delivered >= DELIVERY_PERCENTILE_MINIMUM

@@ -17,7 +17,7 @@ from test_monitoring_store import api as api
 from test_monitoring_store import observation
 from test_monitoring_store import setup_monitor as setup_monitor
 
-from execbound.db import SCHEMA_REVISION, check_runtime
+from execbound.db import SCHEMA_REVISION, UnsafeDatabaseRole, check_runtime
 from execbound.monitoring.models import DetectionProfile
 
 TABLES = (
@@ -156,6 +156,8 @@ def test_database_checks_reject_partial_or_forged_observations(
         "state='DELIVERED'",
         "lease_token=gen_random_uuid()",
         "last_error='https://credentials.example'",
+        "destination_id='not an id#'",
+        "state='ROUTED', destination_id='soc'",
     ],
 )
 def test_database_checks_reject_inconsistent_delivery_state(admin_engine, history, assignment):
@@ -217,3 +219,64 @@ def test_non_bypass_owner_cannot_miss_history_behind_forced_rls(admin_engine, hi
             == 0
         )
         outer.rollback()
+
+
+def test_fd15_the_runtime_inserts_a_destination_and_never_updates_one(db, history):
+    source, state = history
+    finding = state["findings"][0]["finding_id"]
+    with db.transaction(source.tenant_id) as conn:
+        conn.execute(
+            text(
+                "INSERT INTO execbound.monitor_deliveries "
+                "(tenant_id, delivery_id, finding_id, destination_id, created_at, next_attempt_at) "
+                "VALUES (:t, :d, :f, 'soc', now(), now())"
+            ),
+            {"t": source.tenant_id, "d": uuid4(), "f": finding},
+        )
+    with (
+        pytest.raises(DBAPIError, match="permission denied"),
+        db.transaction(source.tenant_id) as conn,
+    ):
+        conn.execute(
+            text(
+                "UPDATE execbound.monitor_deliveries SET destination_id = 'other' "
+                "WHERE tenant_id = :t"
+            ),
+            {"t": source.tenant_id},
+        )
+
+
+def test_fd15_one_intent_per_finding_and_one_delivery_per_destination(admin_engine, history):
+    source, state = history
+    finding = state["findings"][0]["finding_id"]
+    insert = text(
+        "INSERT INTO execbound.monitor_deliveries "
+        "(tenant_id, delivery_id, finding_id, destination_id, created_at, next_attempt_at) "
+        "VALUES (:t, gen_random_uuid(), :f, :dest, now(), now())"
+    )
+    with admin_engine.begin() as conn:
+        conn.execute(insert, {"t": source.tenant_id, "f": finding, "dest": "soc"})
+    for destination in (None, "soc"):
+        with pytest.raises(DBAPIError, match="duplicate key"), admin_engine.begin() as conn:
+            conn.execute(insert, {"t": source.tenant_id, "f": finding, "dest": destination})
+
+
+def test_fd15_check_runtime_refuses_a_grant_of_the_destination(db, admin_engine, history):
+    source, _ = history
+    with admin_engine.begin() as conn:
+        conn.execute(
+            text("GRANT UPDATE (destination_id) ON execbound.monitor_deliveries TO execbound_app")
+        )
+    try:
+        with pytest.raises(UnsafeDatabaseRole), db.transaction(source.tenant_id) as conn:
+            check_runtime(conn)
+    finally:
+        with admin_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "REVOKE UPDATE (destination_id) ON execbound.monitor_deliveries "
+                    "FROM execbound_app"
+                )
+            )
+    with db.transaction(source.tenant_id) as conn:
+        check_runtime(conn)

@@ -2,7 +2,18 @@
 import { describe, expect, it } from "vitest";
 
 import type { NotificationDelivery, NotificationDestination } from "../../api/types.gen";
-import { DELIVERY_MULTIPLE, deadlineHint, deliveryWords, durationWords, MESSAGE_LABELS, messageWords } from "./delivery";
+import {
+  announces,
+  approverWords,
+  CLASS_LABELS,
+  classWords,
+  DELIVERY_MULTIPLE,
+  deadlineHint,
+  deliveryWords,
+  durationWords,
+  MESSAGE_LABELS,
+  messageWords,
+} from "./delivery";
 
 function delivery(changes: Partial<NotificationDelivery> = {}): NotificationDelivery {
   return {
@@ -17,8 +28,12 @@ function delivery(changes: Partial<NotificationDelivery> = {}): NotificationDeli
   };
 }
 
-function destination(kind: string, messages: NotificationDestination["messages"] = ["pending"]): NotificationDestination {
-  return { destination_id: kind, kind, host: "", approvers: null, messages };
+function destination(
+  kind: string,
+  messages: NotificationDestination["messages"] = ["pending"],
+  classes: NotificationDestination["classes"] = kind === "security-events" ? [] : ["approvals"],
+): NotificationDestination {
+  return { destination_id: kind, kind, host: "", approvers: null, messages, classes };
 }
 
 const WEBHOOK = [destination("webhook")];
@@ -99,5 +114,41 @@ describe("the deadline hint", () => {
     }
     expect(deadlineHint("200", [], p90)).toBeNull();
     expect(deadlineHint("120", AUDIT, p90)).toBeNull();
+  });
+});
+
+describe("classes (#31)", () => {
+  it("never counts a findings-only destination as announcing approvals", () => {
+    expect(announces([destination("webhook", ["pending"], ["findings"])])).toBe(false);
+    expect(announces([destination("slack", ["pending"], ["approvals", "findings"])])).toBe(true);
+    expect(announces(AUDIT)).toBe(false);
+    // An audit export announces no approval, whatever classes it were listed with.
+    expect(announces([destination("security-events", [], ["approvals"])])).toBe(false);
+  });
+
+  it("names who a destination announces approvals to, and nobody where it receives no approvals", () => {
+    expect(approverWords(destination("webhook"))).toBe("every approver");
+    expect(approverWords({ ...destination("slack"), approvers: 2 })).toBe("2");
+    expect(approverWords(AUDIT_EXPORT)).toBe("None");
+    expect(approverWords({ ...AUDIT_EXPORT, approvers: 1 })).toBe("None");
+    // A findings-only destination announces no approval either, as `announcing` holds.
+    expect(approverWords(destination("webhook", ["pending"], ["findings"]))).toBe("None");
+    // Nor does an audit export listed with approvals: `announcing` checks the kind too.
+    expect(approverWords({ ...destination("security-events", [], ["approvals"]), approvers: 1 })).toBe("None");
+  });
+
+  it("names each class in the server's order, and none for the audit export", () => {
+    expect(CLASS_LABELS).toEqual({ approvals: "Approvals", findings: "Findings" });
+    expect(classWords(destination("webhook", ["pending"], ["approvals", "findings"]))).toBe("Approvals, Findings");
+    expect(classWords(AUDIT_EXPORT)).toBe("None");
+  });
+
+  it("gives no deadline hint for an email destination that receives findings alone", () => {
+    const findings = destination("email", ["pending"], ["findings"]);
+    expect(deadlineHint("120", [findings], NONE)).toBeNull();
+    expect(deadlineHint("120", [...WEBHOOK, findings], NONE)).toBeNull();
+    expect(deadlineHint("120", [...WEBHOOK, destination("email", ["pending"], ["approvals", "findings"])], NONE)).toBe(
+      "Email can arrive after a 2-minute deadline. Approvers who rely on email may not get the message in time.",
+    );
   });
 });

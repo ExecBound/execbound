@@ -46,9 +46,10 @@ from test_scout_run import connect, principal
 
 from execbound import logging_schema
 from execbound.execution.scheduled import ScheduledActor
-from execbound.monitoring import due, graph, reach, store, worker
+from execbound.monitoring import commands, due, graph, reach, store, worker
 from execbound.monitoring.delivery import LocalReceiver
 from execbound.monitoring.models import MonitorError
+from execbound.transports import DELIVERED
 from execbound_harness.fake_graph import serving, transport
 
 pytestmark = pytest.mark.integration
@@ -877,6 +878,14 @@ def test_sr24_every_connection_is_purged_each_pass_however_many_the_workspace_ho
     assert held(admin_engine, tenant) == keep
 
 
+def outbound(tenant):
+    """The loopback receiver as `process --deliver-local` makes it, the workspace's one
+    findings destination; the tests stub its sends."""
+    return worker.local_outbound(
+        LocalReceiver("http://127.0.0.1:8121/alerts", "k" * 32), tenant, "http://127.0.0.1:8000"
+    )
+
+
 def hold_connection(admin_engine, connection_id):
     """A transaction holding the connection's row, as a collection's write holds it."""
     conn = admin_engine.connect()
@@ -912,14 +921,16 @@ def test_sr24_the_purge_passes_over_a_connection_a_collection_holds(
     worker.evaluate_scheduled(db, tenant, clock=clock)
     elapse(admin_engine, tenant, MONTH)
     sent = []
-    monkeypatch.setattr(
-        worker, "send_notification", lambda receiver, delivery, *rest: sent.append(delivery) or True
-    )
-    receiver = LocalReceiver("http://127.0.0.1:8121/alerts", "k" * 32)
+
+    def send(destination, delivery_id, body, client):
+        sent.append(delivery_id)
+        return DELIVERED
+
+    monkeypatch.setattr(worker, "post_signed", send)
     conn, transaction = hold_connection(admin_engine, connections[-1])
     try:
         began = time.monotonic()
-        result = worker.process(db, admin, receiver)
+        result = worker.process(db, admin, outbound(tenant))
         waited = time.monotonic() - began
     finally:
         transaction.rollback()
@@ -929,25 +940,141 @@ def test_sr24_the_purge_passes_over_a_connection_a_collection_holds(
     assert purge(db, tenant, clock) == 2
 
 
-def test_sr24_process_delivers_before_it_purges(db, admins, clock, monkeypatch):
-    """The purge is `process`'s last step, after delivery: a purge that fails never keeps a
-    finding from its delivery."""
+@pytest.mark.parametrize("path", ["all-tenants", "config"])
+def test_sr24_process_delivers_before_it_purges(db, admins, clock, monkeypatch, path):
+    """The purge is the pass's last step, after delivery, on the scheduled `--all-tenants`
+    path with `--deliver` and on an operator's `process --config` alike: a delivery is
+    attempted before the purge removes anything, so a purge that fails never keeps a finding
+    from its delivery."""
     admin = admins[0]
+    tenant = admin.tenant_id
     connection_id = connect(db, admin, clock)
     with serving(directory(entry(clock.value - timedelta(hours=1)))) as server:
         first_read(db, admin, clock, connection_id, server)
-    sent = []
-    monkeypatch.setattr(
-        worker, "send_notification", lambda receiver, delivery, *rest: sent.append(delivery) or True
-    )
+    steps = []
 
-    def failing(*args, **kwargs):
+    def send(destination, delivery_id, body, client):
+        steps.append(("send", destination.tenant_id))
+        return DELIVERED
+
+    def failing(db, actor, **kwargs):
+        steps.append(("purge", actor.tenant_id))
         raise MonitorError()
 
+    monkeypatch.setattr(worker, "post_signed", send)
     monkeypatch.setattr(worker, "purge_audit_observations", failing)
-    with pytest.raises(MonitorError):
-        worker.process(db, admin, LocalReceiver("http://127.0.0.1:8121/alerts", "k" * 32))
-    assert sent
+    if path == "config":
+        with pytest.raises(MonitorError):
+            worker.process(db, admin, outbound(tenant))
+    else:
+        # What `process --all-tenants --deliver` runs once it has read its outbound; every
+        # other active workspace is visited too, so only this one's steps are read.
+        report = commands._process_all(db, 50, outbound(tenant))
+        assert report["tenants"][str(tenant)] == {"skipped": "MONITOR_UNAVAILABLE"}
+    mine = [step for step, workspace in steps if workspace == tenant]
+    assert mine[0] == "send" and mine[-1] == "purge" and mine.count("purge") == 1
+
+
+def aged_habit(db, admin, admin_engine, clock):
+    """A connection whose first read found a habit of three actions, evaluated, then a month
+    passing: the next purge removes the habit's two repeats. The audit observations held now."""
+    tenant = admin.tenant_id
+    connection_id = connect(db, admin, clock)
+    habit = [
+        entry(clock.value - timedelta(hours=1) + n * MINUTE, target=target(n)) for n in (1, 2, 3)
+    ]
+    with serving(directory(*habit)) as server:
+        first_read(db, admin, clock, connection_id, server)
+    worker.evaluate_scheduled(db, tenant, clock=clock)
+    elapse(admin_engine, tenant, MONTH)
+    return held(admin_engine, tenant)
+
+
+def failed_pass(db, admin, path):
+    """One pass with findings delivery on, as an operator's `process --config --deliver` or as
+    `process --all-tenants --deliver`'s step for the workspace, which both fail: their code."""
+    tenant = admin.tenant_id
+    if path == "config":
+        with pytest.raises(MonitorError) as refused:
+            worker.process(db, admin, outbound(tenant))
+        return refused.value.code
+    report = commands._process_all(db, 50, outbound(tenant))
+    return report["tenants"][str(tenant)]["skipped"]
+
+
+@pytest.mark.parametrize("path", ["all-tenants", "config"])
+@pytest.mark.parametrize(
+    ("failing", "code"),
+    [("route_findings", "INVALID_CONFIGURATION"), ("_render", "INVALID_NOTIFICATION")],
+    ids=["routing", "rendering"],
+)
+def test_sr24_a_delivery_that_fails_still_lets_the_purge_run(
+    db, admins, admin_engine, clock, monkeypatch, path, failing, code
+):
+    """Delivery reads no audit observation, so a pass whose routing or delivery fails still
+    purges, once the delivery has been tried, and then fails with the delivery's code, on both
+    paths. A finding that cannot be rendered is refused before it is leased, so it comes first
+    again at every pass: a purge that waited on it would never run again."""
+    admin = admins[0]
+    tenant = admin.tenant_id
+    before = aged_habit(db, admin, admin_engine, clock)
+    steps = []
+    purge_step = worker.purge_audit_observations
+
+    def refusing(*args, **kwargs):
+        # The router is handed the actor, the renderer the destination: each names a workspace.
+        steps.append((failing, args[1 if failing == "route_findings" else 0].tenant_id))
+        raise MonitorError(code)
+
+    def purging(db, actor, **kwargs):
+        steps.append(("purge", actor.tenant_id))
+        return purge_step(db, actor, **kwargs)
+
+    monkeypatch.setattr(worker, failing, refusing)
+    monkeypatch.setattr(worker, "purge_audit_observations", purging)
+    assert failed_pass(db, admin, path) == code
+    assert [step for step, workspace in steps if workspace == tenant] == [failing, "purge"]
+    assert len(before - held(admin_engine, tenant)) == 2
+    if failing == "_render":
+        # Routed, then refused before its lease: waiting, unattempted, for the next pass.
+        with admin_engine.connect() as conn:
+            assert set(
+                conn.execute(
+                    text(
+                        "SELECT state, attempts FROM execbound.monitor_deliveries "
+                        "WHERE tenant_id = :t AND destination_id IS NOT NULL"
+                    ),
+                    {"t": tenant},
+                ).all()
+            ) == {("PENDING", 0)}
+
+
+@pytest.mark.parametrize("path", ["all-tenants", "config"])
+@pytest.mark.parametrize("failing", ["evaluate_pending", "evaluate_actions"])
+def test_sr24_an_evaluation_that_fails_purges_nothing(
+    db, admins, admin_engine, clock, monkeypatch, path, failing
+):
+    """A finding the pass raises cites its observations before the purge removes the uncited
+    ones, so a pass whose evaluation fails, its first step or its last, ends with no purge and
+    the evaluation's code, on both paths, though delivery is on."""
+    admin = admins[0]
+    tenant = admin.tenant_id
+    before = aged_habit(db, admin, admin_engine, clock)
+    purged = []
+    purge_step = worker.purge_audit_observations
+
+    def refusing(*args, **kwargs):
+        raise MonitorError("INVALID_STATE")
+
+    def purging(db, actor, **kwargs):
+        purged.append(actor.tenant_id)
+        return purge_step(db, actor, **kwargs)
+
+    monkeypatch.setattr(worker, failing, refusing)
+    monkeypatch.setattr(worker, "purge_audit_observations", purging)
+    assert failed_pass(db, admin, path) == "INVALID_STATE"
+    assert tenant not in purged
+    assert held(admin_engine, tenant) == before
 
 
 def test_sr24_the_function_deletes_only_what_its_own_conditions_admit(

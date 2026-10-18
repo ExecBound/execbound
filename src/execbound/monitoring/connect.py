@@ -358,7 +358,9 @@ def connection(
             if row is None or not visible_spaces(conn, session).allows(row["space_id"]):
                 raise MonitorError("CONNECTION_UNAVAILABLE")
             requesters = _principal_rows(
-                conn, identity.tenant_id, [row["collect_requested_by"], row["consented_by"]]
+                conn,
+                identity.tenant_id,
+                [row["collect_requested_by"], row["consented_by"], row["egress_recorded_by"]],
             )
             return dict(row), requesters
     except DEPENDENCY_ERRORS:

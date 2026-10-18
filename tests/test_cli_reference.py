@@ -26,8 +26,9 @@ PAGE = Path(__file__).resolve().parents[1] / "docs" / "CLI_REFERENCE.md"
 # Arguments with no help of their own and none shared: 167 on October 5, 2026, 130 on
 # October 7 once the owner administration and bundle commands were described, and 91 on
 # October 9 once the executor key, connector registry, context source and signal source
-# commands were. Lower it as help is written; never raise it.
-WITHOUT_HELP = 91
+# commands were, and 90 on October 18 once `process --deliver-local` was. Lower it as help is
+# written; never raise it.
+WITHOUT_HELP = 90
 
 
 def _arguments() -> list[tuple[str, argparse.Action]]:

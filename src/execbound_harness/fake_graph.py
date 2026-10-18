@@ -42,6 +42,7 @@ from execbound.monitoring.graph import (
     GRAPH_ORIGIN,
     LOGIN_ORIGIN,
     PRINCIPALS_PATH,
+    SIGN_INS_PATH,
 )
 
 DIRECTORY = "11111111-2222-3333-4444-555555555555"
@@ -64,6 +65,11 @@ SKEW = 60
 AUDIT_FILTER = re.compile(
     r"activityDateTime ge (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{6})?Z) "
     r"and loggedByService eq 'Core Directory'"
+)
+# The one filter a service principal sign-in read or its probe may send (#355).
+SIGN_IN_FILTER = re.compile(
+    r"createdDateTime ge (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) "
+    r"and signInEventTypes/any\(t: t eq 'servicePrincipal'\)"
 )
 
 
@@ -222,6 +228,18 @@ class Scenario:
     # Whether a read is served newest first whatever it asked, as a service that ignored
     # `$orderby` would.
     audit_descending: bool = False
+    # Beta `auditLogs/signIns` (#355): the sign-ins the directory's log holds, as Graph writes
+    # them, every field included whatever `$select` asked. A request must name the service
+    # principal filter from a moment, or it is refused with a 400, and is served what matches,
+    # newest first, in pages of `$top` (bounded by `sign_in_max_top`). `sign_in_status` forces a
+    # status for every sign-in request, the probe included, as a directory without P1 or P2, or a
+    # registration refused the log, answers 403; `sign_in_page_status` one for a page a next
+    # link asks for; `sign_in_next_link` replaces the fake's own next link.
+    sign_ins: list[dict[str, Any]] = field(default_factory=list)
+    sign_in_status: int | None = None
+    sign_in_page_status: int | None = None
+    sign_in_next_link: str | None = None
+    sign_in_max_top: int = 1000
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -286,6 +304,9 @@ class _Handler(BaseHTTPRequestHandler):
             return
         if url.path == AUDIT_PATH:
             self._send_audits(query)
+            return
+        if url.path == SIGN_INS_PATH:
+            self._send_sign_ins(query)
             return
         key, records = self.server.records(url.path)
         if key is None:
@@ -457,6 +478,60 @@ class _Handler(BaseHTTPRequestHandler):
             }
             body["@odata.nextLink"] = scenario.audit_next_link or (
                 f"{GRAPH_ORIGIN}{AUDIT_PATH.lower()}?"
+                + urlencode({**following, "$top": top, "$skiptoken": skip + top})
+            )
+        self._send(200, body)
+
+    def _send_sign_ins(self, query: dict[str, str]) -> None:
+        """One page of beta `auditLogs/signIns` filtered to service principals, newest first, as
+        Graph serves it. Its next link spells the path in lower case, as Graph's own example
+        does, and carries the read's filter with an offset as its skip token."""
+        scenario = self.server.scenario
+        forced = scenario.sign_in_status
+        if forced is None and "$skiptoken" in query:
+            forced = scenario.sign_in_page_status
+        if forced is not None:
+            headers = {}
+            if forced == 429 and scenario.retry_after is not None:
+                headers["Retry-After"] = scenario.retry_after
+            self._send(forced, {"error": {"code": "Forced"}}, headers)
+            return
+        matched = SIGN_IN_FILTER.fullmatch(query.get("$filter", ""))
+        if matched is None:
+            self._send(400, {"error": {"code": "Request_UnsupportedQuery"}})
+            return
+        start = datetime.fromisoformat(matched[1].replace("Z", "+00:00"))
+
+        def moment(entry: dict[str, Any]) -> datetime:
+            return datetime.fromisoformat(str(entry["createdDateTime"]).replace("Z", "+00:00"))
+
+        entries = sorted(
+            (
+                entry
+                for entry in scenario.sign_ins
+                if "servicePrincipal" in entry.get("signInEventTypes", [])
+                and moment(entry) >= start
+            ),
+            key=moment,
+            reverse=True,
+        )
+        try:
+            top = min(int(query.get("$top", "1000")), scenario.sign_in_max_top)
+            skip = int(query.get("$skiptoken", "0"))
+        except ValueError:
+            self._send(400, {"error": {"code": "BadRequest"}})
+            return
+        if top < 1 or skip < 0:
+            self._send(400, {"error": {"code": "BadRequest"}})
+            return
+        body: dict[str, Any] = {
+            "@odata.context": f"{GRAPH_ORIGIN}/beta/$metadata#auditLogs/signIns",
+            "value": entries[skip : skip + top],
+        }
+        if skip + top < len(entries):
+            following = {key: value for key, value in query.items() if key in {"$filter"}}
+            body["@odata.nextLink"] = scenario.sign_in_next_link or (
+                f"{GRAPH_ORIGIN}{SIGN_INS_PATH.lower()}?"
                 + urlencode({**following, "$top": top, "$skiptoken": skip + top})
             )
         self._send(200, body)

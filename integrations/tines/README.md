@@ -476,9 +476,9 @@ Tines flow, which matters on Community Edition's three flows.
   like any other.
 - **Source tokens last at most 24 hours when issued from the command line,** so ongoing
   instrumentation needs a daily `rotate-source` and a credential update inside the grace window.
-- **Findings reach only the authenticated loopback receiver today.** Email, Slack, Teams and
-  HTTPS webhook delivery of findings is not built; findings are always visible in
-  the console.
+- **Findings delivery is built, not yet qualified against a real receiver.** Email, Slack,
+  Teams and signed HTTPS webhook destinations receive findings from `monitor-process
+  --deliver`; findings are always visible in the console.
 
 ### Tested against
 

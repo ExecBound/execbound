@@ -95,6 +95,15 @@ SETTLED = """
   );
 }
 """
+# Nothing scrolls sideways: neither the document nor `main`, which scrolls on its own at phone
+# width, so content wider than it pans inside it there without widening the document (#31).
+FITS = """
+() => {
+  const main = document.querySelector('main');
+  return document.documentElement.scrollWidth <= document.documentElement.clientWidth
+    && main.scrollWidth <= main.clientWidth;
+}
+"""
 AXE_RUN = """
 () => axe.run(document, {
   runOnly: {

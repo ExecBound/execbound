@@ -17,12 +17,13 @@ import logging
 import os
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from conftest import local_test_url
 
-from execbound import install, schedule
+from execbound import install, logging_schema, schedule
 
 pytestmark = pytest.mark.integration
 
@@ -229,14 +230,19 @@ def test_a_worker_whose_sessions_the_database_ended_stops_quietly(engine, state,
 def test_a_tick_that_comes_while_the_database_is_down_is_taken_once_it_is_back(
     engine, state, ran, logged
 ):
-    """A tick boundary inside a restart finds nothing listening. `notify` ticks every fifteen
-    seconds, so a restart of a few seconds meets one more often than not. The worker says it
-    could not ask, starts nothing, and asks again on its next pass; until October 2026 the
-    refused connection left `cycle` and the service exited.
+    """A tick boundary inside a restart finds nothing listening. The service's `notify` ticks
+    every fifteen seconds, so a restart of a few seconds meets one more often than not; here
+    `FAST` gives it 120 seconds, and the test puts its clock inside one tick of every job. The
+    worker says it could not ask, starts nothing, and asks again on its next pass; until
+    October 2026 the refused connection left `cycle` and the service exited.
 
     A port nothing listens on refuses the connection exactly as PostgreSQL's own port does
     while the server is stopped."""
-    now = time.time()
+    # Thirty seconds into a tick of every job, so the pass a second later is the same tick:
+    # 1,800 s is the least common multiple of the three intervals. The wall clock alone falls
+    # within a second of a `notify` boundary about once in a hundred runs, and that second pass
+    # then asks about a new tick and logs a second line.
+    now = 1800 * (time.time() // 1800) + 30
     refused = schedule.engine_for(
         local_test_url(os.environ["TEST_DATABASE_URL"], "execbound_app").set(port=1)
     )
@@ -551,14 +557,27 @@ def test_the_jobs_command_schedules_the_drain_from_the_configuration_it_runs_wit
     summaries: list[bool] = []
 
     collects: list[bool] = []
+    delivers: list[bool] = []
 
     def serve(
-        url, *, state, collector, checkpoints, once, limit, mail, notify, weekly_summary, collect
+        url,
+        *,
+        state,
+        collector,
+        checkpoints,
+        once,
+        limit,
+        mail,
+        notify,
+        weekly_summary,
+        collect,
+        deliver,
     ):
         assert checkpoints == schedule.DEFAULT_CHECKPOINTS
         seen.append((mail, notify))
         summaries.append(weekly_summary)
         collects.append(collect)
+        delivers.append(deliver)
         return {}
 
     monkeypatch.setattr(schedule, "serve", serve)
@@ -590,7 +609,39 @@ def test_the_jobs_command_schedules_the_drain_from_the_configuration_it_runs_wit
     monkeypatch.setattr(sys, "argv", ["execbound", "jobs", "--once", "--state", str(state)])
     cli._main()
     assert collects == [False, False, False, False, False, True]
+    # `--deliver` wherever the configuration reads, findings destination or none (ruling 21).
+    assert delivers == [False, True, True, True, True, True]
+    # And none where the variable names a file that does not read.
+    path.write_text("{not json", encoding="utf-8")
+    cli._main()
+    assert delivers[-1] is False
+    # A file nested past the parser's recursion limit, under the size cap, reads as no file
+    # at all: the service starts with nothing it configures, rather than crashing at start.
+    path.write_text(NESTED, encoding="utf-8")
+    cli._main()
+    assert (seen[-1], summaries[-1], delivers[-1]) == ((False, False), False, False)
     capsys.readouterr()
+
+
+# Nested past the JSON parser's recursion limit, and still under the 64 KiB cap a configuration
+# is held to: parsing it raises `RecursionError`, which is neither `OSError` nor `ValueError`.
+NESTED = "[" * 20_000 + "]" * 20_000
+
+
+def test_a_configuration_nested_past_the_recursion_limit_answers_no_at_start(tmp_path):
+    """Every reader the jobs service asks when it starts answers no for a file whose parse
+    raises `RecursionError`, as for any other file that does not read, so the service starts
+    instead of crashing at start and restarting into the same crash."""
+    path = tmp_path / "nested.json"
+    path.write_text(NESTED, encoding="utf-8")
+    assert path.stat().st_size <= 65536
+    for reader in (
+        schedule.mail_configured,
+        schedule.weekly_summary_configured,
+        schedule.destinations_configured,
+        schedule.runtime_configured,
+    ):
+        assert reader(path) is False, reader.__name__
 
 
 TENANT = "00000000-0000-4000-8000-000000000001"
@@ -727,3 +778,83 @@ def test_ay14_a_timed_out_job_is_stopped_by_its_own_handle(engine, state, monkey
         record.execbound["event"] for record in caplog.records if hasattr(record, "execbound")
     ]
     assert "job.timed_out" in events
+
+
+def test_fd14_monitor_process_delivers_wherever_a_runtime_configuration_reads(tmp_path, state):
+    installed = install.install(tmp_path / "install", telemetry=False)
+    path = installed.directory / "private" / "gateway.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    assert schedule.runtime_configured(None) is False
+    assert schedule.runtime_configured(tmp_path / "absent.json") is False
+    # A fresh installation names no destination at all, and still routes (ruling 21).
+    assert schedule.runtime_configured(path) is True
+    for classes in (None, ["approvals"], ["findings"], ["approvals", "findings"]):
+        item = destination("webhook") | ({} if classes is None else {"classes": classes})
+        path.write_text(json.dumps({**document, "notifications": [item]}), encoding="utf-8")
+        assert schedule.runtime_configured(path) is True, classes
+    path.write_text("{not json", encoding="utf-8")
+    assert schedule.runtime_configured(path) is False
+    # A path that cannot be read as a file, whoever the tests run as.
+    assert schedule.runtime_configured(tmp_path) is False
+    assert schedule.jobs_for(False) == schedule.JOBS
+    delivering = schedule.jobs_for(False, deliver=True)
+    assert schedule.MONITOR not in delivering and schedule.MONITOR_DELIVER in delivering
+    assert (schedule.MONITOR_DELIVER.name, schedule.MONITOR_DELIVER.key) == (
+        schedule.MONITOR.name,
+        schedule.MONITOR.key,
+    )
+    assert len({job.key for job in delivering}) == len(delivering)
+    # The same job in every other respect: name, lock, interval, file and log.
+    assert replace(schedule.MONITOR_DELIVER, deliver=False) == schedule.MONITOR
+    assert "--deliver" not in schedule.argv(schedule.MONITOR, state)
+    assert schedule.argv(schedule.MONITOR_DELIVER, state)[-3:] == ["--limit", "50", "--deliver"]
+
+
+def test_fd14_a_file_process_deliver_would_refuse_gets_no_deliver(tmp_path):
+    """`runtime_configured` reads the file as `process --deliver` reads it (`read_outbound`),
+    not only as `mail_configured` parses it. A file that parses but whose origin or
+    destinations `--deliver` refuses gets no `--deliver`: the scheduled pass would otherwise
+    stop at that refusal before it evaluated anything (ruling 21)."""
+    from execbound.surfaces.configuration import read_configuration
+
+    installed = install.install(tmp_path / "install", telemetry=False)
+    path = installed.directory / "private" / "gateway.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    hook = destination("webhook")
+    for label, refused in (
+        ("cleartext origin", {**document, "origin": "http://console.example.net"}),
+        ("origin with a path", {**document, "origin": "https://console.example.net/console"}),
+        ("one destination id twice", {**document, "notifications": [hook, hook]}),
+    ):
+        path.write_text(json.dumps(refused), encoding="utf-8")
+        # It parses and validates, which is all `mail_configured` asks of it.
+        read_configuration(path)
+        assert schedule.runtime_configured(path) is False, label
+
+
+def test_fd14_serve_runs_monitor_process_with_deliver_only_when_told(state, monkeypatch, logged):
+    """`serve(deliver=True)` runs `monitor-process` with `--deliver` under the job's one name
+    and lock, and without it runs the plain job (ruling 21). `jobs.started` says which, so a
+    runtime configuration that does not read is never a silent switch-off."""
+    vectors: list[list[str]] = []
+    real = schedule.argv
+
+    def recording(job, state, *, limit=50, collector=None, checkpoints=None):
+        if job.name == schedule.MONITOR.name:
+            assert job.key == schedule.MONITOR.key
+            vectors.append(
+                real(job, state, limit=limit, collector=collector, checkpoints=checkpoints)
+            )
+        return [sys.executable, "-c", "pass"]
+
+    monkeypatch.setattr(schedule, "argv", recording)
+    url = local_test_url(os.environ["TEST_DATABASE_URL"], "execbound_app")
+    for deliver in (False, True):
+        outcomes = schedule.serve(url, state=state, once=True, notify=False, deliver=deliver)
+        # Every other job is scheduled as before, the hourly audit-chain check among them.
+        assert outcomes == {"recover": 0, "monitor-process": 0, "audit-verify": 0}
+    assert ["--deliver" in vector for vector in vectors] == [False, True]
+    started = [event for event in logged() if event["event"] == "jobs.started"]
+    assert [(event["count"], event["deliver"]) for event in started] == [(3, False), (3, True)]
+    # A field the schema registers, or the formatter would suppress the whole line.
+    assert all(set(event) <= logging_schema.FIELDS for event in started)

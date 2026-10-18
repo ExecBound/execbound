@@ -23,9 +23,11 @@ reserves or refunds, and no execution privilege is used.
 
 import base64
 import hashlib
+import ipaddress
 import json
 import re
-from collections.abc import Iterator, Sequence
+import time
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -44,9 +46,10 @@ from execbound_connectors.graph import LOGIN_ORIGIN as LOGIN_ORIGIN
 from execbound.db import Database
 from execbound.execution.scheduled import ScheduledActor
 from execbound.identity import Identity
-from execbound.monitoring import activity_map, ai_publishers, store
+from execbound.monitoring import activity_map, ai_publishers, drivers, egress, store
 from execbound.monitoring.models import MonitorError
 from execbound.resolution.models import Clock, SystemClock
+from execbound.secrets import secret_shaped
 
 MAX_BODY = 4 * 1024 * 1024
 TIMEOUT = 10.0
@@ -134,6 +137,34 @@ AUDIT_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 AUDIT_OUTCOMES = {"success": "success", "failure": "error"}
 # What a read counts besides the entries it maps.
 AUDIT_COUNTS = ("read", "mapped", "unmapped", "user", "unattributed", "dropped")
+# Service principal sign-ins (#355), documented on beta only: what network a principal signs in
+# from, read after the audit log. Losing the read degrades driver evidence and nothing else.
+SIGN_INS_PATH = "/beta/auditLogs/signIns"
+SIGN_IN_FILTER = "createdDateTime ge {start} and signInEventTypes/any(t: t eq 'servicePrincipal')"
+# The fields asked for. The parser still takes only what it reads, whatever Graph sends.
+SIGN_IN_SELECT = "id,createdDateTime,servicePrincipalId,ipAddress,userAgent,status"
+SIGN_IN_PAGE_SIZE = 500
+MAX_SIGN_IN_PAGES = 4
+# How far back a connection's first read looks, and how far behind its moment a read leaves the
+# cursor for sign-ins Graph makes available late, as for the audit log.
+SIGN_IN_LOOKBACK = timedelta(days=30)
+SIGN_IN_OVERLAP = timedelta(minutes=30)
+# How far ahead of the read a sign-in may be stamped and still be kept, at the read's moment.
+SIGN_IN_AHEAD = timedelta(minutes=5)
+# How far back the capability probe asks: a sign-in read without a time range may time out.
+SIGN_IN_PROBE = timedelta(days=1)
+SIGN_IN_COUNTS = ("read", "matched", "unmatched", "failed", "unattributed", "dropped")
+# Capability states for which no read is made: the registration is refused the log, the beta
+# endpoint is gone, or the directory has no Microsoft Entra ID P1 or P2.
+NO_SIGN_INS = frozenset({"forbidden", "unsupported", "unlicensed"})
+# A user agent's leading product token, the only part of it kept: a name and an optional version.
+PRODUCT = re.compile(r"[A-Za-z][A-Za-z0-9._-]{0,47}(/[A-Za-z0-9._-]{1,32})?")
+# The identity and access reports, which share one budget per app per tenant: five requests in
+# any ten seconds. A run waits for the window rather than be throttled, at most this long in all.
+REPORTS_PREFIXES = ("/v1.0/auditLogs/", "/beta/auditLogs/")
+REPORTS_LIMIT = 5
+REPORTS_WINDOW = 10.0
+REPORTS_WAIT = 12.0
 GRANTS_PATH = "/v1.0/oauth2PermissionGrants"
 BLUEPRINTS_PATH = "/v1.0/applications/microsoft.graph.agentIdentityBlueprint"
 AGENT_CAST = "/microsoft.graph.agentIdentity"
@@ -154,6 +185,8 @@ CAPABILITIES = (
     "directory_roles",
     # The directory's audit log (#355), which `AuditLog.Read.All` grants.
     "audit_log",
+    # Service principal sign-ins (#355), beta: driver evidence only, never a run's outcome.
+    "sign_ins",
 )
 # The two collections that list principals, read in this order: a collection takes a baseline
 # only when it read both.
@@ -215,6 +248,47 @@ def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _constant(value: str) -> Any:
     raise ValueError
+
+
+class Pace:
+    """One run's share of the identity and access reports budget (#355).
+
+    Graph allows five reports requests in any ten seconds per app per tenant, across the audit log
+    and sign-ins. A sixth inside the window waits until the oldest leaves it, so the run is paced
+    rather than throttled; the waits a run makes are at most `REPORTS_WAIT` in all, and a request
+    that would need more is refused `PACED` without being sent, which ends only the read it was
+    part of.
+    """
+
+    def __init__(
+        self,
+        monotonic: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self._monotonic = monotonic
+        self._sleep = sleep
+        self._sent: list[float] = []
+        self.waited = 0.0
+
+    def _window(self) -> float:
+        now = self._monotonic()
+        self._sent = [moment for moment in self._sent if now - moment < REPORTS_WINDOW]
+        return now
+
+    def before(self) -> None:
+        now = self._window()
+        if len(self._sent) >= REPORTS_LIMIT:
+            wait = self._sent[0] + REPORTS_WINDOW - now
+            if self.waited + wait > REPORTS_WAIT:
+                raise GraphError("PACED")
+            self._sleep(wait)
+            self.waited += wait
+            now = self._window()
+        self._sent.append(now)
+
+
+# What makes each run's pacer; the tests give every run a clock of its own that never sleeps.
+PACER: Callable[[], Pace] = Pace
 
 
 def _guid(value: object) -> str | None:
@@ -612,6 +686,7 @@ class Reader:
         *,
         app: PlatformApp | None = None,
         clock: Clock = SYSTEM_CLOCK,
+        pace: Pace | None = None,
     ) -> None:
         if (secret is None) == (app is None):
             raise GraphError("INVALID_INPUT")
@@ -622,6 +697,7 @@ class Reader:
         self._clock = clock
         self._client = client
         self._token: str | None = None
+        self._pace = pace if pace is not None else PACER()
 
     def _credential(self, endpoint: str) -> dict[str, str]:
         if self._app is not None:
@@ -672,6 +748,9 @@ class Reader:
         refusing a delta link, as it does an expired token, which only a new link answers."""
         if self._token is None:
             raise GraphError("AUTH_LOST")
+        if path.startswith(REPORTS_PREFIXES):
+            # Before the request, so a refused one is never sent.
+            self._pace.before()
         try:
             with self._client.stream(
                 "GET",
@@ -1257,6 +1336,220 @@ def collect_audit(
     return result
 
 
+def user_agent_hint(value: object) -> str | None:
+    """A sign-in's user agent as Scout keeps it: its leading product token alone, such as
+    `python-requests/2.31.0`, and nothing after it. A client chooses its own user agent, so this is
+    a hint shown beside the actor and never evidence of anything. None for a value that does not
+    begin with a product token, or whose token is shaped like a secret, an address or a mailbox:
+    what follows a token, where a host, a version string or an address may sit, is never kept.
+    """
+    if type(value) is not str or len(value) > 512:
+        return None
+    text = value.strip()
+    found = PRODUCT.match(text)
+    if found is None:
+        return None
+    token = found.group(0)
+    if len(text) > len(token) and text[len(token)] not in " (;":
+        return None
+    name = token.split("/", 1)[0]
+    try:
+        ipaddress.ip_address(name)
+        return None
+    except ValueError:
+        pass
+    if "@" in token or secret_shaped(token):
+        return None
+    return token
+
+
+def _address(value: object) -> str | None:
+    """A sign-in's address in canonical form, an IPv4 address mapped into IPv6 as the IPv4 one, or
+    None. It lives only as long as the match it is read for."""
+    if type(value) is not str or len(value) > 64:
+        return None
+    try:
+        parsed = ipaddress.ip_address(value.strip())
+    except ValueError:
+        return None
+    mapped = parsed.ipv4_mapped if isinstance(parsed, ipaddress.IPv6Address) else None
+    return str(mapped or parsed)
+
+
+@dataclass
+class SignInRead:
+    """One bounded read of service principal sign-ins: for each principal and platform its sign-
+    ins matched, the first and last moment; each principal's newest user agent hint; the counts;
+    whether the read reached its window's end; and the refusal that stopped it. No address is
+    held: each is matched and dropped as it is read."""
+
+    matches: dict[tuple[str, str], tuple[datetime, datetime]] = field(default_factory=dict)
+    hints: dict[str, tuple[datetime, str]] = field(default_factory=dict)
+    counts: dict[str, int] = field(default_factory=lambda: dict.fromkeys(SIGN_IN_COUNTS, 0))
+    complete: bool = False
+    pages: int = 0
+    error: str | None = None
+
+
+def _seen(found: SignInRead, key: tuple[str, str], moment: datetime) -> None:
+    first, last = found.matches.get(key, (moment, moment))
+    found.matches[key] = (min(first, moment), max(last, moment))
+
+
+def read_sign_ins(
+    reader: Reader,
+    start: datetime,
+    *,
+    now: datetime,
+    tines: dict[str, tuple[str, ...]],
+    catalog: egress.Catalog = egress.PRODUCTION,
+) -> SignInRead:
+    """Service principal sign-ins from `start`, newest first as Graph serves them, in at most
+    `MAX_SIGN_IN_PAGES` pages, read at `now`.
+
+    Each successful sign-in by a service principal is matched in memory: its address against the
+    egress catalog's stable platforms (`egress:<key>`) and against the Space's recorded Tines
+    egress addresses (`tines`, an address to the Tines connections that recorded it). Only the
+    match is kept. A failed sign-in, one with no principal and one stamped more than
+    `SIGN_IN_AHEAD` after `now` are counted and matched to nothing, and a moment after `now` is
+    kept as `now`. A next link is followed only on the pinned origin and the sign-ins path, in
+    either case; one that is not stops the read after the page it came with (`MALFORMED`), and any
+    other refusal, the pacer's included, stops it before the page it refused, keeping what the
+    pages before it matched.
+    """
+    found = SignInRead()
+    query: dict[str, Any] = {
+        "$filter": SIGN_IN_FILTER.format(start=_filter_moment(_second(start))),
+        "$select": SIGN_IN_SELECT,
+        "$top": SIGN_IN_PAGE_SIZE,
+    }
+    for _ in range(MAX_SIGN_IN_PAGES):
+        try:
+            body = reader.get(SIGN_INS_PATH, query)
+            records = body.get("value")
+            if not isinstance(records, list):
+                raise GraphError("MALFORMED")
+        except GraphError as error:
+            found.error = error.code
+            return found
+        found.pages += 1
+        for record in records:
+            found.counts["read"] += 1
+            moment = _moment(record.get("createdDateTime")) if isinstance(record, dict) else None
+            if moment is None or moment > now + SIGN_IN_AHEAD:
+                found.counts["dropped"] += 1
+                continue
+            moment = min(moment, now)
+            actor = _guid(record.get("servicePrincipalId"))
+            if actor is None:
+                found.counts["unattributed"] += 1
+                continue
+            actor = actor.lower()
+            status = record.get("status")
+            code = status.get("errorCode") if isinstance(status, dict) else None
+            if type(code) is not int or code != 0:
+                found.counts["failed"] += 1
+                continue
+            hint = user_agent_hint(record.get("userAgent"))
+            if hint is not None and moment >= found.hints.get(actor, (moment, ""))[0]:
+                found.hints[actor] = (moment, hint)
+            address = _address(record.get("ipAddress"))
+            refs = []
+            if address is not None:
+                platform = catalog.match(address)
+                if platform is not None:
+                    refs.append(f"egress:{platform.key}")
+                refs += [f"tines:{connection}" for connection in tines.get(address, ())]
+            if not refs:
+                found.counts["unmatched"] += 1
+                continue
+            found.counts["matched"] += 1
+            for ref in refs:
+                _seen(found, (actor, ref), moment)
+        link = body.get("@odata.nextLink")
+        if link is None:
+            found.complete = True
+            return found
+        try:
+            query = _continuation(link, SIGN_INS_PATH, fold=True)
+        except GraphError as error:
+            found.error = error.code
+            return found
+    return found
+
+
+def collect_sign_ins(
+    db: Database,
+    actor: Identity | ScheduledActor,
+    connection_id: UUID,
+    reader: Reader,
+    capability: str | None,
+    *,
+    clock: Clock = SYSTEM_CLOCK,
+    lease: UUID | None = None,
+) -> dict[str, Any]:
+    """Read the directory's service principal sign-ins from the connection's cursor and keep what
+    they establish about who drives its actors (#355). Counts and codes only.
+
+    A capability the probe found `forbidden`, `unsupported` or `unlicensed` is not asked, and its
+    state is the read's. The cursor is read beside the Space's recorded Tines egress, and a read
+    from no cursor, the first or the one after egress is recorded, looks back `SIGN_IN_LOOKBACK`.
+    A read that reached its window's end (`complete`) or its bound (`sampled`, since Graph serves
+    the newest first and the rest of the window is not read, or by the run's reports budget after
+    its first page) leaves the cursor at its moment less `SIGN_IN_OVERLAP`, or at the earliest
+    match for a principal the inventory does not hold yet, no further back than
+    `SIGN_IN_LOOKBACK`; one Graph refused, or the pacer before its first page (`failed`), leaves
+    it where it was, keeping what it matched. It never moves back. The read is matched against
+    the Tines egress the Space recorded when it began; if that has changed by the time it is
+    written, its Tines matches are dropped and the cursor is left, so the next read matches what
+    is recorded now. Nothing here changes the run's outcome, schedule or health.
+    """
+    result: dict[str, Any] = {
+        "state": "not_read",
+        "error_code": None,
+        **dict.fromkeys(SIGN_IN_COUNTS, 0),
+        "pages": 0,
+        "network": 0,
+        "joined": 0,
+        "unknown_actor": 0,
+        "stale": 0,
+    }
+    if capability in NO_SIGN_INS:
+        result["state"] = capability
+        return result
+    now = clock.now()
+    # The cursor as it stands beside the recorded egress, not as the run found it when it
+    # began: egress recorded since has cleared it, and the read then looks back again.
+    recorded = drivers.space_egress(db, actor, connection_id, clock=clock, lease=lease)
+    start = recorded.cursor if recorded.cursor is not None else now - SIGN_IN_LOOKBACK
+    found = read_sign_ins(reader, start, now=now, tines=recorded.addresses)
+    result.update(found.counts)
+    result["pages"] = found.pages
+    # The run's own reports budget stopping a read that had begun is its bound, not a refusal:
+    # what it read is the newest, so the cursor moves on as for a read stopped by its pages.
+    sampled = found.error == "PACED" and found.pages > 0
+    moved = None if found.error and not sampled else _second(now - SIGN_IN_OVERLAP)
+    kept = drivers.apply_sign_ins(
+        db,
+        actor,
+        connection_id,
+        found.matches,
+        found.hints,
+        recorded=recorded,
+        cursor=moved,
+        oldest=_second(now - SIGN_IN_LOOKBACK),
+        clock=clock,
+        lease=lease,
+    )
+    result.update(kept)
+    result["error_code"] = found.error
+    if found.error and not sampled:
+        result["state"] = "failed"
+    else:
+        result["state"] = "complete" if found.complete else "sampled"
+    return result
+
+
 def _retry_after(headers: httpx.Headers) -> int | None:
     value = headers.get("Retry-After")
     if value is None or not value.strip().isdigit():
@@ -1278,6 +1571,17 @@ def probe(reader: Reader, now: datetime) -> dict[str, dict[str, Any]]:
         "grants": lambda: reader.get(GRANTS_PATH, {"$top": 1}),
         "directory_roles": lambda: reader.get(ROLES_PATH, {}),
         "audit_log": lambda: reader.get(AUDIT_PATH, {"$top": 1}),
+        # The read's own filter over the last day: a probe without a time range may time out.
+        "sign_ins": lambda: reader.get(
+            SIGN_INS_PATH,
+            {
+                "$filter": SIGN_IN_FILTER.format(
+                    start=_filter_moment(_second(now - SIGN_IN_PROBE))
+                ),
+                "$select": SIGN_IN_SELECT,
+                "$top": 1,
+            },
+        ),
     }
     result: dict[str, dict[str, Any]] = {}
     for name, call in probes.items():
@@ -1288,8 +1592,23 @@ def probe(reader: Reader, now: datetime) -> dict[str, dict[str, Any]]:
             state = {"FORBIDDEN": "forbidden", "UNSUPPORTED": "unsupported"}.get(
                 error.code, "unknown"
             )
+        if name == "sign_ins" and state == "forbidden":
+            state = sign_ins_refused(result["audit_log"]["state"])
         result[name] = {"state": state, "at": now.isoformat()}
     return result
+
+
+def sign_ins_refused(audit_log: str) -> str:
+    """What a sign-in read Graph refuses outright says, by what the audit log's probe said.
+
+    Both need `AuditLog.Read.All`, and sign-ins also Microsoft Entra ID P1 or P2. So a refusal
+    while the audit log is available is the directory's licence (`unlicensed`), one while the
+    audit log is refused too is the registration's (`forbidden`), and one while the audit log could
+    not be told is `unknown`. The response body, which names the reason, is never read. A beta
+    capability is therefore never `forbidden` unless the audit log is, and losing it never makes
+    a connection read as incomplete.
+    """
+    return {"available": "unlicensed", "forbidden": "forbidden"}.get(audit_log, "unknown")
 
 
 def verify_directory(reader: Reader) -> str | None:
@@ -1689,8 +2008,10 @@ def run(
     platform `app`, and only when the row names that app's client id. `lease` is the
     connection's lease, which every write of the run proves (`due.claim`); a run whose lease is
     gone, or whose connection was revoked, stops at its next write. Once the directory's
-    principals are written, the run reads its audit log (`collect_audit`), whose refusal never
-    changes the run's outcome.
+    principals are written and its agent rules run, the run records who the directory declares
+    drives each actor (`drivers.derive_declared`), then reads its audit log (`collect_audit`) and
+    its service principal sign-ins (`collect_sign_ins`), neither of whose refusals changes the
+    run's outcome.
     """
     run_id = uuid4()
     row = store.load_connection(db, actor, connection_id, lease=lease)
@@ -1717,6 +2038,8 @@ def run(
         "directory": "unverified",
         "delta": "unavailable",
         "audit": {"state": "not_read"},
+        "sign_ins": {"state": "not_read"},
+        "drivers": {"declared": 0, "gone": 0},
         "outcome": "COMPLETE",
     }
     outcome = "COMPLETE"
@@ -1776,6 +2099,10 @@ def run(
             clock=clock,
             lease=lease,
         )
+        # Who the directory itself says drives each actor, from what the store now holds.
+        result["drivers"] = drivers.derive_declared(
+            db, actor, connection_id, clock=clock, lease=lease
+        )
         if link is not None:
             store.record_delta(db, actor, connection_id, link, clock=clock, lease=lease)
             result["delta"] = "taken"
@@ -1788,6 +2115,16 @@ def run(
             reader,
             row,
             capabilities["audit_log"]["state"],
+            clock=clock,
+            lease=lease,
+        )
+        # Then the network its principals sign in from, which never changes the outcome either.
+        result["sign_ins"] = collect_sign_ins(
+            db,
+            actor,
+            connection_id,
+            reader,
+            capabilities["sign_ins"]["state"],
             clock=clock,
             lease=lease,
         )
@@ -1835,8 +2172,8 @@ def run_delta(
     changes the connection's health. A resync, a link that is not the pinned read and a round
     past its bounds drop the link for the next full collection to replace; any other refusal
     from Graph, a page that cannot be read among them, keeps it and, arriving before the first
-    write, writes nothing. A pass that completes then reads the directory's audit log as a full
-    collection does, unless the last probe found it refused.
+    write, writes nothing. A pass that completes then reads the directory's audit log and its
+    sign-ins as a full collection does, unless the last probe found either refused.
     """
     row = store.load_connection(db, actor, connection_id, lease=lease)
     if row["kind"] != "entra_agent_id" or row["delta_link"] is None or row["baseline_at"] is None:
@@ -1852,6 +2189,8 @@ def run_delta(
         "dropped": 0,
         "deferred": 0,
         "audit": {"state": "not_read"},
+        "sign_ins": {"state": "not_read"},
+        "drivers": {"declared": 0, "gone": 0},
     }
 
     def resync(code: str) -> dict[str, Any]:
@@ -1932,6 +2271,9 @@ def run_delta(
         result["findings"] = store.evaluate_agents(
             db, actor, connection_id, full=False, clock=clock, lease=lease
         )
+        result["drivers"] = drivers.derive_declared(
+            db, actor, connection_id, clock=clock, lease=lease
+        )
         store.record_delta(db, actor, connection_id, found.link, clock=clock, lease=lease)
         result["link"] = "advanced"
         # Then the audit log, under what the last probe established, and never changing the
@@ -1939,6 +2281,10 @@ def run_delta(
         audit = capabilities.get("audit_log") or {}
         result["audit"] = collect_audit(
             db, actor, connection_id, reader, row, audit.get("state"), clock=clock, lease=lease
+        )
+        sign_ins = capabilities.get("sign_ins") or {}
+        result["sign_ins"] = collect_sign_ins(
+            db, actor, connection_id, reader, sign_ins.get("state"), clock=clock, lease=lease
         )
     except GraphError as error:
         result["outcome"] = {"AUTH_LOST": "AUTH_LOST", "RATE_LIMITED": "RATE_LIMITED"}.get(

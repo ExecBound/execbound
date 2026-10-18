@@ -120,6 +120,10 @@ export function connection(changes: Partial<MonitorConnection> = {}): MonitorCon
     consented_at: null,
     consented_by: null,
     consent_needs_update: false,
+    sign_in_cursor: null,
+    egress_addresses: [],
+    egress_recorded_at: null,
+    egress_recorded_by: null,
     ...changes,
   };
 }
@@ -152,6 +156,7 @@ export function snapshot(changes: Partial<MonitorSnapshot> = {}): MonitorSnapsho
     observations: [],
     findings: [OBSERVED],
     deliveries: [],
+    destinations: [],
     profile: null,
     open_findings: 1,
     ...changes,
@@ -202,6 +207,8 @@ export function agentDetail(changes: Partial<MonitorAgentDetail["agent"]> = {}):
       linked_principal_ref: null,
       first_seen_at: "2026-09-19T05:00:00+00:00",
       observed_at: "2026-09-19T05:00:00+00:00",
+      user_agent_hint: null,
+      user_agent_seen_at: null,
       ...changes,
     },
     grants: [],
@@ -211,5 +218,7 @@ export function agentDetail(changes: Partial<MonitorAgentDetail["agent"]> = {}):
     ],
     observations: [],
     unresolved: 0,
+    drivers: [],
+    driver_gaps: { catalog_version: "egress.2026-10-18", unattributable: ["Zapier", "n8n Cloud"], pending: ["OpenAI"] },
   };
 }

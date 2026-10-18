@@ -17,10 +17,11 @@ from test_monitoring_store import admins as admins
 from test_monitoring_store import api as api
 from test_monitoring_store import observation
 from test_monitoring_store import setup_monitor as setup_monitor
+from test_monitoring_worker import deliver_local
 from test_monitoring_worker import receiver as receiver
 
 from execbound.db import TABLES, check_runtime
-from execbound.monitoring import commands, worker
+from execbound.monitoring import commands
 from execbound.monitoring import store as monitor_store
 from execbound.monitoring.models import DetectionProfile, MonitorError
 
@@ -311,7 +312,7 @@ def test_rs11_delivery_and_pages_carry_the_rule_and_profile_versions(
     store.set_profile(db, admins[0], profile(sensitive_actions=["ticket.close"]), clock=clock)
     ingest_many(store, db, source, models, clock, [("close", {"action": "ticket.close"})])
     assert store.evaluate_pending(db, admins[0], clock=clock) == 1
-    assert worker.deliver_pending(db, admins[0], local, clock=clock) == 1
+    assert deliver_local(db, admins[0], local, clock) == 1
     [delivered] = list(output.glob("*.json"))
     payload = json.loads(delivered.read_text(encoding="utf-8"))
     assert payload["rule_version"] == SENSITIVE and payload["profile_version"] == "1"

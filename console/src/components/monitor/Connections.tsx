@@ -13,7 +13,7 @@ import { Definition, Definitions } from "../ui/Definitions";
 import { EmptyState } from "../ui/EmptyState";
 import { Table, Td, Th } from "../ui/Table";
 import { Time } from "../ui/Time";
-import { modeWords, UNCONFIGURED, useConnectOptionsQuery } from "./connect";
+import { capabilityName, modeWords, UNCONFIGURED, useConnectOptionsQuery } from "./connect";
 import { ConnectionActions, type PlatformApp } from "./ConnectionActions";
 import { MonitorSetup } from "./MonitorSetup";
 import { isQuietConnection, isQuietSource } from "./quiet";
@@ -389,7 +389,7 @@ export function Connections({
                   ) : (
                     capabilities.map(([name, value]) => (
                       <tr key={name}>
-                        <Td>{name.replaceAll("_", " ")}</Td>
+                        <Td>{capabilityName(name)}</Td>
                         <Td>{value.state}</Td>
                         <Td mono>{value.at === null || value.at === undefined ? "" : when(value.at)}</Td>
                       </tr>

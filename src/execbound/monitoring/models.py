@@ -31,6 +31,10 @@ MONITOR_STATUS = {
 # not adjustable. The schedule (`due.py`) and the overdue rule (`store.py`) both read these.
 DEFAULT_COLLECT_SECONDS = {"tines": 86400, "entra_agent_id": 21600}
 DEFAULT_ACTIVITY_SECONDS = 900
+# The states a finding delivery or intent can be in (#31): what `deliveries --state` offers and
+# the listing takes. Here rather than in the worker, so building the command-line parser never
+# loads the worker.
+DELIVERY_STATES = ("PENDING", "ROUTED", "IN_FLIGHT", "DELIVERED", "FAILED")
 
 
 class MonitorError(ValueError):

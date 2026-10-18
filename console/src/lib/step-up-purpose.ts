@@ -90,6 +90,7 @@ export const PURPOSES: Readonly<Record<string, Phrase>> = {
   [`POST ${V}/monitor/connections/tines`]: () => "Connect Tines",
   [`POST ${V}/monitor/connections/{connection_id}/key`]: () => "Replace a monitoring connection's key",
   [`POST ${V}/monitor/connections/{connection_id}/revoke`]: () => "Revoke a monitoring connection",
+  [`POST ${V}/monitor/connections/{connection_id}/egress`]: () => "Record a Tines connection's egress addresses",
   [`POST ${V}/monitor/connections/entra/start`]: () => "Connect Microsoft Entra",
   // A reporting source holds a token, not a key.
   [`POST ${V}/monitor/sources`]: () => "Create a reporting source",

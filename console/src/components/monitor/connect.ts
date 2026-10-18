@@ -215,6 +215,13 @@ export const SCHEDULES = {
   entra_agent_id: [3600, 10800, 21600, 43200, 86400],
 } as const;
 
+/** A probed capability's name as the pages show it. Service principal sign-ins are read from
+ * Microsoft Graph's beta endpoint, so the page says so (#355). */
+export function capabilityName(name: string): string {
+  const words = name.replaceAll("_", " ");
+  return name === "sign_ins" ? `${words} (beta)` : words;
+}
+
 /** How the connection authenticates, in words. */
 export function modeWords(connection: MonitorConnection): string {
   switch (connection.credential_mode) {

@@ -318,6 +318,7 @@ def test_destinations_are_id_kind_host_and_approvers_and_never_the_address_or_se
                 "host": "alerts.example.net",
                 "approvers": None,
                 "messages": ["pending"],
+                "classes": ["approvals"],
             },
             {
                 "destination_id": "oncall",
@@ -325,6 +326,7 @@ def test_destinations_are_id_kind_host_and_approvers_and_never_the_address_or_se
                 "host": "hooks.slack.com",
                 "approvers": 1,
                 "messages": ["pending"],
+                "classes": ["approvals"],
             },
             {
                 "destination_id": "audit",
@@ -332,6 +334,7 @@ def test_destinations_are_id_kind_host_and_approvers_and_never_the_address_or_se
                 "host": "siem.example.net",
                 "approvers": None,
                 "messages": [],
+                "classes": [],
             },
         ]
         assert secret not in response.text and "/execbound/hook" not in response.text

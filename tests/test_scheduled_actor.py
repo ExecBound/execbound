@@ -341,9 +341,23 @@ PINNED = {
         "purge_audit_observations",
         "_purge_batch",
     },
-    "execbound/monitoring/worker.py": {"evaluate_scheduled"},
+    # The scheduled evaluation, and findings delivery's router and drain (#31), which append no
+    # event.
+    "execbound/monitoring/worker.py": {
+        "evaluate_scheduled",
+        "route_findings",
+        "deliver_findings",
+        "deliver_scheduled",
+    },
     "execbound/monitoring/collection.py": {"run", "_collect_audit"},
-    "execbound/monitoring/graph.py": {"run", "run_delta", "collect_audit"},
+    # A run's read of the directory's service principal sign-ins (#355), which writes only
+    # through the three driver steps below, each inside the run's lease.
+    "execbound/monitoring/graph.py": {"run", "run_delta", "collect_audit", "collect_sign_ins"},
+    # Driver evidence (#355): the Space's recorded egress and the sign-in cursor read beside it,
+    # the declared rows derived from what the store holds, and the sign-in matches written. Each
+    # takes `store._check_actor` with `collecting=True`, so a scheduled actor without the run's
+    # lease is refused, and locks the connection under that lease.
+    "execbound/monitoring/drivers.py": {"space_egress", "derive_declared", "apply_sign_ins"},
     "execbound/monitoring/due.py": {
         "claim",
         "claim_delta",

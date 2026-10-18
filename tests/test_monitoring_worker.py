@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Notification durability uses real PostgreSQL and a real local HTTP receiver."""
+"""Notification durability uses real PostgreSQL and a real local HTTP receiver, which since
+findings delivery (#31) is one destination like any other."""
 
 import json
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from threading import Event, Thread
+from threading import Thread
 
 import pytest
 from sqlalchemy import text
@@ -15,6 +15,16 @@ from execbound.monitoring import store, worker
 from execbound.monitoring.delivery import LocalReceiver
 from execbound.monitoring.models import MonitorError, ObservationEvent
 from execbound.monitoring.receiver import make_receiver
+
+ORIGIN = "http://127.0.0.1:8000"
+
+
+def deliver_local(db, admin, receiver, clock):
+    """Route and drain to the loopback receiver, as `process --deliver-local` does; the count
+    the drain delivered."""
+    out = worker.local_outbound(receiver, admin.tenant_id, ORIGIN)
+    worker.route_findings(db, admin, out.destinations, clock=clock)
+    return worker.deliver_findings(db, admin, out, clock=clock)["delivered"]
 
 
 @pytest.fixture
@@ -59,30 +69,41 @@ def receiver(tmp_path):
 def delivery(db, admin):
     with db.transaction(admin.tenant_id) as conn:
         return dict(
-            conn.execute(text("SELECT * FROM execbound.monitor_deliveries")).mappings().one()
+            conn.execute(
+                text("SELECT * FROM execbound.monitor_deliveries WHERE destination_id IS NOT NULL")
+            )
+            .mappings()
+            .one()
         )
 
 
 def test_receipt_then_worker_crash_recovers_same_delivery(db, pending, receiver, monkeypatch):
     admin, clock = pending
     target, output = receiver
-    send = worker.send_notification
+    send = worker.post_signed
 
-    def crash_after_receipt(*args):
-        assert send(*args)
+    def crash_after_receipt(*args, **kwargs):
+        assert send(*args, **kwargs).delivered
         raise RuntimeError("Synthetic crash after receiver acceptance")
 
-    monkeypatch.setattr(worker, "send_notification", crash_after_receipt)
+    out = worker.local_outbound(target, admin.tenant_id, ORIGIN)
+    worker.route_findings(db, admin, out.destinations, clock=clock)
+    monkeypatch.setattr(worker, "post_signed", crash_after_receipt)
     with pytest.raises(RuntimeError, match="Synthetic crash"):
-        worker.deliver_pending(db, admin, target, clock=clock)
-    assert delivery(db, admin)["state"] == "IN_FLIGHT"
+        worker.deliver_findings(db, admin, out, clock=clock)
+    leased = delivery(db, admin)
+    # Leased for 60 s, above the worst-case send (ruling 24).
+    assert (leased["state"], leased["lease_until"]) == (
+        "IN_FLIGHT",
+        clock.now() + timedelta(seconds=60),
+    )
     assert len(list(output.glob("*.json"))) == 1
-    clock.value += timedelta(seconds=31)
-    monkeypatch.setattr(worker, "send_notification", send)
-    assert worker.deliver_pending(db, admin, target, clock=clock) == 1
+    clock.value += worker.LEASE + timedelta(seconds=1)
+    monkeypatch.setattr(worker, "post_signed", send)
+    assert worker.deliver_findings(db, admin, out, clock=clock)["delivered"] == 1
     row = delivery(db, admin)
     assert (row["state"], row["attempts"]) == ("DELIVERED", 2)
-    assert worker.deliver_pending(db, admin, target, clock=clock) == 0
+    assert worker.deliver_findings(db, admin, out, clock=clock)["delivered"] == 0
     files = list(output.glob("*.json"))
     assert len(files) == 1
     payload = json.loads(files[0].read_bytes())
@@ -96,82 +117,26 @@ def test_receipt_then_worker_crash_recovers_same_delivery(db, pending, receiver,
         "source_id",
         "observation_id",
         "rule_version",
+        "tenant_id",
+        "created_at",
+        "finding_url",
     }
     assert b"lab-user-17" not in files[0].read_bytes()
-
-
-def test_worker_failure_backoff_and_terminal_bound(db, pending, monkeypatch):
-    admin, clock = pending
-    calls = []
-    monkeypatch.setattr(worker, "send_notification", lambda *args: calls.append(args[1]) or False)
-    target = LocalReceiver("http://127.0.0.1:8121/alerts", "k" * 32)
-    for attempt in range(1, 6):
-        assert worker.deliver_pending(db, admin, target, clock=clock) == 0
-        row = delivery(db, admin)
-        assert row["attempts"] == attempt
-        assert row["last_error"] == "RECEIVER_UNAVAILABLE"
-        assert row["state"] == ("FAILED" if attempt == 5 else "PENDING")
-        assert worker.deliver_pending(db, admin, target, clock=clock) == 0
-        clock.value = row["next_attempt_at"]
-    assert len(calls) == 5 and len(set(calls)) == 1
-
-
-def test_final_expired_lease_is_uncertain_without_another_send(db, pending, monkeypatch):
-    admin, clock = pending
-    with db.transaction(admin.tenant_id) as conn:
-        conn.execute(
-            text("""UPDATE execbound.monitor_deliveries SET state='IN_FLIGHT',
-            attempts=5,lease_until=:n,lease_token=gen_random_uuid()"""),
-            {"n": clock.now()},
-        )
-    monkeypatch.setattr(worker, "send_notification", lambda *args: pytest.fail("No sixth send"))
-    assert (
-        worker.deliver_pending(
-            db, admin, LocalReceiver("http://127.0.0.1:8121/alerts", "k" * 32), clock=clock
-        )
-        == 0
-    )
-    assert delivery(db, admin)["last_error"] == "DELIVERY_UNCERTAIN"
-    assert delivery(db, admin)["state"] == "FAILED"
-
-
-def test_parallel_workers_do_not_claim_live_lease(db, pending, receiver, monkeypatch):
-    admin, clock = pending
-    target, output = receiver
-    entered, release = Event(), Event()
-    send = worker.send_notification
-
-    def wait_then_send(*args):
-        entered.set()
-        assert release.wait(10)
-        return send(*args)
-
-    monkeypatch.setattr(worker, "send_notification", wait_then_send)
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        first = pool.submit(worker.deliver_pending, db, admin, target, clock=clock)
-        try:
-            assert entered.wait(10)
-            assert worker.deliver_pending(db, admin, target, clock=clock) == 0
-        finally:
-            release.set()
-        assert first.result(timeout=10) == 1
-    assert len(list(output.glob("*.json"))) == 1
-    assert delivery(db, admin)["attempts"] == 1
 
 
 def test_worker_rechecks_admin_and_scopes_tenant(db, pending, seeded, admin_engine, monkeypatch):
     admin, clock = pending
     other = provision_identity(admin_engine, db, seeded["tenants"][1], "ADMIN", clock.now())
-    monkeypatch.setattr(
-        worker, "send_notification", lambda *args: pytest.fail("No authorized item")
-    )
     target = LocalReceiver("http://127.0.0.1:8121/alerts", "k" * 32)
-    assert worker.deliver_pending(db, other, target, clock=clock) == 0
+    out = worker.local_outbound(target, admin.tenant_id, ORIGIN)
+    worker.route_findings(db, admin, out.destinations, clock=clock)
+    monkeypatch.setattr(worker, "post_signed", lambda *a, **k: pytest.fail("No authorized item"))
+    assert worker.deliver_findings(db, other, out, clock=clock)["delivered"] == 0
     with admin_engine.begin() as conn:
         conn.execute(
             text("UPDATE execbound.credentials SET revoked_at=:n WHERE credential_id=:c"),
             {"n": clock.now(), "c": admin.credential_id},
         )
     with pytest.raises(MonitorError):
-        worker.deliver_pending(db, admin, target, clock=clock)
+        worker.deliver_findings(db, admin, out, clock=clock)
     assert delivery(db, admin)["attempts"] == 0

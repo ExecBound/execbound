@@ -37,9 +37,10 @@ function References() {
 
 /**
  * What guided setup says after the deadline when nothing announces a held request (#678):
- * with a destination, the step states how fast its notifications have arrived instead.
+ * with an approval destination, the step states how fast its notifications have arrived instead.
+ * A findings destination or the audit export announces none (#31).
  */
-export const NO_DESTINATION = "No notification destination is configured, so a held request is announced only in this console.";
+export const NO_DESTINATION = "No approval destination is configured, so a held request is announced only in this console.";
 
 /** The sample loop (#420): the first request an agent made on a sample, and the two left to try. */
 export function SampleChecks({ samples }: { samples: SampleStatusView }) {

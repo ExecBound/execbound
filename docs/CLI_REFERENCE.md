@@ -950,13 +950,15 @@ Explicit Tines monitoring and local validation tools.
 | `collector-reseal` | Re-seal every sealed connection from the old collector key to the new one |
 | `link-agent` | Bind an external agent to an active agent principal, as a current ADMIN |
 | `unlink-agent` | Withdraw that binding, as a current ADMIN |
+| `record-egress` | Record the addresses a Tines tenant's HTTP requests leave from, as a current ADMIN |
 | `accept-reach` | Record that an ADMIN accepts one ungoverned path |
 | `set-profile` | Activate the next detection profile version as a current ADMIN |
 | `show-profile` | Show the active detection profile |
+| `deliveries` | List finding deliveries and their state as a current ADMIN |
 | `serve` | Serve monitoring with no configured execution connectors |
 | `receiver` | Run the authenticated loopback test receiver |
 | `emit-demo` | Send synthetic heartbeat and tool result to the loopback gateway |
-| `process` | Evaluate a bounded batch; optionally deliver to the local receiver |
+| `process` | Evaluate a bounded batch; optionally deliver findings |
 
 ### `python -m execbound.monitoring.commands check-tines`
 
@@ -1107,6 +1109,17 @@ Withdraw that binding, as a current ADMIN.
 | `--connection CONNECTION` | yes |  |
 | `--agent AGENT` | yes | The directory object identifier. |
 
+### `python -m execbound.monitoring.commands record-egress`
+
+Record the addresses a Tines tenant's HTTP requests leave from, as a current ADMIN.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `--credential-file CREDENTIAL_FILE` | yes | A private file holding a current administrator's API key, which is never passed on the command line. |
+| `--connection CONNECTION` | yes | The Tines connection. |
+| `--address ADDRESS` | no | One egress address as Tines shows it at /info; give it again for each, at most 8. |
+| `--clear` | no | Clear the recorded addresses. |
+
 ### `python -m execbound.monitoring.commands accept-reach`
 
 Record that an ADMIN accepts one ungoverned path.
@@ -1139,6 +1152,15 @@ Show the active detection profile.
 | --- | --- | --- |
 | `--credential-file CREDENTIAL_FILE` | yes | A private file holding a current administrator's API key, which is never passed on the command line. |
 
+### `python -m execbound.monitoring.commands deliveries`
+
+List finding deliveries and their state as a current ADMIN.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `--credential-file CREDENTIAL_FILE` | yes | A private file holding a current administrator's API key, which is never passed on the command line. |
+| `--state {PENDING,ROUTED,IN_FLIGHT,DELIVERED,FAILED}` | no | List only the deliveries in this state. One of `PENDING`, `ROUTED`, `IN_FLIGHT`, `DELIVERED`, `FAILED`. |
+
 ### `python -m execbound.monitoring.commands serve`
 
 Serve monitoring with no configured execution connectors.
@@ -1166,11 +1188,12 @@ Send synthetic heartbeat and tool result to the loopback gateway.
 
 ### `python -m execbound.monitoring.commands process`
 
-Evaluate a bounded batch; optionally deliver to the local receiver.
+Evaluate a bounded batch; optionally deliver findings.
 
 | Argument | Required | Description |
 | --- | --- | --- |
 | `--config CONFIG` | no |  |
-| `--all-tenants` | no | Evaluate every active workspace as its scheduled actor; delivers nothing. |
-| `--deliver-local` | no |  |
+| `--all-tenants` | no | Evaluate every active workspace as its scheduled actor; with --deliver, send its findings. |
+| `--deliver-local` | no | Send findings to the monitoring file's loopback test receiver; refused (FINDINGS_DESTINATIONS_CONFIGURED) where EXECBOUND_RUNTIME_CONFIG names a findings destination. |
+| `--deliver` | no | Send findings to the destinations EXECBOUND_RUNTIME_CONFIG names. |
 | `--limit LIMIT` | no | Default `50`. |

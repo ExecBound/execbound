@@ -15,6 +15,7 @@ import { Definition, Definitions } from "../ui/Definitions";
 import { DialogClose, DialogSurface, DialogTitle } from "../ui/dialog";
 import { Field } from "../ui/Field";
 import { Time } from "../ui/Time";
+import { capabilityName } from "./connect";
 import { useListening } from "./listening";
 import { ServiceOperatorCopy } from "./ServiceOperatorCopy";
 import { PROVIDERS, setupInstructions, UUID, validConfiguration, type MonitorProvider } from "./setup";
@@ -57,7 +58,7 @@ function Verification({ result, children }: { result: MonitorSetupVerification; 
       </Definitions>
       <h3>Permissions and capabilities observed</h3>
       {Object.keys(result.capabilities).length === 0 ? <p>No provider probe recorded yet.</p> : (
-        <ul>{Object.entries(result.capabilities).map(([name, capability]) => <li key={name}>{name.replaceAll("_", " ")}: {capability.state}</li>)}</ul>
+        <ul>{Object.entries(result.capabilities).map(([name, capability]) => <li key={name}>{capabilityName(name)}: {capability.state}</li>)}</ul>
       )}
       <p>Unavailable or forbidden capabilities leave gaps. An empty event list does not establish that no activity occurred.</p>
       <Link to="/monitor" search={{ view: result.provider === "entra_agent_id" ? "agents" : "inventory" }}>View collected {result.provider === "entra_agent_id" ? "agents" : "inventory"}</Link>

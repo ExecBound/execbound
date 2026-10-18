@@ -91,6 +91,8 @@ UNGUARDED: dict[tuple[str, str], str] = {
     ("identity_providers", "created_by"): _ACT,
     ("identity_providers", "verified_by"): _ACT,
     ("monitor_connections", "collect_requested_by"): _ACT,
+    # The administrator who recorded a Tines tenant's egress addresses (0098): an attribution.
+    ("monitor_connections", "egress_recorded_by"): _ACT,
     ("monitor_connections", "created_by"): _ACT,
     ("monitor_findings", "acknowledged_by"): _ACT,
     ("monitor_profiles", "created_by"): _ACT,
