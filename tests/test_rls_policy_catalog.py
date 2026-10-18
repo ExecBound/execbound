@@ -179,6 +179,18 @@ LISTED: dict[tuple[str, str], tuple[Shape, str]] = {
         "of its definer functions alone; identifiers or one count, and the runtime role never "
         "matches it",
     ),
+    ("approval_email_subscriptions", "owner_drain"): (
+        Shape("SELECT", OWNER, "true", None),
+        "0096: the approval email pass's list of workspaces with a live subscriber, for the "
+        "owner of its definer functions alone; identifiers only, and the runtime role never "
+        "matches it",
+    ),
+    ("approval_emails", "owner_drain"): (
+        Shape("SELECT", OWNER, "true", None),
+        "0096: the approval email pass's due list and the relay's sent count, for the owner "
+        "of its definer functions alone; identifiers or one count, and the runtime role "
+        "never matches it",
+    ),
     ("job_tenants", "owner_list"): (
         Shape("SELECT", OWNER, "true", None),
         "0064: the scheduled jobs' workspace directory, read across tenants by the owner of "

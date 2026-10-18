@@ -38,6 +38,11 @@ MATCHES = {
         "ebw1.3f2504e0-4f89-11d3-9a0c-0305e82c3301."
         "5a1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8.zYx-Wvu_TsrqPon987654321zYx-Wvu_TsrqPon98765"
     ),
+    # An approval email's unsubscribe link (#179): the secret is in the path, by RFC 8058.
+    "approval-email-unsubscribe": (
+        "eba1.3f2504e0-4f89-11d3-9a0c-0305e82c3301."
+        "5a1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8.zYx-Wvu_TsrqPon987654321zYx-Wvu_TsrqPon9876"
+    ),
     # A consent attempt's OAuth state (#678), which reaches Microsoft and comes back: the
     # tenant, the attempt and a 256-bit secret.
     "connect-state": (
@@ -84,6 +89,8 @@ NEAR_MISSES = [
     "eb1",
     "ebw1",
     "ebw1.short",
+    "eba1",
+    "eba1.short",
     "mc1",
     "mc1.short",
     # A version number in prose is not a state.

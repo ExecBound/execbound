@@ -105,7 +105,7 @@ COMMAND_MODULES = ("cli.py", "monitoring/commands.py", "recovery.py")
 
 # Codes a collection run records on its connection or reports in its result without raising
 # them, the table each belongs to, and the modules that write them.
-RECORDED = {"CAPACITY": ("The monitoring API", ("monitoring/graph.py", "monitoring/store.py"))}
+RECORDED = {"CAPACITY": ("The monitoring API", ("monitoring/store.py",))}
 
 _ROW = re.compile(r"^\| `([A-Z][A-Z0-9_]*(?::<rule id>)?)` \| (.+?) \|(?: .+? \|)?$")
 

@@ -7,7 +7,7 @@ This guide covers the container image and the order of operations for running th
 One host, Docker and nothing else, in three commands:
 
 ```sh
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
+mkdir execbound && docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
 cd execbound && docker compose up -d
 docker compose run --rm gateway execbound quickstart
 ```
@@ -16,7 +16,7 @@ docker compose run --rm gateway execbound quickstart
 
 The target is **under ten minutes from nothing to a first governed decision**, and it is measured rather than asserted: every change is installed from nothing with the three commands before it is published, by a `fresh-machine` check that runs them from an empty directory, times them and fails over ten minutes. A runner whose Docker already holds the database image skips that pull, and [Install](INSTALL.md) gives what a clean runner measured. The development repository also tests each change's upgrade: its own `fresh-machine` job populates an installation on the revision the change was made on, upgrades it by the runbook's two upgrade commands, and verifies its backup before and after.
 
-**One substitution.** `execbound:community` is built locally (`docker build --tag execbound:community .`). No release has been published to a registry yet, so there is no pull reference to give; when there is, `EXECBOUND_IMAGE` in the written `.env` becomes it and nothing else changes ([Releases](RELEASE.md)).
+**One substitution.** `execbound:community` is a local name: a release pulled by its verified digest and tagged with it, or an image built locally (`docker build --tag execbound:community .`). [Install](INSTALL.md#the-one-substitution) gives both, and [Releases](RELEASE.md) how to verify a release first.
 
 The installation runs the two mock providers. It is complete for one organisation, which is what Community is, and it is not a production deployment: the rest of this document is the process table and the contract a real one must express.
 
@@ -142,7 +142,7 @@ The `provenance` stage of `scripts/ci.py` writes three files into `local-data/re
 
 The job **compares the last two and fails on any difference**, so an SBOM that does not describe what shipped cannot be retained as if it did; `provenance.json` records the comparison as `sbom_matches_image` with the drift in both directions. A comparison that could not be made is recorded as unknown, never as a match. The comparison is of Python distributions alone: the crates inside `cedarpy` are compiled into it, not installed beside it, so they are neither counted against the image nor able to hide a difference in it.
 
-The licence disposition names every component whose licence is **undeclared** or **copyleft**, so neither can enter a release unnoticed. It reads the crates inside `cedarpy` too, and names one that needs a decision with `within`, the component it is compiled into. None does today: every crate cedarpy bundles is permissive, as `DEPENDENCIES.md` records. Current dispositions:
+The licence disposition names every component whose licence is **undeclared** or **copyleft**, so neither can enter a release unnoticed, and the build fails on one that `releases/licence-allowances.json` does not allow. An allowance matches a component's name and its exact licence text and carries its reason, which is the table below; an allowance that nothing matches any more fails the build too. It reads the crates inside `cedarpy` too, and names one that needs a decision with `within`, the component it is compiled into. None does today: every crate cedarpy bundles is permissive, as `DEPENDENCIES.md` records. Current dispositions:
 
 | Component | Licence | Disposition |
 | --- | --- | --- |

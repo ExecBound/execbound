@@ -57,6 +57,9 @@ EVENTS = frozenset(
         # (revoked, or taken by the run after it), with the connection's id.
         "monitor.process_all",
         "monitor.collect_due",
+        # A workspace's purge of the directory audit observations no rule reads any more
+        # (#355): the workspace and the count, never an observation or an actor.
+        "monitor.audit_purged",
         "monitor.lease_lost",
         # `collector-reseal`: one line per pass, with counts only, never a key.
         "monitor.collector_resealed",
@@ -98,6 +101,21 @@ EVENTS = frozenset(
         "dormancy_warning.delivered",
         "dormancy_warning.skipped",
         "dormancy_warning.failed",
+        # A plugin's approval emails to the people who can decide a request (#179): queued (a count
+        # per workspace); delivered and skipped (one line per leased message: its id, its approval's
+        # id, the state, the code and the attempts); failed in two shapes, one per leased message
+        # with those ids, and one for a whole pass that the plugin's scheduled command reports as
+        # refused, carrying the operator tenant, the code and the command's name in `command`;
+        # refused in four shapes, a workspace's queue by tenant and code, a lease or settle fault
+        # with `message_id`, the relay's day unread with `reason` `RELAY_COUNT`, and a one-click
+        # stop's database fault with no ids at all; and a subscription ended by its one-click link.
+        # Never an address, a link, a secret or a digest.
+        "approval_email.queued",
+        "approval_email.refused",
+        "approval_email.delivered",
+        "approval_email.skipped",
+        "approval_email.failed",
+        "approval_email.unsubscribed",
         "signup.recorded",
         "signup.refused",
         "signup.queued",
@@ -206,11 +224,13 @@ FIELDS = frozenset(
         "not_reached",
         "no_key_file",
         # A scheduled collection's Entra delta passes: those that completed, and the rest; and
-        # its runs whose read of a directory's audit log was refused, or has not caught up.
+        # its runs whose read of a directory's audit log was refused, has not caught up, or met
+        # the connection's observation bound.
         "delta",
         "delta_failed",
         "audit_failed",
         "audit_backlog",
+        "audit_bounded",
         # A monitoring connection's own id (#678), never its label, origin or key.
         "connection_id",
         # The interval a scheduled run belongs to: `floor(now / seconds)`, the number two

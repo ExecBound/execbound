@@ -9,7 +9,7 @@ Every command below runs in a container. Nothing writes outside the directory yo
 ## Three commands
 
 ```sh
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
+mkdir execbound && docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/execbound:/install" execbound:community execbound init /install
 cd execbound && docker compose up -d
 docker compose run --rm gateway execbound quickstart
 ```
@@ -33,7 +33,7 @@ The installation has governed its first actions.
 
 It also asks one question — whether this deployment should send ExecBound a weekly usage report — and takes **no** for an answer, including the answer a `docker run` with no terminal gives. `--telemetry` or `--no-telemetry` answers it without being asked. Nothing sends anything today: the setting is recorded in `private/gateway.json` and nothing reads it yet.
 
-**`-u "$(id -u):$(id -g)"` is not optional.** The container writes into a directory on your host. Without it the process runs as the image's own user, which cannot write into a directory you own — and a directory Docker creates for a missing mount is owned by root, which it cannot write into either. Running as you is also what lets you read the credential files the third command writes, and it is where the `EXECBOUND_UID` and `EXECBOUND_GID` in the `.env` come from.
+**`-u "$(id -u):$(id -g)"` is not optional.** The container writes into a directory on your host. Without it the process runs as the image's own user, which cannot write into a directory you own — and a directory Docker creates for a missing mount is owned by root, which it cannot write into either. That is why the first command makes `execbound/` itself before the container starts: where Docker runs as root, leaving it to Docker fails with "/install could not be created or written". Running as you is also what lets you read the credential files the third command writes, and it is where the `EXECBOUND_UID` and `EXECBOUND_GID` in the `.env` come from.
 
 **`docker compose up -d`** starts five processes: PostgreSQL, the gateway, the endpoint mock, the identity mock and the jobs service. A sixth container, `netns`, runs nothing: it holds the network namespace the five share, which is what makes the database and both mocks genuinely `127.0.0.1` to the gateway, and it publishes the gateway's port. The database creates two roles on its first start: the schema owner (`execbound_owner`, which migrations and administration use) and the restricted runtime role (`execbound_app`, which the gateway uses and which cannot bypass row-level security — readiness refuses a role that can). The jobs service waits, saying so, until the third command has run.
 
@@ -43,7 +43,7 @@ It refuses to run twice against the same database and says what it found rather 
 
 ### The one substitution
 
-`execbound:community` is an image you built or loaded locally. No release has been published yet, so there is no `docker pull` to give you. Once one is, `EXECBOUND_IMAGE` in the `.env` becomes the release's reference, by digest once you have verified its signature ([Releases](RELEASE.md#verify-an-image-before-you-run-it)), and nothing else in the installation changes. To build it from a checkout: `docker build --tag execbound:community .`
+`execbound:community` is a local name for the image you run. To run a release, verify its signature first ([Releases](RELEASE.md#verify-an-image-before-you-run-it)), then pull it by the digest you verified and give it that name: `docker pull ghcr.io/execbound/execbound@sha256:<digest>`, then `docker tag ghcr.io/execbound/execbound@sha256:<digest> execbound:community`. The release's description on GitHub names its digest. To build it from a checkout instead: `docker build --tag execbound:community .`. Either way nothing else in the installation changes, and an upgrade later points `EXECBOUND_IMAGE` in the `.env` at the new release's digest.
 
 ## Sign in
 

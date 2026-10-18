@@ -2,7 +2,7 @@
 
 This guide states what ExecBound retains and for how long, what a backup must contain, how to restore and how to prove that a restore is trustworthy. The procedure is tested locally and in CI against synthetic data; it is a runbook for the operator, not a managed backup service. Objectives are stated as adjustable defaults.
 
-## What is retained, and why nothing is purged
+## What is retained, and what is purged
 
 | Data | Where | Retention | Reason |
 | --- | --- | --- | --- |
@@ -12,11 +12,12 @@ This guide states what ExecBound retains and for how long, what a backup must co
 | Policy bundle contents and lifecycle | policy tables | Indefinite | Frozen plans and replays reference bundle content by digest. |
 | Credentials and sessions | `credentials`, `human_sessions` | Rows stay; tokens expire and can be revoked | Only digests are stored; expiry and revocation are recorded, never deleted, so history keeps its actors. |
 | Provider journals and tombstones | each provider's SQLite store | Indefinite | They are the only evidence that settles retained uncertainty. |
-| Monitoring observations and findings | monitoring tables | Bounded per source (10,000 observations per source), no purge | Detective evidence; bounds prevent unbounded growth. |
+| Monitoring observations and findings | monitoring tables | Bounded per source (10,000 observations per source) and per collecting connection (200,000 observations per Tines connection; a Microsoft Entra connection's reads go on past its 200,000 and keep only what the rules would miss, at most about 8,000 more plus two for each recent ExecBound execution, [Scout](SCOUT.md#what-the-directorys-own-audit-log-shows)). Findings are never purged, and neither are observations, except a Microsoft Entra connection's directory audit observations, which the scheduled `monitor-process` removes once they are thirty days old, evaluated and cited by no finding, unless a rule still reads them or may yet read them ([Scout](SCOUT.md#what-the-directorys-own-audit-log-shows)) | Detective evidence; bounds prevent unbounded growth, and the audit purge keeps a directory's bound to a month of evidence rather than a lifetime. |
+| Assistant questions, steps and answers | `assistant_turns` | Cleared thirty days after the turn completes, by the scheduled `recover` pass; the row and its token counts stay ([Operations](OPERATIONS.md#turn-the-consoles-assistant-on-for-a-tenant)) | A turn's text is never in the audit chain, so clearing it leaves every verification intact. |
 | Authentication failure counters | `authentication_failures` | Operator's choice; may be purged with the owner connection | Bounded per-minute telemetry that nothing references; the runtime cannot delete it and no automated purge exists. |
 | Replay exports and reports | operator files | Operator's choice | Sanitized derivatives; never a substitute for the database backup. |
 
-No automated purge exists and none is planned for the tables above. If storage growth becomes a concern, the safe options are archiving whole tenants after their retention obligation ends, or partitioning by tenant, both outside this repository today.
+Apart from those directory audit observations and the assistant's text, no automated purge exists and none is planned for the tables above; a backup that must keep either for longer than thirty days has to be taken before they age out. If storage growth becomes a concern, the safe options are archiving whole tenants after their retention obligation ends, or partitioning by tenant, both outside this repository today.
 
 ## The backup set
 

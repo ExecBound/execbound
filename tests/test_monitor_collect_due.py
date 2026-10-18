@@ -163,6 +163,7 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
             "delta_failed": 0,
             "audit_failed": 0,
             "audit_backlog": 0,
+            "audit_bounded": 0,
         },
         str(second.tenant_id): {
             "collected": 1,
@@ -175,6 +176,7 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
             "delta_failed": 0,
             "audit_failed": 0,
             "audit_backlog": 0,
+            "audit_bounded": 0,
         },
     }
     for admin, connection in ((first, tines), (second, entra)):
@@ -211,10 +213,17 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
         ]
         return {
             key: line[key]
-            for key in ("count", "delta", "delta_failed", "audit_failed", "audit_backlog")
+            for key in (
+                "count",
+                "delta",
+                "delta_failed",
+                "audit_failed",
+                "audit_backlog",
+                "audit_bounded",
+            )
         }
 
-    quiet = {"audit_failed": 0, "audit_backlog": 0}
+    quiet = {"audit_failed": 0, "audit_backlog": 0, "audit_bounded": 0}
     assert logged(out.err) == {"count": 0, "delta": 1, "delta_failed": 0, **quiet}
     # Graph refuses the next delta pass: the pass records nothing on the connection, and the
     # log line is where it is seen.
@@ -235,6 +244,7 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
         "delta_failed": 0,
         "audit_failed": 1,
         "audit_backlog": 0,
+        "audit_bounded": 0,
     }
     # And a read that stops at its pages short of catching up: two days behind, one entry a
     # page, a person's change every hour.
@@ -269,6 +279,31 @@ def test_mc7_one_pass_collects_each_workspace_on_its_default_intervals(
         "delta_failed": 0,
         "audit_failed": 0,
         "audit_backlog": 1,
+        "audit_bounded": 0,
+    }
+    # And a read that meets the connection's observation bound: no refusal, counted apart.
+    monkeypatch.setattr(store, "MAX_CONNECTION_EVENTS", 0)
+    directory.scenario.max_top = 100
+    directory.scenario.audits = [
+        {
+            "id": f"Directory_{uuid4()}",
+            "activityDateTime": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+            "activityDisplayName": "Disable account",
+            "loggedByService": "Core Directory",
+            "result": "success",
+            "initiatedBy": {"app": {"servicePrincipalId": str(uuid4())}, "user": None},
+            "targetResources": [{"id": str(uuid4()), "type": "User", "modifiedProperties": []}],
+        }
+    ]
+    out = cli(monkeypatch, capsys, fakes, *pass_again)
+    assert json.loads(out.out)["tenants"][str(second.tenant_id)]["audit_bounded"] == 1
+    assert logged(out.err) == {
+        "count": 0,
+        "delta": 1,
+        "delta_failed": 0,
+        "audit_failed": 0,
+        "audit_backlog": 0,
+        "audit_bounded": 1,
     }
 
 

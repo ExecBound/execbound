@@ -1197,7 +1197,10 @@ def collect_audit(
     changes nothing about the run: what was read before it is kept, and the next run reads on
     from the cursor. The store dates how long the reads have not caught up, and raises the
     health finding when that runs long or when the cursor is further back than any retention
-    Graph offers (`gap`).
+    Graph offers (`gap`). A read that meets the connection's observation bound is no refusal:
+    it moves on like any read, keeping of each new entry only what the rules would miss without
+    it (`bounded`, with what it kept and dropped there, as `store._AtBound` decides), and the
+    store raises its own health finding once an episode.
     """
     result: dict[str, Any] = {
         "state": "not_read",
@@ -1205,6 +1208,9 @@ def collect_audit(
         **dict.fromkeys(AUDIT_COUNTS, 0),
         "accepted": 0,
         "duplicates": 0,
+        "bounded": 0,
+        "kept_at_bound": 0,
+        "dropped_at_bound": 0,
     }
     if capability in {"forbidden", "unsupported"}:
         result["state"] = capability
@@ -1240,9 +1246,12 @@ def collect_audit(
         clock=clock,
         lease=lease,
     )
-    result.update(accepted=kept["accepted"], duplicates=kept["duplicates"])
-    if kept["capacity"]:
-        found.error = found.error or "CAPACITY"
+    result.update(
+        {
+            key: kept[key]
+            for key in ("accepted", "duplicates", "bounded", "kept_at_bound", "dropped_at_bound")
+        }
+    )
     result["error_code"] = found.error
     result["state"] = "failed" if found.error else "complete" if caught_up else "backlog"
     return result

@@ -45,4 +45,4 @@ The optional seeded examples use synthetic data and the protected mock providers
 - **The internal-use licence:** an organization whose policies do not allow AGPL software can ask ExecBound LLC for the server and console under the PolyForm Internal Use License 1.0.0, free (`INTERNAL_USE_LICENSE.md` at the repository's root).
 - **Trademarks:** "ExecBound" and its mark are trademarks of ExecBound LLC, with a policy for their use in `TRADEMARK.md`; contributions are made under `CONTRIBUTOR_AGREEMENT.md`.
 
-No release has been published yet. [Releases](RELEASE.md) describes what one will publish and how to verify it.
+Each release is a signed image with its SBOM, provenance and release record. [Releases](RELEASE.md) describes what a release publishes and how to verify it.

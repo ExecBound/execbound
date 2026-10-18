@@ -14,7 +14,7 @@ from sqlalchemy.engine import URL, Connection, RowMapping
 
 from execbound.connection import connect_args, database_url
 
-SCHEMA_REVISION = "0094_scout_audit"
+SCHEMA_REVISION = "0096_approval_email"
 # SECURITY DEFINER functions: owned by the schema owner, executable by the runtime role unless
 # dormant (below), and the only way the runtime writes principals, credentials, scopes, a
 # session's expiry, a sandbox claim or a sandbox's fact observation times.
@@ -186,6 +186,24 @@ FUNCTIONS = (
     (
         "dormancy_warnings_sent",
         "p_since timestamp with time zone, p_now timestamp with time zone",
+    ),
+    # Approval emails (0096, #179): the one writer of a person's setting and the one writer
+    # of a message, each fenced to the caller's tenant, two lists of identifiers and a count
+    # across tenants, and the fenced one-click stop, dormant for the hosted plugin.
+    (
+        "approval_email_change",
+        "p_session uuid, p_on boolean, p_now timestamp with time zone",
+    ),
+    ("approval_email_queue", "p_now timestamp with time zone"),
+    ("approval_email_tenants", "p_now timestamp with time zone"),
+    ("approval_email_due", "p_now timestamp with time zone, p_limit integer"),
+    (
+        "approval_email_sent",
+        "p_since timestamp with time zone, p_now timestamp with time zone",
+    ),
+    (
+        "approval_email_unsubscribe",
+        "p_email uuid, p_hash text, p_now timestamp with time zone",
     ),
     # Sample targets (#420): the only writers of `connector_accounts.sample`.
     (
@@ -410,6 +428,10 @@ FUNCTIONS = (
         "p_client_ref text",
     ),
     ("admin_refuse_connect", "p_attempt uuid, p_state_hash text, p_step text, p_code text"),
+    # The retention of a directory's audit observations (0095): the one way the runtime removes
+    # an observation, fenced to the caller's tenant and an Entra connection of it, and only one
+    # evaluated, uncited and a month old by the database's own clock.
+    ("monitor_audit_purge", "p_connection uuid, p_observations uuid[]"),
 )
 # Trigger functions that run as their owner. A trigger function is fired, never called, so
 # each is held to this list by name rather than to an EXECUTE grant: 0088's keeps the
@@ -517,6 +539,10 @@ TABLES = (
     # The weekly summary (#678): a person's opt-in, and its outbox.
     "weekly_summary_subscriptions",
     "weekly_summary_messages",
+    # Approval emails (0096, #179): a person's opt-in in a Community workspace, and its
+    # outbox; dormant, for the hosted plugin.
+    "approval_email_subscriptions",
+    "approval_emails",
     # Entra admin consent (0088): every attempt to connect a directory, which the runtime only
     # reads, and the deployment-wide directory claims, on which it holds nothing.
     "monitor_connect_attempts",
@@ -611,6 +637,9 @@ UPDATE_COLUMNS = {
         # and since when its reads have not caught up (0094); the runtime inserts neither.
         "audit_baseline_at",
         "audit_behind_since",
+        # Since when its audit reads have met the connection's observation bound (0095); the
+        # runtime does not insert it.
+        "audit_bound_since",
     },
     "monitor_inventory": {
         "name",
@@ -799,6 +828,8 @@ DORMANT_TABLES: tuple[str, ...] = (
     "account_recoveries",
     "account_messages",
     "dormancy_warnings",
+    "approval_email_subscriptions",
+    "approval_emails",
 )
 _DORMANT_FUNCTION_NAMES = frozenset(
     {
@@ -829,6 +860,12 @@ _DORMANT_FUNCTION_NAMES = frozenset(
         "dormancy_warn",
         "dormancy_warnings_due",
         "dormancy_warnings_sent",
+        "approval_email_change",
+        "approval_email_queue",
+        "approval_email_tenants",
+        "approval_email_due",
+        "approval_email_sent",
+        "approval_email_unsubscribe",
     }
 )
 DORMANT_FUNCTIONS: tuple[tuple[str, str], ...] = tuple(

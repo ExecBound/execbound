@@ -1,0 +1,41 @@
+{
+  "about": "The copyleft and undeclared components a release may carry, each a reviewed decision with its reason, as docs/DEPLOYMENT.md's table of dispositions gives it. scripts/release_provenance.py fails a build on any component its licence disposition names that no entry here covers, matched on the name and the exact licence text, and on any entry nothing matches.",
+  "allowances": [
+    {
+      "component": "execbound",
+      "licenses": [
+        "AGPL-3.0-only"
+      ],
+      "why": "Ours: the server, whose source is this repository. Distributing the image, or offering a modified copy as a network service, carries the AGPL's obligations."
+    },
+    {
+      "component": "psycopg",
+      "licenses": [
+        "LGPL-3.0-only"
+      ],
+      "why": "Used unmodified, through its public API. THIRD_PARTY_NOTICES.md says where its source is and that the image can be rebuilt with a relinked copy."
+    },
+    {
+      "component": "psycopg-binary",
+      "licenses": [
+        "LGPL-3.0-only"
+      ],
+      "why": "The driver's compiled companion, used unmodified beside psycopg on the same terms. THIRD_PARTY_NOTICES.md says where its source is and that the image can be rebuilt with a relinked copy."
+    },
+    {
+      "component": "certifi",
+      "licenses": [
+        "MPL-2.0",
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+      ],
+      "why": "File-level copyleft on unmodified files only; there is no obligation beyond the notice while the files are unmodified, and the image does not modify them."
+    },
+    {
+      "component": "cedarpy",
+      "licenses": [
+        "(none declared)"
+      ],
+      "why": "Apache-2.0 in the LICENSE file the wheel ships; the package declares License-File without an SPDX identifier, so tooling cannot read it. The Rust crates compiled into it are listed inside its SBOM component."
+    }
+  ]
+}

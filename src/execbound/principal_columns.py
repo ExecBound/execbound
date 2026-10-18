@@ -124,6 +124,15 @@ UNGUARDED: dict[tuple[str, str], str] = {
     ("dormancy_warnings", "principal_id"): (
         "The recipient of one queued dormancy warning, a live administrator; it grants nothing."
     ),
+    # Approval emails (0096): a person's own opt-in, made from a signed-in session, and the
+    # recipient of one queued message, an active ADMIN or HUMAN_APPROVER the approval routing
+    # join names, which the scheduler principal never is. Neither grants anything.
+    ("approval_email_subscriptions", "principal_id"): (
+        "A signed-in person's own opt-in to approval emails; it grants nothing."
+    ),
+    ("approval_emails", "principal_id"): (
+        "The recipient of one queued approval email, an assigned reviewer; it grants nothing."
+    ),
     ("signal_sources", "created_by"): _OWNER,
     ("signal_sources", "rotated_by"): _OWNER,
     ("signal_sources", "revoked_by"): _OWNER,
