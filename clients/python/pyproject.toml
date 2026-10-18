@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["hatchling==1.30.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "execbound-client"
+version = "0.1.0"
+description = "Python client for the ExecBound action-authorization gateway"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27,<1"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=2.2,<3"]
+
+[project.scripts]
+execbound-demo = "execbound_client.demo:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/execbound_client"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/execbound_client", "README.md", "pyproject.toml", "examples"]

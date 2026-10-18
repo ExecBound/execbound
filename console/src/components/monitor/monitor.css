@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Monitoring as a daily queue (#678): finding rows with an in-place disclosure, the bulk bar
+   and its confirmation, the count on a tab, the marked quiet card or story, and the folded test receiver. Loaded with the Monitoring
+   page's own chunk, so a page that is not Monitoring fetches none of it. */
+.tab-link .pill { margin-left: 6px; }
+.finding-list { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--eb-line); border-radius: var(--radius-card); background: var(--eb-surface); }
+.finding-row { padding: 12px 14px; border-bottom: 1px solid var(--eb-line); }
+.finding-row:last-child { border-bottom: 0; }
+.finding-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 14px; align-items: center; }
+.finding-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.finding-title small { color: var(--eb-muted); }
+.finding-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.finding-body { margin-top: 12px; }
+.finding-head-select { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.finding-select { display: flex; align-items: center; }
+.finding-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.finding-bulk { margin-bottom: 16px; }
+.finding-bulk .field { margin-bottom: 0; }
+.finding-confirm { margin-top: 12px; }
+.finding-confirm > p, .finding-results > p { margin: 0; }
+.finding-results { margin-top: 12px; overflow-wrap: anywhere; }
+.finding-results ul { margin: 4px 0 8px; padding-left: 20px; }
+.finding-pinned { margin-bottom: 16px; }
+.finding-pinned .card-title { margin: 0 0 8px; }
+.monitor-marked { box-shadow: inset 3px 0 0 var(--eb-hold); }
+.monitor-receiver { padding: 14px 16px; }
+.monitor-receiver > summary { cursor: pointer; font-weight: 500; }
+.report-command { margin-top: 8px; }
+@media (max-width: 767px) {
+  .finding-head { grid-template-columns: minmax(0, 1fr); }
+  .finding-head-select { grid-template-columns: auto minmax(0, 1fr); }
+  .finding-head-select .finding-meta, .finding-head-select .finding-toggle { grid-column: 1 / -1; }
+  .finding-toggle { width: 100%; }
+}
+.monitor-next { margin-top: 8px; }
+.monitor-next a { text-decoration: underline; text-underline-offset: 2px; }
+/* A connection's actions (#678): a row of buttons that wraps under the card's definitions at
+   narrow widths rather than widening the page, and the server's own line about a request. */
+.monitor-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.monitor-actions-block { margin: 12px 0; }
+.monitor-requested { margin: 0 0 8px; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .monitor-actions > .btn { flex: 1 1 auto; }
+}

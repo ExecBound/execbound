@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* What ExecBound did (#678): the value list Home's card and the report page share,
+   and the report's printed page. Loaded with the list, so the cold approval link carries none. */
+.value-list { margin: 0; display: grid; gap: 10px; }
+.value-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; padding-bottom: 10px; border-bottom: 1px solid var(--eb-line); }
+.value-list > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.value-list dt { font-weight: 500; overflow-wrap: anywhere; }
+.value-list dd { margin: 0; text-align: right; }
+.value-count { font-size: 15px; font-weight: 600; }
+/* A count is a link: at least 24 px each way, so neighbouring counts are easy to hit (2.5.8). */
+a.value-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; }
+.value-parts { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: 12.5px; color: var(--eb-muted); }
+.value-parts .value-count { font-size: 12.5px; font-weight: 500; }
+.value-observe { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--eb-line); border-radius: var(--radius-card); background: var(--eb-surface2); }
+.value-observe :is(h2, h3) { margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+/* A phone: the number sits under its label, and nothing scrolls sideways. */
+@media (max-width: 767px) {
+  .value-list > div { grid-template-columns: minmax(0, 1fr); }
+  .value-list dd { text-align: left; }
+}
+/* The printed report: the page, without the shell around it or the controls on it. */
+@media print {
+  .sidebar, .topbar, .tabbar, .banners, .skip, .service-footer, .page-actions, .btn { display: none !important; }
+  .shell, .shell-rail { display: block; }
+  .content { padding: 0; overflow: visible; }
+}

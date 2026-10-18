@@ -1,0 +1,13 @@
+[
+  { "case": "a labelled agent", "kind": "AGENT", "label": "triage-bot", "number": 3, "principal_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "name": "triage-bot" },
+  { "case": "an unlabelled agent", "kind": "AGENT", "label": null, "number": 3, "principal_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "name": "Agent 3" },
+  { "case": "an empty label counts as none", "kind": "AGENT", "label": "", "number": 4, "principal_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "name": "Agent 4" },
+  { "case": "an unlabelled approver", "kind": "HUMAN_APPROVER", "label": null, "number": 2, "principal_id": "7d1e7b4a-0000-4000-8000-000000000002", "name": "User 2" },
+  { "case": "an unlabelled administrator", "kind": "ADMIN", "label": null, "number": 1, "principal_id": "7d1e7b4a-0000-4000-8000-000000000001", "name": "User 1" },
+  { "case": "a labelled person", "kind": "ADMIN", "label": "Dana Reyes", "number": 1, "principal_id": "7d1e7b4a-0000-4000-8000-000000000001", "name": "Dana Reyes" },
+  { "case": "the scheduler, labelled", "kind": "SYSTEM", "label": "ExecBound scheduler", "number": 1, "principal_id": "00000000-0000-4000-8000-00000000005c", "name": "ExecBound scheduler" },
+  { "case": "the scheduler, unlabelled", "kind": "SYSTEM", "label": null, "number": 1, "principal_id": "00000000-0000-4000-8000-00000000005c", "name": "ExecBound scheduler" },
+  { "case": "an agent row with no number", "kind": "AGENT", "label": null, "number": null, "principal_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "name": "Agent 3f2504e0" },
+  { "case": "a person row with no number", "kind": "HUMAN_APPROVER", "label": null, "number": null, "principal_id": "9a8b7c6d-0000-4000-8000-000000000009", "name": "User 9a8b7c6d" },
+  { "case": "a label of markup is returned as the same characters", "kind": "AGENT", "label": "<img src=x onerror=alert(1)>", "number": 5, "principal_id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301", "name": "<img src=x onerror=alert(1)>" }
+]

@@ -1,0 +1,1097 @@
+{
+  "action_runtime_version": 88,
+  "agents": [
+    {
+      "description": null,
+      "disabled": false,
+      "guid": "aceb9de305bb70d7da763853600fe8d9",
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "name": "Triage agent",
+      "options": {
+        "code_analyst_enabled": false,
+        "instructions": "You are a SOC triage analyst. You are given one alert. Decide whether a consequential action is warranted and, if so, which one. You do NOT perform the action yourself: ExecBound authorizes it, and when a person is required they decide in the ExecBound console. Rules you must follow: use only the six operation_ref values offered; copy the hostname, incident id and ticket id exactly as given and never invent one; if you are not confident an action is warranted, set should_act to false and explain why.",
+        "mode": "task",
+        "output_schema": {
+          "properties": {
+            "incident_id": {
+              "description": "the incident uuid given in the alert, verbatim",
+              "type": "string"
+            },
+            "operation_ref": {
+              "enum": [
+                "endpoint.isolate",
+                "endpoint.lift_isolation",
+                "identity.disable",
+                "identity.enable",
+                "identity.revoke_sessions",
+                "identity.reset_password"
+              ],
+              "type": "string"
+            },
+            "reasoning": {
+              "type": "string"
+            },
+            "reference": {
+              "description": "the ticket id given in the alert, verbatim",
+              "type": "string"
+            },
+            "should_act": {
+              "type": "boolean"
+            },
+            "target_kind": {
+              "enum": [
+                "hostname",
+                "provider_id",
+                "canonical"
+              ],
+              "type": "string"
+            },
+            "target_value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "should_act",
+            "reasoning"
+          ],
+          "type": "object"
+        },
+        "prompt": "Alert:\n\n<<alert>>\n\nDecide. Answer with ONLY a JSON object using EXACTLY these field names and no others:\n{\"should_act\": true, \"operation_ref\": \"endpoint.isolate\", \"target_kind\": \"hostname\", \"target_value\": \"workstation-01\", \"reference\": \"INC-2001\", \"incident_id\": \"11111111-1111-4111-8111-111111111111\", \"reasoning\": \"why\"}\noperation_ref must be one of: endpoint.isolate, endpoint.lift_isolation, identity.disable, identity.enable, identity.revoke_sessions, identity.reset_password. reference is the ticket id from the alert, copied verbatim. incident_id is the incident uuid from the alert, copied verbatim.",
+        "web_search_enabled": false
+      },
+      "origin_story_identifier": null,
+      "reporting": {
+        "time_saved_unit": "minutes",
+        "time_saved_value": 0
+      },
+      "schedule": null,
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "type": "Agents::LLMAgent",
+      "width": null
+    },
+    {
+      "description": "An alert from a detection source: hostname, incident id, ticket id, a summary.",
+      "disabled": false,
+      "guid": "89cf8250217b1bb5a9220f64c6e2e216",
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "name": "Alert",
+      "options": {
+        "include_headers": false,
+        "path": "",
+        "secret": "",
+        "verbs": "post"
+      },
+      "origin_story_identifier": null,
+      "reporting": {
+        "time_saved_unit": "minutes",
+        "time_saved_value": 0
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "type": "Agents::WebhookAgent",
+      "width": null
+    },
+    {
+      "description": "Only a decision to act reaches ExecBound; no action, no call.",
+      "disabled": false,
+      "guid": "9c45f5d937d7a9e7e8ced51689d890b7",
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "name": "Act?",
+      "options": {
+        "must_match": "1",
+        "rules": [
+          {
+            "path": "<<triage_agent.output.should_act>>",
+            "type": "regex",
+            "value": "^true$"
+          }
+        ]
+      },
+      "origin_story_identifier": null,
+      "reporting": {
+        "time_saved_unit": "minutes",
+        "time_saved_value": 0
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "type": "Agents::TriggerAgent",
+      "width": null
+    },
+    {
+      "description": "Hands the agent's decision to ExecBound: govern an action. The decision is the kernel's.",
+      "disabled": false,
+      "guid": "38e7083531390cbaca678724a0c76785",
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "name": "Govern via ExecBound",
+      "options": {
+        "payload": {
+          "arguments": "=JSON_PARSE(\"{}\")",
+          "incident_id": "=DEFAULT(triage_agent.output.incident_id, triage_agent.output.incident)",
+          "operation_ref": "=SWITCH(DEFAULT(triage_agent.output.operation_ref, \"endpoint.isolate\"), \"isolate_endpoint\", \"endpoint.isolate\", \"isolate\", \"endpoint.isolate\", \"endpoint_isolate\", \"endpoint.isolate\", \"disable_user\", \"identity.disable\", DEFAULT(triage_agent.output.operation_ref, \"endpoint.isolate\"))",
+          "reference": "=DEFAULT(triage_agent.output.reference, DEFAULT(triage_agent.output.ticket_id, triage_agent.output.ticket))",
+          "target_kind": "=DEFAULT(triage_agent.output.target_kind, \"hostname\")",
+          "target_value": "=DEFAULT(triage_agent.output.target_value, DEFAULT(triage_agent.output.hostname, triage_agent.output.target))",
+          "wait_seconds": 0,
+          "external_case": "=DEFAULT(DEFAULT(alert.body.external_case, alert.external_case), null)"
+        },
+        "story": "<<STORY.execbound_govern_an_action>>"
+      },
+      "origin_story_identifier": null,
+      "reporting": {
+        "time_saved_unit": "minutes",
+        "time_saved_value": 0
+      },
+      "schedule": null,
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "type": "Agents::SendToStoryAgent",
+      "width": null
+    },
+    {
+      "description": "What the agent wanted beside what ExecBound answered. Wire your notification here.",
+      "disabled": false,
+      "guid": "4f43aed5d074ffe92742f9304ea28f3b",
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": false,
+        "monitor_no_events_emitted": null
+      },
+      "name": "Result",
+      "options": {
+        "mode": "message_only",
+        "payload": {
+          "decided_by_agent": "=triage_agent.output",
+          "execbound": "=govern_via_execbound"
+        }
+      },
+      "origin_story_identifier": null,
+      "reporting": {
+        "time_saved_unit": "minutes",
+        "time_saved_value": 0
+      },
+      "schedule": null,
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "type": "Agents::EventTransformationAgent",
+      "width": null
+    }
+  ],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "app_endpoints": [],
+  "description": null,
+  "diagram_layout": "{\"38e7083531390cbaca678724a0c76785\": [390, 315], \"4f43aed5d074ffe92742f9304ea28f3b\": [390, 420], \"89cf8250217b1bb5a9220f64c6e2e216\": [390, 0], \"9c45f5d937d7a9e7e8ced51689d890b7\": [390, 210], \"aceb9de305bb70d7da763853600fe8d9\": [390, 105]}",
+  "diagram_notes": [],
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "exported_at": "2026-09-18T17:56:02Z",
+  "guid": "8addac20bf9a149e06bcbf270cf46f2a",
+  "icon": ":date:",
+  "integration_product": null,
+  "integration_vendor": null,
+  "integrations": [],
+  "keep_events_for": 86400,
+  "links": [
+    {
+      "receiver": 2,
+      "source": 0
+    },
+    {
+      "receiver": 0,
+      "source": 1
+    },
+    {
+      "receiver": 3,
+      "source": 2
+    },
+    {
+      "receiver": 4,
+      "source": 3
+    }
+  ],
+  "llm_product_instructions": "",
+  "monitor_failures": false,
+  "name": "ExecBound: AI Agents",
+  "origin_story_identifier": null,
+  "pages": [
+    {
+      "agent_guid": "8693aa94734b8439658915cb9f3fedc6",
+      "app": null,
+      "conditions": [],
+      "containers": [],
+      "display_logo": false,
+      "display_mode": "bordered",
+      "fields": [],
+      "icon": null,
+      "loading_message": "",
+      "logo_contents": null,
+      "logo_filename": null,
+      "sso_groups": null,
+      "success_message": "Thank you for your submission",
+      "visibility": "tenant"
+    }
+  ],
+  "parent_only_send_to_story": false,
+  "recipients": [],
+  "reporting_status": true,
+  "schema_version": 30,
+  "sections": [],
+  "send_to_stories": [
+    {
+      "action_runtime_version": 88,
+      "agents": [
+        {
+          "description": "Send to Story entry. Carries the intent: what to do, to what, and the ticket it answers. Every field it accepts is the intent; none of them grants anything.",
+          "disabled": false,
+          "guid": "b966e624fac679ed37687900015e5805",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Entry",
+          "options": {
+            "include_headers": false,
+            "path": "",
+            "secret": "",
+            "verbs": "post"
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::WebhookAgent",
+          "width": null
+        },
+        {
+          "description": "One POST /v1/execute. The same reference on every re-send, so the gateway sees one intent and a decision already recorded is progressed rather than duplicated.",
+          "disabled": false,
+          "guid": "59143a5b43ba9e31a7e6e2585c98f944",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Execute",
+          "options": {
+            "disable_redirect_follow": true,
+            "fail_on_status": false,
+            "headers": {
+              "Authorization": "Bearer <<CREDENTIAL.execbound>>",
+              "Content-Type": "application/json"
+            },
+            "log_error_on_status": [
+              400,
+              401,
+              403,
+              404,
+              409,
+              422,
+              423,
+              500,
+              503
+            ],
+            "method": "post",
+            "payload": "=TO_JSON(OBJECT(\"arguments\", prepare.arguments, \"claimed_context\", OBJECT(\"incident_id\", prepare.incident_id), \"operation_ref\", prepare.operation_ref, \"reference\", prepare.reference, \"target\", OBJECT(\"kind\", prepare.target_kind, \"value\", prepare.target_value), \"external_case\", prepare.external_case))",
+            "retries": 5,
+            "retry_on_status": [
+              429
+            ],
+            "url": "<<RESOURCE.execbound_origin>>/v1/execute"
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "schedule": null,
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::HTTPRequestAgent",
+          "width": null
+        },
+        {
+          "description": "Everything terminal answers 200 by contract, whatever the state.",
+          "disabled": false,
+          "guid": "33af88bc189ec60a7f495a6092ae62d3",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Terminal?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "<<execute.status>>",
+                "type": "regex",
+                "value": "^200$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "A decision is owed by a person in the console; this story cannot make it.",
+          "disabled": false,
+          "guid": "038b20808e277319ff17b91ab1b1f4ea",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Pending?",
+          "options": {
+            "must_match": "2",
+            "rules": [
+              {
+                "path": "<<execute.status>>",
+                "type": "regex",
+                "value": "^202$"
+              },
+              {
+                "path": "<<execute.body.state>>",
+                "type": "regex",
+                "value": "^PENDING_APPROVAL$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "The send may have taken effect. Hand to a person; never re-send under a new key.",
+          "disabled": false,
+          "guid": "93bd056994d451cb1dc9ececf30588c7",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Uncertain?",
+          "options": {
+            "must_match": "2",
+            "rules": [
+              {
+                "path": "<<execute.status>>",
+                "type": "regex",
+                "value": "^202$"
+              },
+              {
+                "path": "<<execute.body.state>>",
+                "type": "regex",
+                "value": "^(DISPATCH_COMMITTED|INDETERMINATE)$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "503 or no response at all. The same key may be re-sent; a new key never may.",
+          "disabled": false,
+          "guid": "f7e3e4250f5977397b176e830f4a1195",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Unavailable?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "<<execute.status>>",
+                "type": "regex",
+                "value": "^(503)?$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "Any other status, including 423 TENANT_STOPPED, so a person learns the tenant is stopped rather than seeing a silent stall.",
+          "disabled": false,
+          "guid": "fb484bf23c9b58427eb884da113eece3",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Refused?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "<<execute.status>>",
+                "type": "!regex",
+                "value": "^(0|200|202|5[0-9][0-9])?$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "Keep waiting for the human decision while the tenant's approval deadline allows.",
+          "disabled": false,
+          "guid": "9d30310d9f42c9ca350025e5b7472fe0",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Within deadline?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "=JOIN([IF(GET(DATE_DIFF(prepare.started_at, NOW()), \"seconds\") < prepare.wait_seconds, \"yes\", \"no\")], \"\")",
+                "type": "regex",
+                "value": "^yes$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "Report pending with the approval URL. A later run with the same reference resumes the same intent, because the key the gateway derives is the same.",
+          "disabled": false,
+          "guid": "32c92705afdfd924c9a9203e7e1bd99a",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Deadline passed?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "=JOIN([IF(GET(DATE_DIFF(prepare.started_at, NOW()), \"seconds\") < prepare.wait_seconds, \"yes\", \"no\")], \"\")",
+                "type": "regex",
+                "value": "^no$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "Both loops wait here before re-sending the identical request.",
+          "disabled": false,
+          "guid": "330e0b6e22d898976fed77de12679060",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Wait",
+          "options": {
+            "mode": "delay",
+            "seconds": "<<RESOURCE.execbound_poll_seconds>>"
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::EventTransformationAgent",
+          "width": null
+        },
+        {
+          "description": "Counts the re-sends so the unavailable loop can give up rather than spin.",
+          "disabled": false,
+          "guid": "e6f3fe9dd9af7e2a8336ed48ca2da5b4",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Next attempt",
+          "options": {
+            "mode": "message_only",
+            "payload": {
+              "attempt": "=DEFAULT(next_attempt.attempt, prepare.attempt) + 1"
+            }
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "schedule": null,
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::EventTransformationAgent",
+          "width": null
+        },
+        {
+          "description": "At most three re-sends of the same key after an unavailable answer.",
+          "disabled": false,
+          "guid": "2a57c537f18fa7b538502c9c014b2b9b",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Same key again?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "=JOIN([DEFAULT(next_attempt.attempt, prepare.attempt)], \"\")",
+                "type": "regex",
+                "value": "^[0-2]$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "The gateway never answered. Whether it acted is not established, so this is uncertain and belongs with an administrator.",
+          "disabled": false,
+          "guid": "74daefb40d8c843cf39ab02963cc3410",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Give up as uncertain?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "=JOIN([DEFAULT(next_attempt.attempt, prepare.attempt)], \"\")",
+                "type": "!regex",
+                "value": "^[0-2]$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "The exit action. Same shape as the Python client's summarize, so a team's downstream logic is the same whichever caller they use.",
+          "disabled": false,
+          "guid": "ed71df3db320e7bf46eee77975f58f02",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Outcome",
+          "options": {
+            "mode": "message_only",
+            "payload": {
+              "approval_state": "=DEFAULT(execute.body.approval_state, null)",
+              "approval_url": "=DEFAULT(execute.body.approval_url, null)",
+              "attempts": "=DEFAULT(next_attempt.attempt, prepare.attempt)",
+              "code": "=DEFAULT(execute.body.code, DEFAULT(execute.body.detail, IF(AND(DEFAULT(execute.status, 0) >= 500, DEFAULT(execute.status, 0) <= 599), \"HTTP_RESPONSE_UNCERTAIN\", IF(IS_PRESENT(execute.retries_exhausted), \"RETRIES_EXHAUSTED\", SWITCH(JOIN([execute.status], \"\"), \"0\", \"TRANSPORT_UNCERTAIN\", null)))))",
+              "execution_id": "=DEFAULT(execute.body.execution_id, null)",
+              "idempotency_key": "=DEFAULT(execute.body.idempotency_key, null)",
+              "message": "=SWITCH(IF(AND(DEFAULT(execute.status, 0) >= 500, DEFAULT(execute.status, 0) <= 599), \"uncertain\", SWITCH(DEFAULT(execute.body.state, JOIN([\"HTTP\", execute.status], \"-\")), \"EXECUTED\", \"final\", \"DENIED\", \"final\", \"FAILED_NOT_EXECUTED\", \"final\", \"OBSERVED\", \"final\", \"STALE_AUTHORIZATION\", \"expired\", \"PENDING_APPROVAL\", \"pending\", \"DISPATCH_COMMITTED\", \"uncertain\", \"INDETERMINATE\", \"uncertain\", \"FAILED_EFFECT_UNKNOWN\", \"uncertain\", \"HTTP-503\", \"uncertain\", \"HTTP-0\", \"uncertain\", \"HTTP-\", \"uncertain\", \"refused\")), \"uncertain\", \"Hand to an administrator. Never resend under a new key.\", \"pending\", \"A person must decide in the ExecBound console. To check again, call again with the same reference, never a new one.\", \"expired\", \"The approval deadline passed; the authorization is stale.\", \"refused\", \"The gateway refused this request; read code.\", \"The action reached a terminal state.\")",
+              "outcome": "=IF(AND(DEFAULT(execute.status, 0) >= 500, DEFAULT(execute.status, 0) <= 599), \"uncertain\", SWITCH(DEFAULT(execute.body.state, JOIN([\"HTTP\", execute.status], \"-\")), \"EXECUTED\", \"final\", \"DENIED\", \"final\", \"FAILED_NOT_EXECUTED\", \"final\", \"OBSERVED\", \"final\", \"STALE_AUTHORIZATION\", \"expired\", \"PENDING_APPROVAL\", \"pending\", \"DISPATCH_COMMITTED\", \"uncertain\", \"INDETERMINATE\", \"uncertain\", \"FAILED_EFFECT_UNKNOWN\", \"uncertain\", \"HTTP-503\", \"uncertain\", \"HTTP-0\", \"uncertain\", \"HTTP-\", \"uncertain\", \"refused\"))",
+              "reference": "=prepare.reference",
+              "state": "=DEFAULT(execute.body.state, null)",
+              "request_ref": "=DEFAULT(execute.body.request_ref, null)"
+            }
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "schedule": null,
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::EventTransformationAgent",
+          "width": null
+        },
+        {
+          "description": "Defaults and normalisation. No idempotency key is derived here: the gateway derives it from the reference, so this story and the Python client land on the same intent.",
+          "disabled": false,
+          "guid": "2a2118527fb6402037faadedef31b378",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Prepare",
+          "options": {
+            "mode": "message_only",
+            "payload": {
+              "arguments": "=DEFAULT(DEFAULT(entry.body.arguments, entry.arguments), JSON_PARSE(\"{}\"))",
+              "attempt": 0,
+              "incident_id": "=DEFAULT(entry.body.incident_id, entry.incident_id)",
+              "operation_ref": "=DEFAULT(DEFAULT(entry.body.operation_ref, entry.operation_ref), \"endpoint.isolate\")",
+              "reference": "=STRIP(DEFAULT(entry.body.reference, entry.reference))",
+              "started_at": "=NOW()",
+              "target_kind": "=DEFAULT(DEFAULT(entry.body.target_kind, entry.target_kind), \"hostname\")",
+              "target_value": "=SWITCH(DEFAULT(DEFAULT(entry.body.target_kind, entry.target_kind), \"hostname\"), \"hostname\", DOWNCASE(STRIP(DEFAULT(entry.body.target_value, entry.target_value))), STRIP(DEFAULT(entry.body.target_value, entry.target_value)))",
+              "wait_seconds": "=DEFAULT(DEFAULT(entry.body.wait_seconds, entry.wait_seconds), RESOURCE.execbound_wait_seconds)",
+              "external_case": "=DEFAULT(DEFAULT(entry.body.external_case, entry.external_case), null)"
+            }
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "schedule": null,
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::EventTransformationAgent",
+          "width": null
+        },
+        {
+          "description": "The ticket, case or alert id is what the gateway derives the idempotency key from. Without one there is no intent to send.",
+          "disabled": false,
+          "guid": "9737d8dccd11cbf1b64e5d5090fc300a",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Has reference?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "<<prepare.reference>>",
+                "type": "regex",
+                "value": "^.+$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "Refused here, before any call, so the story never derives a key of its own and never sends one intent twice under different keys.",
+          "disabled": false,
+          "guid": "73d010015a0a75996d8fc9c7fdd52f44",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "No reference?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "<<prepare.reference>>",
+                "type": "!regex",
+                "value": "^.+$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        },
+        {
+          "description": "The second exit. Same shape as Outcome, so a caller reads one contract.",
+          "disabled": false,
+          "guid": "046d73f981b88481329869741a5369b6",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Refused: no reference",
+          "options": {
+            "mode": "message_only",
+            "payload": {
+              "approval_state": null,
+              "approval_url": null,
+              "attempts": 0,
+              "code": "MISSING_REFERENCE",
+              "execution_id": null,
+              "idempotency_key": null,
+              "message": "Refused before any call: a reference (the ticket, case or alert id) is required, and this story never invents one.",
+              "outcome": "refused",
+              "reference": "",
+              "state": null,
+              "request_ref": null
+            }
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "schedule": null,
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::EventTransformationAgent",
+          "width": null
+        },
+        {
+          "description": "Status 0 or a server error cannot establish whether the action executed. Stop as uncertain; 503 retains its separate bounded same-reference recovery loop.",
+          "disabled": false,
+          "guid": "cf0e9e4f5bcb43709d611dcc4b4487b4",
+          "monitoring": {
+            "monitor_all_events": false,
+            "monitor_failures": false,
+            "monitor_no_events_emitted": null
+          },
+          "name": "Transport uncertain?",
+          "options": {
+            "must_match": "1",
+            "rules": [
+              {
+                "path": "<<execute.status>>",
+                "type": "regex",
+                "value": "^(0|50[012456789]|5[1-9][0-9])$"
+              }
+            ]
+          },
+          "origin_story_identifier": null,
+          "reporting": {
+            "time_saved_unit": "minutes",
+            "time_saved_value": 0
+          },
+          "template": {
+            "created_from_template_guid": null,
+            "created_from_template_version": null,
+            "template_tags": []
+          },
+          "type": "Agents::TriggerAgent",
+          "width": null
+        }
+      ],
+      "api_entry_action_guids": [],
+      "api_exit_action_guids": [],
+      "app_endpoints": [],
+      "description": "Ask ExecBound to authorize a consequential action before anything is dispatched. The decision is the kernel's and, when a person is required, is made in the ExecBound console. This story cannot approve, cannot escalate its own authority and cannot retry into a second effect.",
+      "diagram_layout": "{\"038b20808e277319ff17b91ab1b1f4ea\": [675, 360], \"046d73f981b88481329869741a5369b6\": [585, 210], \"2a2118527fb6402037faadedef31b378\": [390, 105], \"2a57c537f18fa7b538502c9c014b2b9b\": [105, 480], \"32c92705afdfd924c9a9203e7e1bd99a\": [960, 480], \"330e0b6e22d898976fed77de12679060\": [675, 600], \"33af88bc189ec60a7f495a6092ae62d3\": [390, 360], \"59143a5b43ba9e31a7e6e2585c98f944\": [390, 240], \"73d010015a0a75996d8fc9c7fdd52f44\": [480, 150], \"74daefb40d8c843cf39ab02963cc3410\": [1245, 480], \"93bd056994d451cb1dc9ececf30588c7\": [105, 360], \"9737d8dccd11cbf1b64e5d5090fc300a\": [300, 150], \"9d30310d9f42c9ca350025e5b7472fe0\": [675, 480], \"b966e624fac679ed37687900015e5805\": [390, 0], \"cf0e9e4f5bcb43709d611dcc4b4487b4\": [-465, 360], \"e6f3fe9dd9af7e2a8336ed48ca2da5b4\": [675, 720], \"ed71df3db320e7bf46eee77975f58f02\": [390, 480], \"f7e3e4250f5977397b176e830f4a1195\": [960, 360], \"fb484bf23c9b58427eb884da113eece3\": [-180, 360]}",
+      "diagram_notes": [],
+      "entry_agent_guid": "b966e624fac679ed37687900015e5805",
+      "exit_agent_guids": [
+        "ed71df3db320e7bf46eee77975f58f02",
+        "046d73f981b88481329869741a5369b6"
+      ],
+      "exported_at": "2026-09-18T17:56:02Z",
+      "guid": "879bc1c70da37e87c5fbe65603094439",
+      "icon": ":adhesive_bandage:",
+      "integration_product": null,
+      "integration_vendor": null,
+      "integrations": [],
+      "keep_events_for": 86400,
+      "links": [
+        {
+          "receiver": 14,
+          "source": 0
+        },
+        {
+          "receiver": 2,
+          "source": 1
+        },
+        {
+          "receiver": 3,
+          "source": 1
+        },
+        {
+          "receiver": 4,
+          "source": 1
+        },
+        {
+          "receiver": 5,
+          "source": 1
+        },
+        {
+          "receiver": 6,
+          "source": 1
+        },
+        {
+          "receiver": 13,
+          "source": 2
+        },
+        {
+          "receiver": 7,
+          "source": 3
+        },
+        {
+          "receiver": 8,
+          "source": 3
+        },
+        {
+          "receiver": 13,
+          "source": 4
+        },
+        {
+          "receiver": 11,
+          "source": 5
+        },
+        {
+          "receiver": 12,
+          "source": 5
+        },
+        {
+          "receiver": 13,
+          "source": 6
+        },
+        {
+          "receiver": 9,
+          "source": 7
+        },
+        {
+          "receiver": 13,
+          "source": 8
+        },
+        {
+          "receiver": 10,
+          "source": 9
+        },
+        {
+          "receiver": 1,
+          "source": 10
+        },
+        {
+          "receiver": 9,
+          "source": 11
+        },
+        {
+          "receiver": 13,
+          "source": 12
+        },
+        {
+          "receiver": 15,
+          "source": 14
+        },
+        {
+          "receiver": 16,
+          "source": 14
+        },
+        {
+          "receiver": 1,
+          "source": 15
+        },
+        {
+          "receiver": 17,
+          "source": 16
+        },
+        {
+          "receiver": 18,
+          "source": 1
+        },
+        {
+          "receiver": 13,
+          "source": 18
+        }
+      ],
+      "llm_product_instructions": "",
+      "monitor_failures": false,
+      "name": "ExecBound: govern an action",
+      "origin_story_identifier": null,
+      "pages": [],
+      "parent_only_send_to_story": false,
+      "recipients": [],
+      "reporting_status": true,
+      "schema_version": 30,
+      "sections": [],
+      "send_to_story_access": null,
+      "send_to_story_access_source": "OFF",
+      "send_to_story_enabled": false,
+      "send_to_story_skill_use_requires_confirmation": true,
+      "send_to_story_timeout_duration_seconds": null,
+      "send_to_story_timeout_enabled": false,
+      "slug": "execbound_govern_an_action",
+      "standard_lib_version": 95,
+      "start_reference": null,
+      "story_library_metadata": {},
+      "synchronous_webhooks_enabled": false,
+      "tags": [],
+      "time_saved_unit": "minutes",
+      "time_saved_value": 0
+    }
+  ],
+  "send_to_story_access": null,
+  "send_to_story_access_source": "OFF",
+  "send_to_story_enabled": false,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "send_to_story_timeout_duration_seconds": null,
+  "send_to_story_timeout_enabled": false,
+  "slug": "execbound_ai_agents",
+  "standard_lib_version": 95,
+  "start_reference": null,
+  "story_library_metadata": {},
+  "synchronous_webhooks_enabled": false,
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0
+}

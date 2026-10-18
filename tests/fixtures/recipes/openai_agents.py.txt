@@ -1,0 +1,21 @@
+import os
+
+from agents import Agent
+from agents.mcp import MCPServerStreamableHttp
+
+async with MCPServerStreamableHttp(
+    name="execbound",
+    params={
+        "url": "https://sandbox.example/mcp/",
+        "headers": {"Authorization": "Bearer " + os.environ["EXECBOUND_CREDENTIAL"]},
+    },
+) as execbound:
+    agent = Agent(
+        name="responder",
+        instructions=(
+            "Act only through ExecBound; put uncertain outcomes in front of a person. "
+            "On a denial, stop and give the person its request_ref."
+        ),
+        mcp_servers=[execbound],
+    )
+# Over HTTP instead of MCP: clients/python/examples/openai_agents_tool.py wraps the client.

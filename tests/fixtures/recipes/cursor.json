@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "execbound": {
+      "url": "https://sandbox.example/mcp/",
+      "headers": {"Authorization": "Bearer ${env:EXECBOUND_CREDENTIAL}"}
+    }
+  }
+}

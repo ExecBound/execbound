@@ -1,0 +1,103 @@
+{
+  "blocks": [
+    {
+      "text": {
+        "emoji": false,
+        "text": "EB-20 · Isolate endpoint needs a decision",
+        "type": "plain_text"
+      },
+      "type": "header"
+    },
+    {
+      "fields": [
+        {
+          "emoji": false,
+          "text": "Decide by: 2026-09-18 03:28:00 UTC",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Time to decide: About 4 minutes when sent",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Workspace: Synthetic SOC",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Space: Default",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Action: Isolate endpoint",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Resource class: workstation",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Environment: production",
+          "type": "plain_text"
+        },
+        {
+          "emoji": false,
+          "text": "Requested by: Agent 3",
+          "type": "plain_text"
+        }
+      ],
+      "type": "section"
+    },
+    {
+      "elements": [
+        {
+          "action_id": "open_approval",
+          "text": {
+            "emoji": false,
+            "text": "Open the approval",
+            "type": "plain_text"
+          },
+          "type": "button",
+          "url": "https://app.example.net/approvals/00000000-0000-4000-8000-000000000002"
+        },
+        {
+          "action_id": "open_basic_page",
+          "text": {
+            "emoji": false,
+            "text": "Use the basic page",
+            "type": "plain_text"
+          },
+          "type": "button",
+          "url": "https://app.example.net/approvals/00000000-0000-4000-8000-000000000002/classic"
+        }
+      ],
+      "type": "actions"
+    },
+    {
+      "elements": [
+        {
+          "emoji": false,
+          "text": "If the console does not load, use the basic page.",
+          "type": "plain_text"
+        }
+      ],
+      "type": "context"
+    },
+    {
+      "elements": [
+        {
+          "emoji": false,
+          "text": "Request EB-20",
+          "type": "plain_text"
+        }
+      ],
+      "type": "context"
+    }
+  ],
+  "text": "EB-20 · Isolate endpoint needs a decision by 03:28:00 UTC in Synthetic SOC"
+}

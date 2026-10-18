@@ -1,0 +1,317 @@
+{
+  "$defs": {
+    "Arguments": {
+      "description": "Bounded scalar options; the resolved action's catalog spec decides which are valid.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,62}$": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "title": "Arguments",
+      "type": "object"
+    },
+    "CredentialState": {
+      "additionalProperties": false,
+      "properties": {
+        "must_change_password": {
+          "title": "Must Change Password",
+          "type": "boolean"
+        },
+        "password_generation": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Password Generation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "password_generation",
+        "must_change_password"
+      ],
+      "title": "CredentialState",
+      "type": "object"
+    },
+    "CredentialTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "$ref": "#/$defs/CredentialState"
+        },
+        "before": {
+          "$ref": "#/$defs/CredentialState"
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ],
+      "title": "CredentialTransition",
+      "type": "object"
+    },
+    "EndpointState": {
+      "additionalProperties": false,
+      "properties": {
+        "contained": {
+          "title": "Contained",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "contained"
+      ],
+      "title": "EndpointState",
+      "type": "object"
+    },
+    "EndpointTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "$ref": "#/$defs/EndpointState"
+        },
+        "before": {
+          "$ref": "#/$defs/EndpointState"
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ],
+      "title": "EndpointTransition",
+      "type": "object"
+    },
+    "IdentityState": {
+      "additionalProperties": false,
+      "properties": {
+        "account_enabled": {
+          "title": "Account Enabled",
+          "type": "boolean"
+        },
+        "session_generation": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Session Generation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "account_enabled",
+        "session_generation"
+      ],
+      "title": "IdentityState",
+      "type": "object"
+    },
+    "IdentityTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "$ref": "#/$defs/IdentityState"
+        },
+        "before": {
+          "$ref": "#/$defs/IdentityState"
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ],
+      "title": "IdentityTransition",
+      "type": "object"
+    },
+    "ProviderCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "account_id": {
+          "format": "uuid",
+          "title": "Account Id",
+          "type": "string"
+        },
+        "action": {
+          "default": "endpoint.isolate",
+          "pattern": "^[a-z][a-z0-9_]{0,31}\\.[a-z][a-z0-9_]{0,31}$",
+          "title": "Action",
+          "type": "string"
+        },
+        "arguments": {
+          "$ref": "#/$defs/Arguments"
+        },
+        "canonical_target_id": {
+          "format": "uuid",
+          "title": "Canonical Target Id",
+          "type": "string"
+        },
+        "execution_id": {
+          "format": "uuid",
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "expected_version": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Expected Version",
+          "type": "string"
+        },
+        "intent_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Intent Hash",
+          "type": "string"
+        },
+        "operation_id": {
+          "format": "uuid",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "plan_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "provider": {
+          "default": "mock_crowdstrike",
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "title": "Provider",
+          "type": "string"
+        },
+        "provider_operation": {
+          "default": "contain",
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "title": "Provider Operation",
+          "type": "string"
+        },
+        "resource_provider_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Resource Provider Id",
+          "type": "string"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "account_id",
+        "canonical_target_id",
+        "resource_provider_id",
+        "expected_version",
+        "operation_id",
+        "execution_id",
+        "intent_hash",
+        "plan_hash"
+      ],
+      "title": "ProviderCommand",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "command": {
+      "$ref": "#/$defs/ProviderCommand"
+    },
+    "command_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Command Hash",
+      "type": "string"
+    },
+    "credential_transition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CredentialTransition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "endpoint_transition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EndpointTransition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "identity_transition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IdentityTransition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mutation_count": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Mutation Count",
+      "type": "integer"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "EXECUTED",
+        "VERSION_MISMATCH",
+        "CANCELLED_NOT_EXECUTED",
+        "TARGET_NOT_FOUND"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "resulting_version": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Resulting Version"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "command",
+    "command_hash",
+    "outcome",
+    "occurred_at",
+    "resulting_version",
+    "mutation_count"
+  ],
+  "title": "JournalRecord",
+  "type": "object"
+}

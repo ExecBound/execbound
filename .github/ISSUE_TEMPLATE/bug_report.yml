@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Bug report
+description: Something ExecBound does that it should not, or does not do that it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A security vulnerability is never reported here. Follow the
+        [security policy](https://github.com/ExecBound/execbound/security/policy)
+        instead, so it can be fixed before it is public.
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: What you did, and what ExecBound did in answer.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence that shows it, from a fresh installation where you can.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release, or the commit you built from.
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: How you run it
+      options:
+        - The Docker Compose installation (execbound init)
+        - From a clone of this repository
+        - Another deployment of the image
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and output
+      description: Remove credentials, tokens and anyone else's data first.
+      render: text

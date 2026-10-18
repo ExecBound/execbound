@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Release
+
+# A version tag publishes a release: the runtime image pushed to the registry under its version
+# and its minor line, signed, and a GitHub Release carrying the image's SBOM, its provenance and
+# the release record. docs/RELEASE.md is the checklist this is one step of.
+on:
+  push:
+    tags: ["v*"]
+
+# Nothing by default. Each job names what it needs, and only `publish` can write anything.
+permissions: {}
+
+# One release at a time, and never one stopped half-way through publishing.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Everything that runs third-party code runs here, with a token that can only read: the
+    # image build, the locked environment's sync and the SBOM generator. So nothing here can
+    # push an image, sign one or publish a release.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      # The CI run on the tagged commit.
+      actions: read
+    outputs:
+      version: ${{ steps.preflight.outputs.version }}
+      minor: ${{ steps.preflight.outputs.minor }}
+      image: ${{ steps.preflight.outputs.image }}
+      ci_run: ${{ steps.preflight.outputs.ci_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history and its tags: the preflight checks that the tag names the commit
+          # and that the commit is on main.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.13"
+      - name: Check the tag, every package's version, the notes, main and CI
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_IMAGE: ${{ vars.RELEASE_IMAGE }}
+        run: >-
+          python3 scripts/release_preflight.py check --tag "$GITHUB_REF_NAME"
+          --commit "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY" --image "$RELEASE_IMAGE"
+          >> "$GITHUB_OUTPUT"
+      - name: Build and smoke-test the runtime image
+        env:
+          EXECBOUND_CI_IMAGE: ${{ steps.preflight.outputs.image }}:${{ steps.preflight.outputs.version }}
+        run: python3 scripts/ci.py image
+      - name: Describe the image, and check the SBOM matches what it carries
+        env:
+          EXECBOUND_CI_IMAGE: ${{ steps.preflight.outputs.image }}:${{ steps.preflight.outputs.version }}
+        run: python3 scripts/ci.py provenance
+      - name: Save the image for the publishing job
+        env:
+          EXECBOUND_CI_IMAGE: ${{ steps.preflight.outputs.image }}:${{ steps.preflight.outputs.version }}
+        run: |
+          mkdir -p local-data/release-image
+          docker save --output local-data/release-image/image.tar "$EXECBOUND_CI_IMAGE"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            local-data/release/sbom.cdx.json
+            local-data/release/provenance.json
+            local-data/release/image-distributions.json
+            local-data/release-image/image.tar
+      - name: Remove what the stages started
+        if: always()
+        run: python3 scripts/ci.py cleanup
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # A maintainer approves each run before this job starts. The environment allows deployments
+    # from version tags alone, and the approval is read back into the release record.
+    environment: release
+    permissions:
+      # The GitHub Release.
+      contents: write
+      # The image and its signature.
+      packages: write
+      # The OIDC token Sigstore certifies the signature with.
+      id-token: write
+      # This run's approval.
+      actions: read
+    env:
+      IMAGE: ${{ needs.build.outputs.image }}
+      VERSION: ${{ needs.build.outputs.version }}
+      MINOR: ${{ needs.build.outputs.minor }}
+      CI_RUN: ${{ needs.build.outputs.ci_run }}
+      COSIGN_VERSION: v3.1.3
+      COSIGN_SHA256: 4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71
+      OIDC_ISSUER: https://token.actions.githubusercontent.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refuse a run nobody approved
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release_preflight.py approved --repository "$GITHUB_REPOSITORY" --run "$GITHUB_RUN_ID"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release
+          path: local-data
+      - name: Load the image, and require the one the provenance describes
+        run: |
+          docker load --input local-data/release-image/image.tar
+          built="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["artifact"]["image_id"])' local-data/release/provenance.json)"
+          test "$(docker image inspect --format '{{.Id}}' "$IMAGE:$VERSION")" = "$built"
+      - name: Sign in to the registry with this run's token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Refuse a version the registry already holds
+        # A published version is never replaced. Only the minor line's tag moves.
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" > /dev/null 2>&1; then
+            echo "::error::$IMAGE:$VERSION is already published"
+            exit 1
+          fi
+      - name: Push the version and its minor line
+        run: |
+          docker tag "$IMAGE:$VERSION" "$IMAGE:$MINOR"
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:$MINOR"
+      - name: Read the digest the registry holds for both tags
+        id: pushed
+        run: |
+          digest() {
+            docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin)["digest"])'
+          }
+          version="$(digest "$IMAGE:$VERSION")"
+          test "$(digest "$IMAGE:$MINOR")" = "$version"
+          echo "digest=$version" >> "$GITHUB_OUTPUT"
+      - name: Install cosign, checked against its published digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/cosign"
+          curl -fsSL --output "$RUNNER_TEMP/cosign/cosign" \
+            "https://github.com/sigstore/cosign/releases/download/$COSIGN_VERSION/cosign-linux-amd64"
+          echo "$COSIGN_SHA256  $RUNNER_TEMP/cosign/cosign" | sha256sum --check --strict
+          chmod 0755 "$RUNNER_TEMP/cosign/cosign"
+          echo "$RUNNER_TEMP/cosign" >> "$GITHUB_PATH"
+      - name: Sign the pushed digest, never a tag, and verify the signature
+        env:
+          DIGEST: ${{ steps.pushed.outputs.digest }}
+        run: |
+          cosign sign --yes "$IMAGE@$DIGEST"
+          cosign verify "$IMAGE@$DIGEST" \
+            --certificate-identity "https://github.com/$GITHUB_WORKFLOW_REF" \
+            --certificate-oidc-issuer "$OIDC_ISSUER" > /dev/null
+      - name: Record the digest and the signature in the provenance
+        env:
+          DIGEST: ${{ steps.pushed.outputs.digest }}
+        run: >-
+          python3 scripts/release_provenance.py --amend local-data/release/provenance.json
+          --image-reference "$IMAGE" --registry-digest "$DIGEST"
+          --signature-identity "https://github.com/$GITHUB_WORKFLOW_REF"
+          --signature-issuer "$OIDC_ISSUER"
+      - name: Write the release record and the notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.pushed.outputs.digest }}
+        run: >-
+          python3 scripts/release_preflight.py record --tag "$GITHUB_REF_NAME"
+          --commit "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY" --run "$GITHUB_RUN_ID"
+          --image "$IMAGE" --digest "$DIGEST"
+          --identity "https://github.com/$GITHUB_WORKFLOW_REF" --issuer "$OIDC_ISSUER"
+          --ci-run "$CI_RUN" --out-dir local-data/release
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag
+          --title "ExecBound $VERSION" --notes-file local-data/release/notes.md
+          local-data/release/sbom.cdx.json local-data/release/provenance.json
+          local-data/release/image-distributions.json local-data/release/release-record.json

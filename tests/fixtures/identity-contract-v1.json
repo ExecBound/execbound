@@ -1,0 +1,650 @@
+{
+  "actions": {
+    "identity.disable": {
+      "binding_hash": "077f8a348d0f376f67d65f4d6b5899bf9bc1d77c8011ea95f29eb6ed9619e625",
+      "command_canonical": "{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.disable\",\"arguments\":{},\"canonical_target_id\":\"00000000-0000-0000-0000-000000000005\",\"execution_id\":\"00000000-0000-0000-0000-00000000000a\",\"expected_version\":\"resource-v1\",\"intent_hash\":\"f88f09d510cd3da2b2c0197fd3983f65357a60a3e5c4d39dd63420bbb3862a63\",\"operation_id\":\"00000000-0000-0000-0000-000000000014\",\"plan_hash\":\"8f5caa253640f7cc4f2493514b7668d0932c05dc225a8adcd0770fe8db5bf93b\",\"provider\":\"mock_entra\",\"provider_operation\":\"disable\",\"resource_provider_id\":\"identity-01\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1}",
+      "dispatch": {
+        "canonical_target_id": "00000000-0000-0000-0000-000000000005",
+        "execution_id": "00000000-0000-0000-0000-00000000000a",
+        "frozen": {
+          "alias_id": null,
+          "context_contract_version": "identity-control.v1",
+          "facts": [
+            {
+              "dependencies": [],
+              "name": "privilege_class",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "standard"
+            },
+            {
+              "dependencies": [],
+              "name": "environment",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "development"
+            },
+            {
+              "dependencies": [],
+              "name": "criticality",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": 1
+            },
+            {
+              "dependencies": [
+                "environment"
+              ],
+              "name": "is_production",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "DERIVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": false
+            },
+            {
+              "dependencies": [],
+              "name": "incident_status",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "soc_analyst"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000007",
+              "source_kind": "incident",
+              "source_object_id": "00000000-0000-0000-0000-000000000008",
+              "source_version": "incident-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "OPEN"
+            },
+            {
+              "dependencies": [],
+              "name": "incident_severity",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "soc_analyst"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000007",
+              "source_kind": "incident",
+              "source_object_id": "00000000-0000-0000-0000-000000000008",
+              "source_version": "incident-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "CRITICAL"
+            }
+          ],
+          "intent": {
+            "account_id": "00000000-0000-0000-0000-000000000003",
+            "action": "identity.disable",
+            "arguments": {},
+            "principal_id": "00000000-0000-0000-0000-000000000002",
+            "provider": "mock_entra",
+            "provider_operation": "disable",
+            "resource_type": "identity",
+            "target_id": "00000000-0000-0000-0000-000000000004",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "version": 1
+          },
+          "mapping_version": "map-v1",
+          "request": {
+            "arguments": {},
+            "claimed_context": {
+              "criticality": null,
+              "environment": null,
+              "incident_id": "00000000-0000-0000-0000-000000000008",
+              "role": null,
+              "severity": null
+            },
+            "idempotency_key": "golden-identity.disable",
+            "operation_ref": "identity.disable",
+            "run_id": null,
+            "target": {
+              "kind": "canonical",
+              "value": "00000000-0000-0000-0000-000000000004"
+            }
+          },
+          "resolved_at": "2026-09-15T00:00:00Z",
+          "resource_provider_id": "identity-01",
+          "resource_version": "resource-v1",
+          "schema_version": "action.v1",
+          "valid_until": "2026-09-15T00:04:00Z"
+        },
+        "intent_hash": "f88f09d510cd3da2b2c0197fd3983f65357a60a3e5c4d39dd63420bbb3862a63",
+        "operation_id": "00000000-0000-0000-0000-000000000014",
+        "plan_hash": "8f5caa253640f7cc4f2493514b7668d0932c05dc225a8adcd0770fe8db5bf93b"
+      },
+      "resolved_canonical": "{\"alias_id\":null,\"context_contract_version\":\"identity-control.v1\",\"facts\":[{\"dependencies\":[],\"name\":\"privilege_class\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"standard\"},{\"dependencies\":[],\"name\":\"environment\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"development\"},{\"dependencies\":[],\"name\":\"criticality\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":1},{\"dependencies\":[\"environment\"],\"name\":\"is_production\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"DERIVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":false},{\"dependencies\":[],\"name\":\"incident_status\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"soc_analyst\"],\"source_id\":\"00000000-0000-0000-0000-000000000007\",\"source_kind\":\"incident\",\"source_object_id\":\"00000000-0000-0000-0000-000000000008\",\"source_version\":\"incident-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"OPEN\"},{\"dependencies\":[],\"name\":\"incident_severity\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"soc_analyst\"],\"source_id\":\"00000000-0000-0000-0000-000000000007\",\"source_kind\":\"incident\",\"source_object_id\":\"00000000-0000-0000-0000-000000000008\",\"source_version\":\"incident-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"CRITICAL\"}],\"intent\":{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.disable\",\"arguments\":{},\"principal_id\":\"00000000-0000-0000-0000-000000000002\",\"provider\":\"mock_entra\",\"provider_operation\":\"disable\",\"resource_type\":\"identity\",\"target_id\":\"00000000-0000-0000-0000-000000000004\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1},\"mapping_version\":\"map-v1\",\"request\":{\"arguments\":{},\"claimed_context\":{\"criticality\":null,\"environment\":null,\"incident_id\":\"00000000-0000-0000-0000-000000000008\",\"role\":null,\"severity\":null},\"idempotency_key\":\"golden-identity.disable\",\"operation_ref\":\"identity.disable\",\"run_id\":null,\"target\":{\"kind\":\"canonical\",\"value\":\"00000000-0000-0000-0000-000000000004\"}},\"resolved_at\":\"2026-09-15T00:00:00Z\",\"resource_provider_id\":\"identity-01\",\"resource_version\":\"resource-v1\",\"schema_version\":\"action.v1\",\"valid_until\":\"2026-09-15T00:04:00Z\"}",
+      "signed_journal": {
+        "key_id": "identity-journal-v1",
+        "record": {
+          "command": {
+            "account_id": "00000000-0000-0000-0000-000000000003",
+            "action": "identity.disable",
+            "arguments": {},
+            "canonical_target_id": "00000000-0000-0000-0000-000000000005",
+            "execution_id": "00000000-0000-0000-0000-00000000000a",
+            "expected_version": "resource-v1",
+            "intent_hash": "f88f09d510cd3da2b2c0197fd3983f65357a60a3e5c4d39dd63420bbb3862a63",
+            "operation_id": "00000000-0000-0000-0000-000000000014",
+            "plan_hash": "8f5caa253640f7cc4f2493514b7668d0932c05dc225a8adcd0770fe8db5bf93b",
+            "provider": "mock_entra",
+            "provider_operation": "disable",
+            "resource_provider_id": "identity-01",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "version": 1
+          },
+          "command_hash": "4d6f1cc16b4f24f149a215b23bffde1557f1a812150dd155f528f2937123cb8f",
+          "identity_transition": {
+            "after": {
+              "account_enabled": false,
+              "session_generation": 0
+            },
+            "before": {
+              "account_enabled": true,
+              "session_generation": 0
+            }
+          },
+          "mutation_count": 1,
+          "occurred_at": "2026-09-15T05:56:04.266455Z",
+          "outcome": "EXECUTED",
+          "resulting_version": "9a9eca70-ae7c-4f92-b937-10a7d29cef40",
+          "version": 1
+        },
+        "signature": "ba0b667c82ea5fa51458f8a0265d0c8ed38a079a5942badeb012f06b1d45ae41",
+        "version": 1
+      },
+      "signed_journal_canonical": "{\"key_id\":\"identity-journal-v1\",\"record\":{\"command\":{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.disable\",\"arguments\":{},\"canonical_target_id\":\"00000000-0000-0000-0000-000000000005\",\"execution_id\":\"00000000-0000-0000-0000-00000000000a\",\"expected_version\":\"resource-v1\",\"intent_hash\":\"f88f09d510cd3da2b2c0197fd3983f65357a60a3e5c4d39dd63420bbb3862a63\",\"operation_id\":\"00000000-0000-0000-0000-000000000014\",\"plan_hash\":\"8f5caa253640f7cc4f2493514b7668d0932c05dc225a8adcd0770fe8db5bf93b\",\"provider\":\"mock_entra\",\"provider_operation\":\"disable\",\"resource_provider_id\":\"identity-01\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1},\"command_hash\":\"4d6f1cc16b4f24f149a215b23bffde1557f1a812150dd155f528f2937123cb8f\",\"identity_transition\":{\"after\":{\"account_enabled\":false,\"session_generation\":0},\"before\":{\"account_enabled\":true,\"session_generation\":0}},\"mutation_count\":1,\"occurred_at\":\"2026-09-15T05:56:04.266455Z\",\"outcome\":\"EXECUTED\",\"resulting_version\":\"9a9eca70-ae7c-4f92-b937-10a7d29cef40\",\"version\":1},\"signature\":\"ba0b667c82ea5fa51458f8a0265d0c8ed38a079a5942badeb012f06b1d45ae41\",\"version\":1}"
+    },
+    "identity.enable": {
+      "binding_hash": "181f2465601e8574df0449834e5cf93d8c48f3c4d98884853e107e92c3d67983",
+      "command_canonical": "{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.enable\",\"arguments\":{},\"canonical_target_id\":\"00000000-0000-0000-0000-000000000005\",\"execution_id\":\"00000000-0000-0000-0000-00000000000b\",\"expected_version\":\"resource-v1\",\"intent_hash\":\"db22c474ecd4bd4768fcaf9510da4925c134399c5417b2b188987d92e2351161\",\"operation_id\":\"00000000-0000-0000-0000-000000000015\",\"plan_hash\":\"b5461b51607a3b4fd1dc7b1d646c1ae6aa76c23a25541a86aec75fa2de33f625\",\"provider\":\"mock_entra\",\"provider_operation\":\"enable\",\"resource_provider_id\":\"identity-01\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1}",
+      "dispatch": {
+        "canonical_target_id": "00000000-0000-0000-0000-000000000005",
+        "execution_id": "00000000-0000-0000-0000-00000000000b",
+        "frozen": {
+          "alias_id": null,
+          "context_contract_version": "identity-control.v1",
+          "facts": [
+            {
+              "dependencies": [],
+              "name": "privilege_class",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "standard"
+            },
+            {
+              "dependencies": [],
+              "name": "environment",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "development"
+            },
+            {
+              "dependencies": [],
+              "name": "criticality",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": 1
+            },
+            {
+              "dependencies": [
+                "environment"
+              ],
+              "name": "is_production",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "DERIVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": false
+            },
+            {
+              "dependencies": [],
+              "name": "incident_status",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "soc_analyst"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000007",
+              "source_kind": "incident",
+              "source_object_id": "00000000-0000-0000-0000-000000000008",
+              "source_version": "incident-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "OPEN"
+            },
+            {
+              "dependencies": [],
+              "name": "incident_severity",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "soc_analyst"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000007",
+              "source_kind": "incident",
+              "source_object_id": "00000000-0000-0000-0000-000000000008",
+              "source_version": "incident-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "CRITICAL"
+            }
+          ],
+          "intent": {
+            "account_id": "00000000-0000-0000-0000-000000000003",
+            "action": "identity.enable",
+            "arguments": {},
+            "principal_id": "00000000-0000-0000-0000-000000000002",
+            "provider": "mock_entra",
+            "provider_operation": "enable",
+            "resource_type": "identity",
+            "target_id": "00000000-0000-0000-0000-000000000004",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "version": 1
+          },
+          "mapping_version": "map-v1",
+          "request": {
+            "arguments": {},
+            "claimed_context": {
+              "criticality": null,
+              "environment": null,
+              "incident_id": "00000000-0000-0000-0000-000000000008",
+              "role": null,
+              "severity": null
+            },
+            "idempotency_key": "golden-identity.enable",
+            "operation_ref": "identity.enable",
+            "run_id": null,
+            "target": {
+              "kind": "canonical",
+              "value": "00000000-0000-0000-0000-000000000004"
+            }
+          },
+          "resolved_at": "2026-09-15T00:00:00Z",
+          "resource_provider_id": "identity-01",
+          "resource_version": "resource-v1",
+          "schema_version": "action.v1",
+          "valid_until": "2026-09-15T00:04:00Z"
+        },
+        "intent_hash": "db22c474ecd4bd4768fcaf9510da4925c134399c5417b2b188987d92e2351161",
+        "operation_id": "00000000-0000-0000-0000-000000000015",
+        "plan_hash": "b5461b51607a3b4fd1dc7b1d646c1ae6aa76c23a25541a86aec75fa2de33f625"
+      },
+      "resolved_canonical": "{\"alias_id\":null,\"context_contract_version\":\"identity-control.v1\",\"facts\":[{\"dependencies\":[],\"name\":\"privilege_class\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"standard\"},{\"dependencies\":[],\"name\":\"environment\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"development\"},{\"dependencies\":[],\"name\":\"criticality\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":1},{\"dependencies\":[\"environment\"],\"name\":\"is_production\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"DERIVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":false},{\"dependencies\":[],\"name\":\"incident_status\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"soc_analyst\"],\"source_id\":\"00000000-0000-0000-0000-000000000007\",\"source_kind\":\"incident\",\"source_object_id\":\"00000000-0000-0000-0000-000000000008\",\"source_version\":\"incident-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"OPEN\"},{\"dependencies\":[],\"name\":\"incident_severity\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"soc_analyst\"],\"source_id\":\"00000000-0000-0000-0000-000000000007\",\"source_kind\":\"incident\",\"source_object_id\":\"00000000-0000-0000-0000-000000000008\",\"source_version\":\"incident-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"CRITICAL\"}],\"intent\":{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.enable\",\"arguments\":{},\"principal_id\":\"00000000-0000-0000-0000-000000000002\",\"provider\":\"mock_entra\",\"provider_operation\":\"enable\",\"resource_type\":\"identity\",\"target_id\":\"00000000-0000-0000-0000-000000000004\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1},\"mapping_version\":\"map-v1\",\"request\":{\"arguments\":{},\"claimed_context\":{\"criticality\":null,\"environment\":null,\"incident_id\":\"00000000-0000-0000-0000-000000000008\",\"role\":null,\"severity\":null},\"idempotency_key\":\"golden-identity.enable\",\"operation_ref\":\"identity.enable\",\"run_id\":null,\"target\":{\"kind\":\"canonical\",\"value\":\"00000000-0000-0000-0000-000000000004\"}},\"resolved_at\":\"2026-09-15T00:00:00Z\",\"resource_provider_id\":\"identity-01\",\"resource_version\":\"resource-v1\",\"schema_version\":\"action.v1\",\"valid_until\":\"2026-09-15T00:04:00Z\"}",
+      "signed_journal": {
+        "key_id": "identity-journal-v1",
+        "record": {
+          "command": {
+            "account_id": "00000000-0000-0000-0000-000000000003",
+            "action": "identity.enable",
+            "arguments": {},
+            "canonical_target_id": "00000000-0000-0000-0000-000000000005",
+            "execution_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": "resource-v1",
+            "intent_hash": "db22c474ecd4bd4768fcaf9510da4925c134399c5417b2b188987d92e2351161",
+            "operation_id": "00000000-0000-0000-0000-000000000015",
+            "plan_hash": "b5461b51607a3b4fd1dc7b1d646c1ae6aa76c23a25541a86aec75fa2de33f625",
+            "provider": "mock_entra",
+            "provider_operation": "enable",
+            "resource_provider_id": "identity-01",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "version": 1
+          },
+          "command_hash": "526482c15542bd963814cb484e15c6849fdcb60daad76c2f01f829c6df12216e",
+          "identity_transition": {
+            "after": {
+              "account_enabled": true,
+              "session_generation": 0
+            },
+            "before": {
+              "account_enabled": false,
+              "session_generation": 0
+            }
+          },
+          "mutation_count": 1,
+          "occurred_at": "2026-09-15T05:56:04.272498Z",
+          "outcome": "EXECUTED",
+          "resulting_version": "8f9f6976-08a6-4fc5-8b49-6226906c2f8f",
+          "version": 1
+        },
+        "signature": "3c1719479642f1a06782b05c00777d315c1d81195855fb4f700f6a7153d84fc1",
+        "version": 1
+      },
+      "signed_journal_canonical": "{\"key_id\":\"identity-journal-v1\",\"record\":{\"command\":{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.enable\",\"arguments\":{},\"canonical_target_id\":\"00000000-0000-0000-0000-000000000005\",\"execution_id\":\"00000000-0000-0000-0000-00000000000b\",\"expected_version\":\"resource-v1\",\"intent_hash\":\"db22c474ecd4bd4768fcaf9510da4925c134399c5417b2b188987d92e2351161\",\"operation_id\":\"00000000-0000-0000-0000-000000000015\",\"plan_hash\":\"b5461b51607a3b4fd1dc7b1d646c1ae6aa76c23a25541a86aec75fa2de33f625\",\"provider\":\"mock_entra\",\"provider_operation\":\"enable\",\"resource_provider_id\":\"identity-01\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1},\"command_hash\":\"526482c15542bd963814cb484e15c6849fdcb60daad76c2f01f829c6df12216e\",\"identity_transition\":{\"after\":{\"account_enabled\":true,\"session_generation\":0},\"before\":{\"account_enabled\":false,\"session_generation\":0}},\"mutation_count\":1,\"occurred_at\":\"2026-09-15T05:56:04.272498Z\",\"outcome\":\"EXECUTED\",\"resulting_version\":\"8f9f6976-08a6-4fc5-8b49-6226906c2f8f\",\"version\":1},\"signature\":\"3c1719479642f1a06782b05c00777d315c1d81195855fb4f700f6a7153d84fc1\",\"version\":1}"
+    },
+    "identity.revoke_sessions": {
+      "binding_hash": "5109031e0fbfb44673a1e8aae1009684b86d1f41823306b78b8c3d0b431383c6",
+      "command_canonical": "{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.revoke_sessions\",\"arguments\":{},\"canonical_target_id\":\"00000000-0000-0000-0000-000000000005\",\"execution_id\":\"00000000-0000-0000-0000-00000000000c\",\"expected_version\":\"resource-v1\",\"intent_hash\":\"283a7f8af382638f2fd2157b546ceb34111ae9a2a209e30e77aa9e83b573aeaa\",\"operation_id\":\"00000000-0000-0000-0000-000000000016\",\"plan_hash\":\"95785e20ec3029fe926214c99fc93f2d1cc3654a42a5d45a3a14a236fb16a9be\",\"provider\":\"mock_entra\",\"provider_operation\":\"revoke_sessions\",\"resource_provider_id\":\"identity-01\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1}",
+      "dispatch": {
+        "canonical_target_id": "00000000-0000-0000-0000-000000000005",
+        "execution_id": "00000000-0000-0000-0000-00000000000c",
+        "frozen": {
+          "alias_id": null,
+          "context_contract_version": "identity-control.v1",
+          "facts": [
+            {
+              "dependencies": [],
+              "name": "privilege_class",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "standard"
+            },
+            {
+              "dependencies": [],
+              "name": "environment",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "development"
+            },
+            {
+              "dependencies": [],
+              "name": "criticality",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": 1
+            },
+            {
+              "dependencies": [
+                "environment"
+              ],
+              "name": "is_production",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "DERIVED",
+              "permitted_writers": [
+                "inventory_sync"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000006",
+              "source_kind": "inventory",
+              "source_object_id": "identity-01",
+              "source_version": "resource-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": false
+            },
+            {
+              "dependencies": [],
+              "name": "incident_status",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "soc_analyst"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000007",
+              "source_kind": "incident",
+              "source_object_id": "00000000-0000-0000-0000-000000000008",
+              "source_version": "incident-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "OPEN"
+            },
+            {
+              "dependencies": [],
+              "name": "incident_severity",
+              "observed_at": "2026-09-14T23:59:00Z",
+              "origin": "RESOLVED",
+              "permitted_writers": [
+                "soc_analyst"
+              ],
+              "source_id": "00000000-0000-0000-0000-000000000007",
+              "source_kind": "incident",
+              "source_object_id": "00000000-0000-0000-0000-000000000008",
+              "source_version": "incident-v1",
+              "valid_until": "2026-09-15T00:04:00Z",
+              "value": "CRITICAL"
+            }
+          ],
+          "intent": {
+            "account_id": "00000000-0000-0000-0000-000000000003",
+            "action": "identity.revoke_sessions",
+            "arguments": {},
+            "principal_id": "00000000-0000-0000-0000-000000000002",
+            "provider": "mock_entra",
+            "provider_operation": "revoke_sessions",
+            "resource_type": "identity",
+            "target_id": "00000000-0000-0000-0000-000000000004",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "version": 1
+          },
+          "mapping_version": "map-v1",
+          "request": {
+            "arguments": {},
+            "claimed_context": {
+              "criticality": null,
+              "environment": null,
+              "incident_id": "00000000-0000-0000-0000-000000000008",
+              "role": null,
+              "severity": null
+            },
+            "idempotency_key": "golden-identity.revoke_sessions",
+            "operation_ref": "identity.revoke_sessions",
+            "run_id": null,
+            "target": {
+              "kind": "canonical",
+              "value": "00000000-0000-0000-0000-000000000004"
+            }
+          },
+          "resolved_at": "2026-09-15T00:00:00Z",
+          "resource_provider_id": "identity-01",
+          "resource_version": "resource-v1",
+          "schema_version": "action.v1",
+          "valid_until": "2026-09-15T00:04:00Z"
+        },
+        "intent_hash": "283a7f8af382638f2fd2157b546ceb34111ae9a2a209e30e77aa9e83b573aeaa",
+        "operation_id": "00000000-0000-0000-0000-000000000016",
+        "plan_hash": "95785e20ec3029fe926214c99fc93f2d1cc3654a42a5d45a3a14a236fb16a9be"
+      },
+      "resolved_canonical": "{\"alias_id\":null,\"context_contract_version\":\"identity-control.v1\",\"facts\":[{\"dependencies\":[],\"name\":\"privilege_class\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"standard\"},{\"dependencies\":[],\"name\":\"environment\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"development\"},{\"dependencies\":[],\"name\":\"criticality\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":1},{\"dependencies\":[\"environment\"],\"name\":\"is_production\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"DERIVED\",\"permitted_writers\":[\"inventory_sync\"],\"source_id\":\"00000000-0000-0000-0000-000000000006\",\"source_kind\":\"inventory\",\"source_object_id\":\"identity-01\",\"source_version\":\"resource-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":false},{\"dependencies\":[],\"name\":\"incident_status\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"soc_analyst\"],\"source_id\":\"00000000-0000-0000-0000-000000000007\",\"source_kind\":\"incident\",\"source_object_id\":\"00000000-0000-0000-0000-000000000008\",\"source_version\":\"incident-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"OPEN\"},{\"dependencies\":[],\"name\":\"incident_severity\",\"observed_at\":\"2026-09-14T23:59:00Z\",\"origin\":\"RESOLVED\",\"permitted_writers\":[\"soc_analyst\"],\"source_id\":\"00000000-0000-0000-0000-000000000007\",\"source_kind\":\"incident\",\"source_object_id\":\"00000000-0000-0000-0000-000000000008\",\"source_version\":\"incident-v1\",\"valid_until\":\"2026-09-15T00:04:00Z\",\"value\":\"CRITICAL\"}],\"intent\":{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.revoke_sessions\",\"arguments\":{},\"principal_id\":\"00000000-0000-0000-0000-000000000002\",\"provider\":\"mock_entra\",\"provider_operation\":\"revoke_sessions\",\"resource_type\":\"identity\",\"target_id\":\"00000000-0000-0000-0000-000000000004\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1},\"mapping_version\":\"map-v1\",\"request\":{\"arguments\":{},\"claimed_context\":{\"criticality\":null,\"environment\":null,\"incident_id\":\"00000000-0000-0000-0000-000000000008\",\"role\":null,\"severity\":null},\"idempotency_key\":\"golden-identity.revoke_sessions\",\"operation_ref\":\"identity.revoke_sessions\",\"run_id\":null,\"target\":{\"kind\":\"canonical\",\"value\":\"00000000-0000-0000-0000-000000000004\"}},\"resolved_at\":\"2026-09-15T00:00:00Z\",\"resource_provider_id\":\"identity-01\",\"resource_version\":\"resource-v1\",\"schema_version\":\"action.v1\",\"valid_until\":\"2026-09-15T00:04:00Z\"}",
+      "signed_journal": {
+        "key_id": "identity-journal-v1",
+        "record": {
+          "command": {
+            "account_id": "00000000-0000-0000-0000-000000000003",
+            "action": "identity.revoke_sessions",
+            "arguments": {},
+            "canonical_target_id": "00000000-0000-0000-0000-000000000005",
+            "execution_id": "00000000-0000-0000-0000-00000000000c",
+            "expected_version": "resource-v1",
+            "intent_hash": "283a7f8af382638f2fd2157b546ceb34111ae9a2a209e30e77aa9e83b573aeaa",
+            "operation_id": "00000000-0000-0000-0000-000000000016",
+            "plan_hash": "95785e20ec3029fe926214c99fc93f2d1cc3654a42a5d45a3a14a236fb16a9be",
+            "provider": "mock_entra",
+            "provider_operation": "revoke_sessions",
+            "resource_provider_id": "identity-01",
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "version": 1
+          },
+          "command_hash": "cd8e35ada8582700511dbe8b4b1feeef42072ff5022573cb6571243dbc896eda",
+          "identity_transition": {
+            "after": {
+              "account_enabled": true,
+              "session_generation": 1
+            },
+            "before": {
+              "account_enabled": true,
+              "session_generation": 0
+            }
+          },
+          "mutation_count": 1,
+          "occurred_at": "2026-09-15T05:56:04.277941Z",
+          "outcome": "EXECUTED",
+          "resulting_version": "df8e9d62-9c1b-4761-b791-d04627620af7",
+          "version": 1
+        },
+        "signature": "a8c02e4c2cb1f93465bc52ffc0798ded868952a376fb0b91493cbf5e6846642a",
+        "version": 1
+      },
+      "signed_journal_canonical": "{\"key_id\":\"identity-journal-v1\",\"record\":{\"command\":{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"action\":\"identity.revoke_sessions\",\"arguments\":{},\"canonical_target_id\":\"00000000-0000-0000-0000-000000000005\",\"execution_id\":\"00000000-0000-0000-0000-00000000000c\",\"expected_version\":\"resource-v1\",\"intent_hash\":\"283a7f8af382638f2fd2157b546ceb34111ae9a2a209e30e77aa9e83b573aeaa\",\"operation_id\":\"00000000-0000-0000-0000-000000000016\",\"plan_hash\":\"95785e20ec3029fe926214c99fc93f2d1cc3654a42a5d45a3a14a236fb16a9be\",\"provider\":\"mock_entra\",\"provider_operation\":\"revoke_sessions\",\"resource_provider_id\":\"identity-01\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"version\":1},\"command_hash\":\"cd8e35ada8582700511dbe8b4b1feeef42072ff5022573cb6571243dbc896eda\",\"identity_transition\":{\"after\":{\"account_enabled\":true,\"session_generation\":1},\"before\":{\"account_enabled\":true,\"session_generation\":0}},\"mutation_count\":1,\"occurred_at\":\"2026-09-15T05:56:04.277941Z\",\"outcome\":\"EXECUTED\",\"resulting_version\":\"df8e9d62-9c1b-4761-b791-d04627620af7\",\"version\":1},\"signature\":\"a8c02e4c2cb1f93465bc52ffc0798ded868952a376fb0b91493cbf5e6846642a\",\"version\":1}"
+    }
+  },
+  "bundle": {
+    "approval_policies": "\npermit(principal, action == ExecBound::Action::\"identity.enable\", resource);\npermit(principal, action == ExecBound::Action::\"identity.disable\", resource)\nwhen { resource.is_production };\npermit(principal, action == ExecBound::Action::\"identity.revoke_sessions\", resource)\nwhen { resource.is_production };\n",
+    "authorization_policies": "\npermit(principal, action == ExecBound::Action::\"identity.disable\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.privilege_class == \"standard\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"identity.disable\", resource)\nwhen { resource.privilege_class == \"privileged\" || resource.privilege_class == \"tier0\" ||\n        resource.criticality == 4 };\n\n\npermit(principal, action == ExecBound::Action::\"identity.enable\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.privilege_class == \"standard\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"identity.enable\", resource)\nwhen { resource.privilege_class == \"privileged\" || resource.privilege_class == \"tier0\" ||\n        resource.criticality == 4 };\n\n\npermit(principal, action == ExecBound::Action::\"identity.revoke_sessions\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.privilege_class == \"standard\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"identity.revoke_sessions\", resource)\nwhen { resource.privilege_class == \"privileged\" || resource.privilege_class == \"tier0\" ||\n        resource.criticality == 4 };\n",
+    "bundle_id": "00000000-0000-0000-0000-000000000009",
+    "cedar_schema": "{\"ExecBound\":{\"actions\":{\"identity.disable\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Identity\"]}},\"identity.enable\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Identity\"]}},\"identity.revoke_sessions\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Identity\"]}}},\"entityTypes\":{\"Agent\":{\"shape\":{\"attributes\":{\"tenant\":{\"type\":\"String\"}},\"type\":\"Record\"}},\"Identity\":{\"shape\":{\"attributes\":{\"account\":{\"type\":\"String\"},\"criticality\":{\"type\":\"Long\"},\"environment\":{\"type\":\"String\"},\"incident_severity\":{\"type\":\"String\"},\"incident_status\":{\"type\":\"String\"},\"is_production\":{\"type\":\"Boolean\"},\"privilege_class\":{\"type\":\"String\"},\"tenant\":{\"type\":\"String\"}},\"type\":\"Record\"}}}}}",
+    "limits": [
+      {
+        "action": "identity.disable",
+        "budget": "autonomous",
+        "max_targets": 10,
+        "on_exceed": "REQUIRE_APPROVAL",
+        "rule_id": "principal-autonomous-identity-disable",
+        "scope": "principal",
+        "window_seconds": 3600
+      },
+      {
+        "action": "identity.enable",
+        "budget": "autonomous",
+        "max_targets": 10,
+        "on_exceed": "REQUIRE_APPROVAL",
+        "rule_id": "principal-autonomous-identity-enable",
+        "scope": "principal",
+        "window_seconds": 3600
+      },
+      {
+        "action": "identity.revoke_sessions",
+        "budget": "autonomous",
+        "max_targets": 10,
+        "on_exceed": "REQUIRE_APPROVAL",
+        "rule_id": "principal-autonomous-identity-revoke_sessions",
+        "scope": "principal",
+        "window_seconds": 3600
+      },
+      {
+        "action": "identity.disable",
+        "budget": "total",
+        "max_targets": 20,
+        "on_exceed": "DENY",
+        "rule_id": "tenant-total-identity-disable",
+        "scope": "tenant",
+        "window_seconds": 900
+      },
+      {
+        "action": "identity.enable",
+        "budget": "total",
+        "max_targets": 20,
+        "on_exceed": "DENY",
+        "rule_id": "tenant-total-identity-enable",
+        "scope": "tenant",
+        "window_seconds": 900
+      },
+      {
+        "action": "identity.revoke_sessions",
+        "budget": "total",
+        "max_targets": 20,
+        "on_exceed": "DENY",
+        "rule_id": "tenant-total-identity-revoke_sessions",
+        "scope": "tenant",
+        "window_seconds": 900
+      }
+    ],
+    "mappings": [
+      {
+        "account_id": "00000000-0000-0000-0000-000000000003",
+        "context_contract_version": "identity-control.v1",
+        "mapping_version": "map-v1",
+        "operation_ref": "identity.disable",
+        "schema_version": "action.v1"
+      },
+      {
+        "account_id": "00000000-0000-0000-0000-000000000003",
+        "context_contract_version": "identity-control.v1",
+        "mapping_version": "map-v1",
+        "operation_ref": "identity.enable",
+        "schema_version": "action.v1"
+      },
+      {
+        "account_id": "00000000-0000-0000-0000-000000000003",
+        "context_contract_version": "identity-control.v1",
+        "mapping_version": "map-v1",
+        "operation_ref": "identity.revoke_sessions",
+        "schema_version": "action.v1"
+      }
+    ],
+    "tenant_id": "00000000-0000-0000-0000-000000000001"
+  },
+  "bundle_canonical": "{\"approval_policies\":\"\\npermit(principal, action == ExecBound::Action::\\\"identity.enable\\\", resource);\\npermit(principal, action == ExecBound::Action::\\\"identity.disable\\\", resource)\\nwhen { resource.is_production };\\npermit(principal, action == ExecBound::Action::\\\"identity.revoke_sessions\\\", resource)\\nwhen { resource.is_production };\\n\",\"authorization_policies\":\"\\npermit(principal, action == ExecBound::Action::\\\"identity.disable\\\", resource)\\nwhen {\\n    principal.tenant == resource.tenant && resource.privilege_class == \\\"standard\\\" &&\\n    resource.incident_status == \\\"OPEN\\\" && resource.incident_severity == \\\"CRITICAL\\\"\\n};\\nforbid(principal, action == ExecBound::Action::\\\"identity.disable\\\", resource)\\nwhen { resource.privilege_class == \\\"privileged\\\" || resource.privilege_class == \\\"tier0\\\" ||\\n        resource.criticality == 4 };\\n\\n\\npermit(principal, action == ExecBound::Action::\\\"identity.enable\\\", resource)\\nwhen {\\n    principal.tenant == resource.tenant && resource.privilege_class == \\\"standard\\\" &&\\n    resource.incident_status == \\\"OPEN\\\" && resource.incident_severity == \\\"CRITICAL\\\"\\n};\\nforbid(principal, action == ExecBound::Action::\\\"identity.enable\\\", resource)\\nwhen { resource.privilege_class == \\\"privileged\\\" || resource.privilege_class == \\\"tier0\\\" ||\\n        resource.criticality == 4 };\\n\\n\\npermit(principal, action == ExecBound::Action::\\\"identity.revoke_sessions\\\", resource)\\nwhen {\\n    principal.tenant == resource.tenant && resource.privilege_class == \\\"standard\\\" &&\\n    resource.incident_status == \\\"OPEN\\\" && resource.incident_severity == \\\"CRITICAL\\\"\\n};\\nforbid(principal, action == ExecBound::Action::\\\"identity.revoke_sessions\\\", resource)\\nwhen { resource.privilege_class == \\\"privileged\\\" || resource.privilege_class == \\\"tier0\\\" ||\\n        resource.criticality == 4 };\\n\",\"bundle_id\":\"00000000-0000-0000-0000-000000000009\",\"cedar_schema\":\"{\\\"ExecBound\\\":{\\\"actions\\\":{\\\"identity.disable\\\":{\\\"appliesTo\\\":{\\\"context\\\":{\\\"attributes\\\":{},\\\"type\\\":\\\"Record\\\"},\\\"principalTypes\\\":[\\\"Agent\\\"],\\\"resourceTypes\\\":[\\\"Identity\\\"]}},\\\"identity.enable\\\":{\\\"appliesTo\\\":{\\\"context\\\":{\\\"attributes\\\":{},\\\"type\\\":\\\"Record\\\"},\\\"principalTypes\\\":[\\\"Agent\\\"],\\\"resourceTypes\\\":[\\\"Identity\\\"]}},\\\"identity.revoke_sessions\\\":{\\\"appliesTo\\\":{\\\"context\\\":{\\\"attributes\\\":{},\\\"type\\\":\\\"Record\\\"},\\\"principalTypes\\\":[\\\"Agent\\\"],\\\"resourceTypes\\\":[\\\"Identity\\\"]}}},\\\"entityTypes\\\":{\\\"Agent\\\":{\\\"shape\\\":{\\\"attributes\\\":{\\\"tenant\\\":{\\\"type\\\":\\\"String\\\"}},\\\"type\\\":\\\"Record\\\"}},\\\"Identity\\\":{\\\"shape\\\":{\\\"attributes\\\":{\\\"account\\\":{\\\"type\\\":\\\"String\\\"},\\\"criticality\\\":{\\\"type\\\":\\\"Long\\\"},\\\"environment\\\":{\\\"type\\\":\\\"String\\\"},\\\"incident_severity\\\":{\\\"type\\\":\\\"String\\\"},\\\"incident_status\\\":{\\\"type\\\":\\\"String\\\"},\\\"is_production\\\":{\\\"type\\\":\\\"Boolean\\\"},\\\"privilege_class\\\":{\\\"type\\\":\\\"String\\\"},\\\"tenant\\\":{\\\"type\\\":\\\"String\\\"}},\\\"type\\\":\\\"Record\\\"}}}}}\",\"limits\":[{\"action\":\"identity.disable\",\"budget\":\"autonomous\",\"max_targets\":10,\"on_exceed\":\"REQUIRE_APPROVAL\",\"rule_id\":\"principal-autonomous-identity-disable\",\"scope\":\"principal\",\"window_seconds\":3600},{\"action\":\"identity.enable\",\"budget\":\"autonomous\",\"max_targets\":10,\"on_exceed\":\"REQUIRE_APPROVAL\",\"rule_id\":\"principal-autonomous-identity-enable\",\"scope\":\"principal\",\"window_seconds\":3600},{\"action\":\"identity.revoke_sessions\",\"budget\":\"autonomous\",\"max_targets\":10,\"on_exceed\":\"REQUIRE_APPROVAL\",\"rule_id\":\"principal-autonomous-identity-revoke_sessions\",\"scope\":\"principal\",\"window_seconds\":3600},{\"action\":\"identity.disable\",\"budget\":\"total\",\"max_targets\":20,\"on_exceed\":\"DENY\",\"rule_id\":\"tenant-total-identity-disable\",\"scope\":\"tenant\",\"window_seconds\":900},{\"action\":\"identity.enable\",\"budget\":\"total\",\"max_targets\":20,\"on_exceed\":\"DENY\",\"rule_id\":\"tenant-total-identity-enable\",\"scope\":\"tenant\",\"window_seconds\":900},{\"action\":\"identity.revoke_sessions\",\"budget\":\"total\",\"max_targets\":20,\"on_exceed\":\"DENY\",\"rule_id\":\"tenant-total-identity-revoke_sessions\",\"scope\":\"tenant\",\"window_seconds\":900}],\"mappings\":[{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"context_contract_version\":\"identity-control.v1\",\"mapping_version\":\"map-v1\",\"operation_ref\":\"identity.disable\",\"schema_version\":\"action.v1\"},{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"context_contract_version\":\"identity-control.v1\",\"mapping_version\":\"map-v1\",\"operation_ref\":\"identity.enable\",\"schema_version\":\"action.v1\"},{\"account_id\":\"00000000-0000-0000-0000-000000000003\",\"context_contract_version\":\"identity-control.v1\",\"mapping_version\":\"map-v1\",\"operation_ref\":\"identity.revoke_sessions\",\"schema_version\":\"action.v1\"}],\"tenant_id\":\"00000000-0000-0000-0000-000000000001\"}",
+  "bundle_hash": "b380e72c88e7cd26013b5b0cef9a52497ac415e6781841fda9d372db843d13f3",
+  "description": "Synthetic identity wire contract captured from unchanged code before the SOC action catalog; key is public test material only.",
+  "source_commit": "d68a3b7",
+  "test_verification_key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+}

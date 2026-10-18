@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Rule links (#678): loaded with the drawer and the rules page, never with the cold
+   approval link. */
+/* The rules a reason names, under its sentence in the drawer. */
+.rule-links { margin: 4px 0 6px; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; overflow-wrap: anywhere; }
+/* Each a target of at least 24 px, so a link beside the next control is easy to hit (2.5.8). */
+.rule-links a { display: inline-block; min-height: 24px; line-height: 24px; }
+/* The rule a link named on the rules page: marked, never by its id. */
+.rule-focus { outline: 2px solid var(--eb-accent); outline-offset: 4px; border-radius: 4px; }

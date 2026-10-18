@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Allowlist: only the locked environment definition, the package and the migrations
+# enter the build context. Private files, local data and caches never can.
+*
+!pyproject.toml
+!uv.lock
+!src/
+!alembic.ini
+!migrations/
+# The licence texts each package's metadata names, so the installed dist-info carries them.
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!clients/python/pyproject.toml
+!clients/python/README.md
+!clients/python/LICENSE
+!clients/python/src/
+!integrations/mde-producer/pyproject.toml
+!integrations/mde-producer/README.md
+!integrations/mde-producer/LICENSE
+!integrations/mde-producer/src/
+!protocol/pyproject.toml
+!protocol/README.md
+!protocol/LICENSE
+!protocol/src/
+!connectors/pyproject.toml
+!connectors/README.md
+!connectors/LICENSE
+!connectors/src/
+# The console's sources for the Node stage; its installed and built output never do.
+!console/
+# The two Tines stories and their licence, which the console build copies for Getting started.
+!integrations/LICENSE
+!integrations/tines/execbound-governed-action.json
+!integrations/tines/execbound-gate.json
+console/node_modules/
+console/dist/
+src/execbound/surfaces/console_dist/
+**/__pycache__/
+**/*.py[cod]

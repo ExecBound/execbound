@@ -1,0 +1,380 @@
+{
+  "gateway_commit": "a513c8f93b89fd9feb1a5b21a06f8dbb42790f8c",
+  "schema_revision": "0049_unused_groups",
+  "tenant_id": "<synthetic pilot tenant>",
+  "bundle_id": "b8138742-1833-4935-94cc-5750172cb710",
+  "scope": "Tines-to-gateway response loss after confirmed protected-mock effect; no real vendor or Gate qualification",
+  "relay_clock": "workstation; unsynchronized with database/Tines clocks; order follows recorded upstream response before deliberate socket close",
+  "relay_requests": [
+    {
+      "ordinal": 1,
+      "body_sha256": "65182cb69d266b12dc70e255dbcefcb05612763766be96437bddc1019c158991",
+      "upstream_status": 200,
+      "upstream_result": {
+        "request_ref": "EB-79",
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "state": "EXECUTED"
+      },
+      "mode": "drop"
+    },
+    {
+      "ordinal": 2,
+      "body_sha256": "65182cb69d266b12dc70e255dbcefcb05612763766be96437bddc1019c158991",
+      "upstream_status": 200,
+      "upstream_result": {
+        "request_ref": "EB-79",
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "state": "EXECUTED"
+      },
+      "mode": "drop"
+    },
+    {
+      "ordinal": 3,
+      "body_sha256": "65182cb69d266b12dc70e255dbcefcb05612763766be96437bddc1019c158991",
+      "upstream_status": 200,
+      "upstream_result": {
+        "request_ref": "EB-79",
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "state": "EXECUTED"
+      },
+      "mode": "pass"
+    }
+  ],
+  "tines_events": [
+    {
+      "id": 1318987206,
+      "at": "2026-09-22T20:59:36.396Z",
+      "run": "f364964c-82c4-4500-985e-fa9bab72d340",
+      "agent_id": 2273330,
+      "result": {
+        "recovery_outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": null,
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "The gateway refused this request; read code.",
+          "outcome": "refused",
+          "reference": "TINES-RECOVERY-20260922-lost-ack",
+          "state": null,
+          "request_ref": null
+        }
+      }
+    },
+    {
+      "id": 1319031073,
+      "at": "2026-09-22T21:04:52.105Z",
+      "run": "321519fa-33ba-4dff-a77f-a602395316a7",
+      "agent_id": 2273330,
+      "result": {
+        "recovery_outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": "HTTP_RESPONSE_UNCERTAIN",
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "Hand to an administrator. Never resend under a new key.",
+          "outcome": "uncertain",
+          "reference": "TINES-RECOVERY-20260922-lost-ack",
+          "state": null,
+          "request_ref": null
+        }
+      }
+    },
+    {
+      "id": 1319036970,
+      "at": "2026-09-22T21:05:25.629Z",
+      "run": "31e7a860-a3ed-4078-a321-5664556a8ac4",
+      "agent_id": 2273330,
+      "result": {
+        "recovery_outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": null,
+          "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+          "idempotency_key": null,
+          "message": "The action reached a terminal state.",
+          "outcome": "final",
+          "reference": "TINES-RECOVERY-20260922-lost-ack",
+          "state": "EXECUTED",
+          "request_ref": "EB-79"
+        }
+      }
+    },
+    {
+      "id": 1319059393,
+      "at": "2026-09-22T21:09:01.083Z",
+      "run": "f9d3eab2-fe0f-4e16-809c-a5cfd62dd2df",
+      "agent_id": 2273490,
+      "result": {
+        "recovery_bypass_no_auth": {
+          "status": 401,
+          "body": {
+            "detail": "Provider request unavailable"
+          }
+        }
+      }
+    },
+    {
+      "id": 1319066818,
+      "at": "2026-09-22T21:10:12.061Z",
+      "run": "9681efc4-50e4-41ca-9234-001e1727d4f3",
+      "agent_id": 2273494,
+      "result": {
+        "recovery_bypass_agent_auth": {
+          "status": 401,
+          "body": {
+            "detail": "Provider request unavailable"
+          }
+        }
+      }
+    },
+    {
+      "id": 1319066885,
+      "at": "2026-09-22T21:10:12.341Z",
+      "run": "9681efc4-50e4-41ca-9234-001e1727d4f3",
+      "agent_id": 2273490,
+      "result": {
+        "recovery_bypass_no_auth": {
+          "status": 401,
+          "body": {
+            "detail": "Provider request unavailable"
+          }
+        }
+      }
+    },
+    {
+      "id": 1319067570,
+      "at": "2026-09-22T21:10:12.937Z",
+      "run": "9681efc4-50e4-41ca-9234-001e1727d4f3",
+      "agent_id": 2273495,
+      "result": {
+        "recovery_alternate_gateway": {
+          "status": 200,
+          "body": {
+            "request_ref": "EB-80",
+            "execution_id": "c66c3139-b6ce-4310-8b3e-3f8b05bcf6fa",
+            "state": "DENIED",
+            "plan_hash": "92c69203324205b3caa72a8e7425ecf9a319941245599ff3a348ecbb55dbefbe",
+            "approval_id": null,
+            "approval_state": null
+          }
+        }
+      }
+    }
+  ],
+  "snapshots": {
+    "after-withhold": [
+      {
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "operation_id": "fa060bb3-3f6c-4916-8be3-e218a08fbdef",
+        "request_ref": "EB-79",
+        "state": "EXECUTED",
+        "reference": "TINES-RECOVERY-20260922-lost-ack",
+        "target": "ws24.pilot.example",
+        "events": [
+          {
+            "to_state": "ATTEMPTED",
+            "created_at": "2026-09-22 20:59:35.156057+00:00"
+          },
+          {
+            "to_state": "RESERVED",
+            "created_at": "2026-09-22 20:59:35.378049+00:00"
+          },
+          {
+            "to_state": "DISPATCH_COMMITTED",
+            "created_at": "2026-09-22 20:59:35.408962+00:00"
+          },
+          {
+            "to_state": "EXECUTED",
+            "created_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "impact": [
+          {
+            "state": "CONFIRMED",
+            "confirmed_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "journal_mutations": 1,
+        "journal_outcome": "EXECUTED",
+        "journal_sha256": "57c9f1795ec33396787eab9ac082cd8bad63de5029cb0a6649e0e85aec5a53a4"
+      }
+    ],
+    "after-fixed-drop": [
+      {
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "operation_id": "fa060bb3-3f6c-4916-8be3-e218a08fbdef",
+        "request_ref": "EB-79",
+        "state": "EXECUTED",
+        "reference": "TINES-RECOVERY-20260922-lost-ack",
+        "target": "ws24.pilot.example",
+        "events": [
+          {
+            "to_state": "ATTEMPTED",
+            "created_at": "2026-09-22 20:59:35.156057+00:00"
+          },
+          {
+            "to_state": "RESERVED",
+            "created_at": "2026-09-22 20:59:35.378049+00:00"
+          },
+          {
+            "to_state": "DISPATCH_COMMITTED",
+            "created_at": "2026-09-22 20:59:35.408962+00:00"
+          },
+          {
+            "to_state": "EXECUTED",
+            "created_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "impact": [
+          {
+            "state": "CONFIRMED",
+            "confirmed_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "journal_mutations": 1,
+        "journal_outcome": "EXECUTED",
+        "journal_sha256": "57c9f1795ec33396787eab9ac082cd8bad63de5029cb0a6649e0e85aec5a53a4"
+      }
+    ],
+    "after-recovery": [
+      {
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "operation_id": "fa060bb3-3f6c-4916-8be3-e218a08fbdef",
+        "request_ref": "EB-79",
+        "state": "EXECUTED",
+        "reference": "TINES-RECOVERY-20260922-lost-ack",
+        "target": "ws24.pilot.example",
+        "events": [
+          {
+            "to_state": "ATTEMPTED",
+            "created_at": "2026-09-22 20:59:35.156057+00:00"
+          },
+          {
+            "to_state": "RESERVED",
+            "created_at": "2026-09-22 20:59:35.378049+00:00"
+          },
+          {
+            "to_state": "DISPATCH_COMMITTED",
+            "created_at": "2026-09-22 20:59:35.408962+00:00"
+          },
+          {
+            "to_state": "EXECUTED",
+            "created_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "impact": [
+          {
+            "state": "CONFIRMED",
+            "confirmed_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "journal_mutations": 1,
+        "journal_outcome": "EXECUTED",
+        "journal_sha256": "57c9f1795ec33396787eab9ac082cd8bad63de5029cb0a6649e0e85aec5a53a4"
+      }
+    ],
+    "after-bypass": [
+      {
+        "execution_id": "5f6ebc57-6932-4760-8efa-68e6942a386b",
+        "operation_id": "fa060bb3-3f6c-4916-8be3-e218a08fbdef",
+        "request_ref": "EB-79",
+        "state": "EXECUTED",
+        "reference": "TINES-RECOVERY-20260922-lost-ack",
+        "target": "ws24.pilot.example",
+        "events": [
+          {
+            "to_state": "ATTEMPTED",
+            "created_at": "2026-09-22 20:59:35.156057+00:00"
+          },
+          {
+            "to_state": "RESERVED",
+            "created_at": "2026-09-22 20:59:35.378049+00:00"
+          },
+          {
+            "to_state": "DISPATCH_COMMITTED",
+            "created_at": "2026-09-22 20:59:35.408962+00:00"
+          },
+          {
+            "to_state": "EXECUTED",
+            "created_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "impact": [
+          {
+            "state": "CONFIRMED",
+            "confirmed_at": "2026-09-22 20:59:35.906100+00:00"
+          }
+        ],
+        "journal_mutations": 1,
+        "journal_outcome": "EXECUTED",
+        "journal_sha256": "57c9f1795ec33396787eab9ac082cd8bad63de5029cb0a6649e0e85aec5a53a4"
+      },
+      {
+        "execution_id": "c66c3139-b6ce-4310-8b3e-3f8b05bcf6fa",
+        "operation_id": "2fa478af-35fa-4537-89b8-7507f88c7bc2",
+        "request_ref": "EB-80",
+        "state": "DENIED",
+        "reference": "TINES-RECOVERY-20260922-alternate-deny",
+        "target": "dc01.pilot.example",
+        "events": [
+          {
+            "to_state": "ATTEMPTED",
+            "created_at": "2026-09-22 21:10:12.551830+00:00"
+          },
+          {
+            "to_state": "DENIED",
+            "created_at": "2026-09-22 21:10:12.729883+00:00"
+          }
+        ],
+        "impact": [],
+        "journal_mutations": null,
+        "journal_outcome": null,
+        "journal_sha256": null
+      }
+    ]
+  },
+  "cleanup": {
+    "at": "2026-09-22 21:10:42.635362+00:00",
+    "removed_action_count": 30,
+    "credential_removed": true,
+    "agent_credential_revoked": true,
+    "stories": [
+      {
+        "story_id": "<governed-action story>",
+        "original_graph_unchanged": true
+      },
+      {
+        "story_id": "<third lab story>",
+        "original_graph_unchanged": true
+      },
+      {
+        "story_id": "<AI caller story>",
+        "original_graph_unchanged": true
+      }
+    ]
+  },
+  "working_story_patch": [
+    {
+      "action": "Refused?",
+      "id": "<working story action>",
+      "options_verified": true
+    },
+    {
+      "action": "Outcome",
+      "id": "<working story action>",
+      "options_verified": true
+    },
+    {
+      "action": "Transport uncertain?",
+      "id": "<working story action>",
+      "options_verified": true
+    }
+  ],
+  "temporary_processes_stopped": true,
+  "working_story_credential": "Original credential not replaced; saved pilot agent keys were revoked before this trial. Trial used an audited two-hour key, revoked at cleanup."
+}

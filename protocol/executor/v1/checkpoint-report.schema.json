@@ -1,0 +1,102 @@
+{
+  "additionalProperties": false,
+  "description": "What an external executor states about the one act its grant described.\n\nThe report itself names no operation, account or hash: the execution it settles is the\none the route was addressed to and the one whose secret it presents, and the bound\nfields of the retained evidence are taken from that execution's frozen command. Signed\nevidence (a record, an attestation or a journal) does state them, and the verifier\nchecks them against the same command.\n\nThe report secret is the whole of its authority. An act grant is not presented here\nand cannot be: extra fields are refused, so a caller can add nothing to this that\nstands in for the secret the execution retains the digest of.",
+  "properties": {
+    "attestation": {
+      "anyOf": [
+        {
+          "maxLength": 4096,
+          "minLength": 5,
+          "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attestation"
+    },
+    "journal": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Journal"
+    },
+    "outcome": {
+      "enum": [
+        "EXECUTED",
+        "FAILED_NOT_EXECUTED",
+        "UNKNOWN",
+        "FAILED_EFFECT_UNKNOWN"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "enum": [
+            "EXECUTED",
+            "VERSION_MISMATCH",
+            "CANCELLED_NOT_EXECUTED",
+            "TARGET_NOT_FOUND",
+            "REPORTED_FAILURE"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "record": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Record"
+    },
+    "report_secret": {
+      "maxLength": 128,
+      "minLength": 32,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Report Secret",
+      "type": "string"
+    },
+    "reported_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reported At"
+    }
+  },
+  "required": [
+    "report_secret",
+    "outcome"
+  ],
+  "title": "OutcomeReport",
+  "type": "object"
+}

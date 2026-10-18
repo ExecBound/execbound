@@ -1,0 +1,59 @@
+{
+  "attachments": [
+    {
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "actions": [
+          {
+            "title": "Open the approval",
+            "type": "Action.OpenUrl",
+            "url": "https://app.example.net/approvals/00000000-0000-4000-8000-000000000002"
+          }
+        ],
+        "body": [
+          {
+            "size": "Medium",
+            "text": "EB-20 · Isolate endpoint: approved",
+            "type": "TextBlock",
+            "weight": "Bolder",
+            "wrap": true
+          },
+          {
+            "facts": [
+              {
+                "title": "Workspace",
+                "value": "Synthetic SOC"
+              },
+              {
+                "title": "Outcome",
+                "value": "Approved"
+              },
+              {
+                "title": "At",
+                "value": "2026-09-18 03:25:10 UTC"
+              }
+            ],
+            "type": "FactSet"
+          },
+          {
+            "text": "This message decides nothing and does not say whether the action ran. The approval page has the record.",
+            "type": "TextBlock",
+            "wrap": true
+          },
+          {
+            "isSubtle": true,
+            "size": "Small",
+            "text": "Request EB-20",
+            "type": "TextBlock",
+            "wrap": true
+          }
+        ],
+        "type": "AdaptiveCard",
+        "version": "1.4"
+      },
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "contentUrl": null
+    }
+  ],
+  "type": "message"
+}

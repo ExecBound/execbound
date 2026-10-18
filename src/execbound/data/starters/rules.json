@@ -1,0 +1,503 @@
+{
+  "isolate-workstation-open-critical": {
+    "id": "isolate-workstation-open-critical",
+    "action": "endpoint.isolate",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "role",
+        "operator": "is",
+        "values": [
+          "workstation"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_status",
+        "operator": "is",
+        "values": [
+          "OPEN"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_severity",
+        "operator": "is",
+        "values": [
+          "CRITICAL"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "isolate-never-domain-controller": {
+    "id": "isolate-never-domain-controller",
+    "action": "endpoint.isolate",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "role",
+        "operator": "is",
+        "values": [
+          "domain_controller"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "isolate-never-criticality-4": {
+    "id": "isolate-never-criticality-4",
+    "action": "endpoint.isolate",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "criticality",
+        "operator": "is",
+        "values": [
+          4
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "isolate-production-needs-review": {
+    "id": "isolate-production-needs-review",
+    "action": "endpoint.isolate",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "is_production",
+        "operator": "is",
+        "values": [
+          true
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "disable-standard-open-severe": {
+    "id": "disable-standard-open-severe",
+    "action": "identity.disable",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "is",
+        "values": [
+          "standard"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_status",
+        "operator": "is",
+        "values": [
+          "OPEN"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_severity",
+        "operator": "in",
+        "values": [
+          "CRITICAL"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "disable-never-privileged": {
+    "id": "disable-never-privileged",
+    "action": "identity.disable",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "in",
+        "values": [
+          "privileged",
+          "tier0"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "disable-never-criticality-4": {
+    "id": "disable-never-criticality-4",
+    "action": "identity.disable",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "criticality",
+        "operator": "is",
+        "values": [
+          4
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "disable-production-needs-review": {
+    "id": "disable-production-needs-review",
+    "action": "identity.disable",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "is_production",
+        "operator": "is",
+        "values": [
+          true
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "enable-standard-open-severe": {
+    "id": "enable-standard-open-severe",
+    "action": "identity.enable",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "is",
+        "values": [
+          "standard"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_status",
+        "operator": "is",
+        "values": [
+          "OPEN"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_severity",
+        "operator": "in",
+        "values": [
+          "CRITICAL"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "enable-never-privileged": {
+    "id": "enable-never-privileged",
+    "action": "identity.enable",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "in",
+        "values": [
+          "privileged",
+          "tier0"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "enable-never-criticality-4": {
+    "id": "enable-never-criticality-4",
+    "action": "identity.enable",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "criticality",
+        "operator": "is",
+        "values": [
+          4
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "enable-always-needs-review": {
+    "id": "enable-always-needs-review",
+    "action": "identity.enable",
+    "effect": "REVIEW",
+    "when": [],
+    "quorum": null,
+    "note": null
+  },
+  "revoke-sessions-standard-open-severe": {
+    "id": "revoke-sessions-standard-open-severe",
+    "action": "identity.revoke_sessions",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "is",
+        "values": [
+          "standard"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_status",
+        "operator": "is",
+        "values": [
+          "OPEN"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_severity",
+        "operator": "in",
+        "values": [
+          "CRITICAL"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "revoke-sessions-never-privileged": {
+    "id": "revoke-sessions-never-privileged",
+    "action": "identity.revoke_sessions",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "in",
+        "values": [
+          "privileged",
+          "tier0"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "revoke-sessions-never-criticality-4": {
+    "id": "revoke-sessions-never-criticality-4",
+    "action": "identity.revoke_sessions",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "criticality",
+        "operator": "is",
+        "values": [
+          4
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "revoke-sessions-production-needs-review": {
+    "id": "revoke-sessions-production-needs-review",
+    "action": "identity.revoke_sessions",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "is_production",
+        "operator": "is",
+        "values": [
+          true
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "lift-when-incident-closed": {
+    "id": "lift-when-incident-closed",
+    "action": "endpoint.lift_isolation",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "incident_status",
+        "operator": "is",
+        "values": [
+          "CLOSED"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "lift-when-false-positive": {
+    "id": "lift-when-false-positive",
+    "action": "endpoint.lift_isolation",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "argument",
+        "name": "reason",
+        "operator": "is",
+        "values": [
+          "false_positive"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "lift-production-needs-review": {
+    "id": "lift-production-needs-review",
+    "action": "endpoint.lift_isolation",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "is_production",
+        "operator": "is",
+        "values": [
+          true
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "lift-remediated-needs-review": {
+    "id": "lift-remediated-needs-review",
+    "action": "endpoint.lift_isolation",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "argument",
+        "name": "reason",
+        "operator": "is",
+        "values": [
+          "remediated"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "reset-password-standard-open-severe": {
+    "id": "reset-password-standard-open-severe",
+    "action": "identity.reset_password",
+    "effect": "ALLOW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "is",
+        "values": [
+          "standard"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_status",
+        "operator": "is",
+        "values": [
+          "OPEN"
+        ]
+      },
+      {
+        "kind": "fact",
+        "name": "incident_severity",
+        "operator": "in",
+        "values": [
+          "HIGH",
+          "CRITICAL"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "reset-password-never-privileged": {
+    "id": "reset-password-never-privileged",
+    "action": "identity.reset_password",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "privilege_class",
+        "operator": "in",
+        "values": [
+          "privileged",
+          "tier0"
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "reset-password-never-criticality-4": {
+    "id": "reset-password-never-criticality-4",
+    "action": "identity.reset_password",
+    "effect": "DENY",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "criticality",
+        "operator": "is",
+        "values": [
+          4
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "reset-password-production-needs-review": {
+    "id": "reset-password-production-needs-review",
+    "action": "identity.reset_password",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "fact",
+        "name": "is_production",
+        "operator": "is",
+        "values": [
+          true
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  },
+  "reset-password-without-forced-change-needs-review": {
+    "id": "reset-password-without-forced-change-needs-review",
+    "action": "identity.reset_password",
+    "effect": "REVIEW",
+    "when": [
+      {
+        "kind": "argument",
+        "name": "require_change_at_next_sign_in",
+        "operator": "is",
+        "values": [
+          false
+        ]
+      }
+    ],
+    "quorum": null,
+    "note": null
+  }
+}

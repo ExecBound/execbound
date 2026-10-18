@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "isolate-workstation-open-critical",
+      "action": "endpoint.isolate",
+      "effect": "ALLOW",
+      "when": [
+        {
+          "kind": "fact",
+          "name": "role",
+          "operator": "is",
+          "values": [
+            "workstation"
+          ]
+        },
+        {
+          "kind": "fact",
+          "name": "incident_status",
+          "operator": "is",
+          "values": [
+            "OPEN"
+          ]
+        },
+        {
+          "kind": "fact",
+          "name": "incident_severity",
+          "operator": "is",
+          "values": [
+            "CRITICAL"
+          ]
+        }
+      ],
+      "note": "Nothing is allowed that this rule does not allow; the default is refusal."
+    },
+    {
+      "id": "isolate-never-domain-controller",
+      "action": "endpoint.isolate",
+      "effect": "DENY",
+      "when": [
+        {
+          "kind": "fact",
+          "name": "role",
+          "operator": "is",
+          "values": [
+            "domain_controller"
+          ]
+        }
+      ],
+      "note": "A denial wins over every allow and over an approval."
+    },
+    {
+      "id": "isolate-never-criticality-4",
+      "action": "endpoint.isolate",
+      "effect": "DENY",
+      "when": [
+        {
+          "kind": "fact",
+          "name": "criticality",
+          "operator": "is",
+          "values": [
+            4
+          ]
+        }
+      ],
+      "note": "This one refuses a target the allow rule also matches, so it shows denial winning."
+    },
+    {
+      "id": "isolate-production-needs-review",
+      "action": "endpoint.isolate",
+      "effect": "REVIEW",
+      "when": [
+        {
+          "kind": "fact",
+          "name": "is_production",
+          "operator": "is",
+          "values": [
+            true
+          ]
+        }
+      ],
+      "note": "A person decides in production. Approval is scoped, expiring and used once."
+    }
+  ],
+  "budgets": [
+    {
+      "rule_id": "principal-autonomous-isolation",
+      "action": "endpoint.isolate",
+      "scope": "principal",
+      "window_seconds": 3600,
+      "max_targets": 10,
+      "budget": "autonomous",
+      "on_exceed": "REQUIRE_APPROVAL"
+    },
+    {
+      "rule_id": "tenant-total-isolation",
+      "action": "endpoint.isolate",
+      "scope": "tenant",
+      "window_seconds": 900,
+      "max_targets": 20,
+      "budget": "total",
+      "on_exceed": "DENY"
+    }
+  ],
+  "context": [
+    {
+      "context_contract_version": "endpoint-isolation.v1",
+      "source_kind": "inventory",
+      "max_age_seconds": 3600,
+      "permitted_writers": [
+        "inventory_sync"
+      ]
+    },
+    {
+      "context_contract_version": "endpoint-isolation.v1",
+      "source_kind": "incident",
+      "max_age_seconds": 3600,
+      "permitted_writers": [
+        "soc_analyst"
+      ]
+    }
+  ]
+}

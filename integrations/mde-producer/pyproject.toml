@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["hatchling==1.30.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "execbound-mde-producer"
+version = "0.1.0"
+description = "Microsoft Defender for Endpoint as an ExecBound security signal producer"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = []
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.scripts]
+execbound-mde-producer = "execbound_mde_producer.run:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/execbound_mde_producer"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/execbound_mde_producer", "README.md", "LICENSE", "pyproject.toml"]

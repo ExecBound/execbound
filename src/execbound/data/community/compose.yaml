@@ -1,0 +1,198 @@
+# SPDX-License-Identifier: Apache-2.0
+# ExecBound, the whole thing, on one host with nothing but Docker.
+#
+# `execbound init <dir>` writes this file, the `.env` beside it and the private material the
+# processes read; `docker compose up -d` starts them; `docker compose run --rm gateway
+# execbound quickstart` takes the empty database to a governed decision. docs/INSTALL.md in
+# the ExecBound repository explains each step; this file is not meant to be read first.
+#
+# Five processes: PostgreSQL, the gateway, the two mock providers a first action is governed
+# against, and the jobs service that runs the scheduled work. A sixth container, `netns`, runs
+# nothing and holds the network namespace the five share.
+#
+# The one line that changes when a registry exists is `image:` under x-execbound below.
+# The project name, which also names the database volume. It is a variable because a
+# fixed one means a second installation on the same host silently adopts the first one's
+# database — and the symptom is an authentication failure against passwords that look
+# correct, several steps after the cause.
+name: ${EXECBOUND_PROJECT:-execbound}
+
+x-execbound: &execbound
+  # Today this is an image you built or loaded locally. When a registry publishes one, this
+  # becomes a pull reference and nothing else in this file changes.
+  image: ${EXECBOUND_IMAGE:-execbound:community}
+  restart: unless-stopped
+  # Run as the person installing this, not as the image's own user.
+  #
+  # The private material is written into a directory on their host and holds every token
+  # the deployment has, so it is mode 0600. If the processes ran as the image's built-in
+  # user they could not read a file the operator owns, and the operator could not read the
+  # administrator token they need to sign in. Matching the two is what makes 0600 workable
+  # on a single host. Both are still unprivileged; neither is root. `execbound init` writes
+  # these two values from the uid and gid it ran as, which is why it runs as you.
+  user: "${EXECBOUND_UID:-10001}:${EXECBOUND_GID:-10001}"
+
+services:
+  # Every process joins one network namespace, so this container publishes the gateway's
+  # port. That is the whole shape of this file and it is forced, not chosen: `connection.py`
+  # refuses a PostgreSQL URL whose host is not loopback unless it carries sslmode=verify-full
+  # and a CA bundle, and `ConnectionConfig` refuses a cleartext provider origin that is not a
+  # loopback IP. Over a normal compose network `db:5432` and `http://endpoint:8000` are both
+  # remote and both refused. Sharing one namespace makes every one of these genuinely
+  # 127.0.0.1, which is the condition those rules are about. A database or a provider on
+  # another host serves TLS; that is a deployment, not this.
+  #
+  # What is chosen is which container owns the namespace, and it is one that runs nothing.
+  # The namespace is made when its owner starts and goes when its owner stops; a container
+  # that joined it stays in the old one, holding only loopback, until it is itself restarted.
+  # When `db` owned it, `docker compose stop db` and `start db`, `docker compose restart db`,
+  # or PostgreSQL exiting and coming back under its restart policy each left the gateway,
+  # both mocks and the jobs service where nobody could reach them, and Docker still reported
+  # them healthy. `sleep` under Docker's init never exits on its own and nothing here has a
+  # reason to restart it, so the namespace outlives every process that joins it. Stop it only
+  # with the rest: `docker compose stop netns` alone strands every other process, and
+  # `docker compose restart` repairs that.
+  netns:
+    # PostgreSQL's image, already pinned for `db`, so holding the namespace adds no image to
+    # pull or trust. Its entrypoint is replaced: nothing of PostgreSQL runs here.
+    image: postgres:17.11
+    restart: unless-stopped
+    entrypoint: ["sleep", "infinity"]
+    # Docker's init as process 1, so `sleep` stops when asked instead of being killed after
+    # the ten seconds Docker waits for a process 1 that ignores SIGTERM.
+    init: true
+    user: "65534:65534"
+    cap_drop: [ALL]
+    ports:
+      # The gateway's port, published here because this container owns the namespace.
+      - "127.0.0.1:${EXECBOUND_PORT:-8080}:8000"
+
+  db:
+    image: postgres:17.11
+    restart: unless-stopped
+    network_mode: "service:netns"
+    environment:
+      POSTGRES_USER: execbound_owner
+      POSTGRES_DB: execbound
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
+      # Read by the init script below, which creates the restricted runtime role.
+      EXECBOUND_APP_PASSWORD: ${EXECBOUND_APP_PASSWORD:?set EXECBOUND_APP_PASSWORD in .env}
+    volumes:
+      # A named volume, so the database survives `docker compose down` and an upgrade.
+      - execbound-db:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U execbound_owner -d execbound"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  gateway:
+    <<: *execbound
+    depends_on:
+      db: {condition: service_healthy}
+    network_mode: "service:netns"
+    # Started through `execbound.boot`, which scrubs MIGRATION_DATABASE_URL out of the
+    # environment before it execs uvicorn. The owner connection belongs to the one-off
+    # containers that apply migrations and administer the deployment — `docker compose run`
+    # replaces this command and so keeps the variable — and never to the process that
+    # answers requests from the internet.
+    # `--host 0.0.0.0` and not loopback: the published port forwards to this namespace's own
+    # address, not to its loopback, so a gateway bound to 127.0.0.1 answers every process in
+    # the namespace and resets the connection of the person who opened the console. Only this
+    # port is published; the two mocks below stay on loopback and are reachable from inside
+    # the namespace alone, which is what their cleartext origins require.
+    command: ["python", "-m", "execbound.boot", "uvicorn", "execbound.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--log-level", "error"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://execbound_app:${EXECBOUND_APP_PASSWORD}@127.0.0.1:5432/execbound
+      MIGRATION_DATABASE_URL: postgresql+psycopg://execbound_owner:${POSTGRES_PASSWORD}@127.0.0.1:5432/execbound
+      EXECBOUND_RUNTIME_CONFIG: /srv/private/gateway.json
+    volumes:
+      - ${EXECBOUND_PRIVATE:-./private}:/srv/private:ro
+      - ${EXECBOUND_PROVIDERS:-./providers}:/srv/providers
+      # Where `execbound quickstart` writes the credential files it issues. The gateway
+      # itself writes nothing here and reads nothing from it; the mount exists so the
+      # one-off container that runs quickstart has somewhere on your host to put them.
+      - ${EXECBOUND_STATE:-./state}:/srv/state
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8000), 3).close()\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  endpoint:
+    <<: *execbound
+    depends_on:
+      db: {condition: service_healthy}
+    network_mode: "service:netns"
+    # Started through `execbound.boot` so the store can be provisioned from a variable
+    # before uvicorn is exec'd. A mock holds its own view of a resource, and the gateway's
+    # registry and the provider's store have to agree about a target or a dispatch has
+    # nothing to act on. With the variable unset the list is empty and this is exactly
+    # equivalent to running uvicorn directly; quickstart provisions its two targets
+    # directly into the store beside it.
+    command: ["python", "-m", "execbound.boot", "uvicorn", "execbound_connectors.mock_app:create_mock_app", "--factory", "--host", "127.0.0.1", "--port", "8001", "--no-access-log", "--log-level", "error"]
+    environment:
+      EXECBOUND_MOCK_PROVIDER: mock_crowdstrike
+      EXECBOUND_MOCK_ACCOUNTS_PATH: /srv/private/endpoint-accounts.json
+      EXECBOUND_MOCK_DATABASE_PATH: /srv/providers/endpoint.sqlite3
+      EXECBOUND_MOCK_RESOURCES_JSON: ${EXECBOUND_ENDPOINT_RESOURCES:-[]}
+    volumes:
+      - ${EXECBOUND_PRIVATE:-./private}:/srv/private:ro
+      # The journals that settle retained uncertainty live here. Losing this volume loses
+      # the evidence an uncertain operation is reconciled from.
+      - ${EXECBOUND_PROVIDERS:-./providers}:/srv/providers
+
+  identity:
+    <<: *execbound
+    depends_on:
+      db: {condition: service_healthy}
+    network_mode: "service:netns"
+    command: ["python", "-m", "execbound.boot", "uvicorn", "execbound_connectors.mock_app:create_mock_app", "--factory", "--host", "127.0.0.1", "--port", "8002", "--no-access-log", "--log-level", "error"]
+    environment:
+      EXECBOUND_MOCK_PROVIDER: mock_entra
+      EXECBOUND_MOCK_ACCOUNTS_PATH: /srv/private/identity-accounts.json
+      EXECBOUND_MOCK_DATABASE_PATH: /srv/providers/identity.sqlite3
+      EXECBOUND_MOCK_RESOURCES_JSON: ${EXECBOUND_IDENTITY_RESOURCES:-[]}
+    volumes:
+      - ${EXECBOUND_PRIVATE:-./private}:/srv/private:ro
+      - ${EXECBOUND_PROVIDERS:-./providers}:/srv/providers
+
+  # The scheduled work: recovery every fifteen minutes; approval notifications every fifteen
+  # seconds where an approval destination is configured; monitoring evaluation every five
+  # minutes; audit-chain verification every hour, with the retained heads in
+  # private/checkpoints/ where that directory exists; monitoring collection every five minutes where the collector directory or the
+  # state's key-files directory holds something to collect with; and, where a mail relay is
+  # configured, teammate invitations every two minutes and, if its `mail` block turns the
+  # weekly summary on, that summary hourly. Each run takes a PostgreSQL advisory lock named for
+  # the job and the interval it belongs to, and holds it for the rest of that interval, so
+  # a second replica of this service never runs the same tick a second time. It waits,
+  # saying so, until `execbound quickstart` has run: `recover` and `notify` hold no
+  # credential, and it runs them only once /srv/state/jobs.json, quickstart's mark, exists;
+  # `monitor-process` runs as the jobs administrator quickstart issued into monitor.json.
+  jobs:
+    <<: *execbound
+    depends_on:
+      db: {condition: service_healthy}
+    network_mode: "service:netns"
+    command: ["execbound", "jobs"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://execbound_app:${EXECBOUND_APP_PASSWORD}@127.0.0.1:5432/execbound
+      EXECBOUND_RUNTIME_CONFIG: /srv/private/gateway.json
+    volumes:
+      - ${EXECBOUND_PRIVATE:-./private}:/srv/private:ro
+      # Read-only: quickstart's mark, and the credential monitor-process uses; it writes none.
+      - ${EXECBOUND_STATE:-./state}:/srv/state:ro
+      # The monitoring collector's private key, which opens every monitoring key the console
+      # sealed. Mounted here and nowhere else: the gateway seals keys with the public half in
+      # its runtime configuration and must never hold anything that opens one. While the
+      # directory holds no key, collection of sealed connections is not scheduled.
+      - ${EXECBOUND_COLLECTOR:-./collector}:/srv/collector:ro
+
+volumes:
+  # Only the database. The provider stores and the credential files are directories the
+  # installer owns: a named volume is created root-owned and these processes are not root,
+  # so neither could ever be written — and the stores have to be backed up beside the
+  # database, which is easier to remember for a directory than for a volume.
+  execbound-db:

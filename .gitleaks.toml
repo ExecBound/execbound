@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Secret scanning configuration: run `gitleaks detect --config .gitleaks.toml`.
+# The default ruleset applies; allowlists cover only committed synthetic material.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Frozen synthetic test fixtures whose key material is fixed and public"
+paths = ['''^tests/fixtures/.*\.json$''']
+
+[[allowlists]]
+description = "Placeholder values in the reference environment file"
+paths = ['''^\.env\.example$''']

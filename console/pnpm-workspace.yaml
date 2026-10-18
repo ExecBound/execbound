@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# pnpm settings for the console. Every setting here is a supply-chain rule (#333);
+# console/DEPENDENCIES.md records the reason for each package.
+
+# An install on any Node but the one `engines` names stops, rather than warning and carrying
+# on. pnpm 11 reads this here and ignores it in `.npmrc`.
+engineStrict: true
+
+# A version published in the last seven days is never installed (minutes).
+minimumReleaseAge: 10080
+
+# No dependency runs an install script unless it is named below, and an unlisted one that
+# wants to fails the install rather than being skipped quietly.
+strictDepBuilds: true
+allowBuilds: {}
+
+# A transitive dependency held above a vulnerable version its dependent pins; each override
+# is recorded with its reason in DEPENDENCIES.md and removed when the dependent moves.
+overrides:
+  js-yaml: 4.3.2

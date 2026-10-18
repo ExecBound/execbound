@@ -1,0 +1,401 @@
+{
+  "tines_versions": {
+    "schema": 30,
+    "library": 96,
+    "runtime": 88
+  },
+  "gateway_commit": "c1818de46a0e7c72dbe5a0258731fe84dab4daeb",
+  "fault_scope": "isolated Tines graph, controlled HTTP fixture and reserved invalid DNS name, no gateway credential",
+  "faults": [
+    {
+      "reference": "TINES-FAULT-20260921-503",
+      "fixture_receipts": 4,
+      "request_bodies_identical": true,
+      "request_body_sha256": "a111aed795b3e3214e105cb39f82ed42cd54b4832285b882a398babf3cd9169f",
+      "first_to_last_request_seconds": 95.861,
+      "receipts": [
+        {
+          "id": 1310872912,
+          "at": "2026-09-21T23:54:04.695Z"
+        },
+        {
+          "id": 1310875745,
+          "at": "2026-09-21T23:54:36.557Z"
+        },
+        {
+          "id": 1310878501,
+          "at": "2026-09-21T23:55:08.184Z"
+        },
+        {
+          "id": 1310882502,
+          "at": "2026-09-21T23:55:40.556Z"
+        }
+      ],
+      "outcome": {
+        "id": 1310882520,
+        "at": "2026-09-21T23:55:40.971Z",
+        "run": "e5390875-85c7-42c2-8818-25295f258241",
+        "outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 3,
+          "code": "SYNTHETIC_503",
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "Hand to an administrator. Never resend under a new key.",
+          "outcome": "uncertain",
+          "reference": "TINES-FAULT-20260921-503",
+          "state": null
+        }
+      }
+    },
+    {
+      "reference": "TINES-FAULT-20260921-429",
+      "fixture_receipts": 6,
+      "request_bodies_identical": true,
+      "request_body_sha256": "5ea76267281793195b20054e2032531a4c37cbca41970a4bbf4e2dedc1818e74",
+      "first_to_last_request_seconds": 365.941,
+      "receipts": [
+        {
+          "id": 1310883544,
+          "at": "2026-09-21T23:55:54.594Z"
+        },
+        {
+          "id": 1310885856,
+          "at": "2026-09-21T23:56:10.448Z"
+        },
+        {
+          "id": 1310892620,
+          "at": "2026-09-21T23:56:45.338Z"
+        },
+        {
+          "id": 1310903831,
+          "at": "2026-09-21T23:57:57.145Z"
+        },
+        {
+          "id": 1310914008,
+          "at": "2026-09-21T23:59:29.949Z"
+        },
+        {
+          "id": 1310958615,
+          "at": "2026-09-22T00:02:00.535Z"
+        }
+      ],
+      "outcome": {
+        "id": 1310959174,
+        "at": "2026-09-22T00:02:02.767Z",
+        "run": "de606f42-78b0-4df0-9949-e5130e0de8a5",
+        "outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": null,
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "The gateway refused this request; read code.",
+          "outcome": "refused",
+          "reference": "TINES-FAULT-20260921-429",
+          "state": null
+        }
+      }
+    },
+    {
+      "reference": "TINES-FAULT-20260921-dns-before",
+      "fixture_receipts": 0,
+      "request_bodies_identical": null,
+      "request_body_sha256": null,
+      "first_to_last_request_seconds": null,
+      "receipts": [],
+      "outcome": {
+        "id": 1310973704,
+        "at": "2026-09-22T00:03:17.012Z",
+        "run": "c7486657-106a-4ee7-acf0-cc1d762aa56f",
+        "outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": null,
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "The gateway refused this request; read code.",
+          "outcome": "refused",
+          "reference": "TINES-FAULT-20260921-dns-before",
+          "state": null
+        }
+      }
+    },
+    {
+      "reference": "TINES-FAULT-20260921-dns-after",
+      "fixture_receipts": 0,
+      "request_bodies_identical": null,
+      "request_body_sha256": null,
+      "first_to_last_request_seconds": null,
+      "receipts": [],
+      "outcome": {
+        "id": 1311003246,
+        "at": "2026-09-22T00:06:19.915Z",
+        "run": "00b3bd89-7535-42dd-b347-9691de5daec6",
+        "outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": "TRANSPORT_UNCERTAIN",
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "Hand to an administrator. Never resend under a new key.",
+          "outcome": "uncertain",
+          "reference": "TINES-FAULT-20260921-dns-after",
+          "state": null
+        }
+      }
+    },
+    {
+      "reference": "TINES-FAULT-20260921-429-after",
+      "fixture_receipts": 6,
+      "request_bodies_identical": true,
+      "request_body_sha256": "74c69e4e2e17830c94d10a127ead9f6cfdf7d0c488114c7f6b549eb90c51935c",
+      "first_to_last_request_seconds": 345.327,
+      "receipts": [
+        {
+          "id": 1311006739,
+          "at": "2026-09-22T00:06:53.045Z"
+        },
+        {
+          "id": 1311009631,
+          "at": "2026-09-22T00:07:13.028Z"
+        },
+        {
+          "id": 1311015724,
+          "at": "2026-09-22T00:07:43.926Z"
+        },
+        {
+          "id": 1311024027,
+          "at": "2026-09-22T00:08:24.129Z"
+        },
+        {
+          "id": 1311032962,
+          "at": "2026-09-22T00:09:57.588Z"
+        },
+        {
+          "id": 1311055635,
+          "at": "2026-09-22T00:12:38.372Z"
+        }
+      ],
+      "outcome": {
+        "id": 1311055678,
+        "at": "2026-09-22T00:12:39.260Z",
+        "run": "32d0db8d-8da8-4808-ab6b-a3f0c3e04512",
+        "outcome": {
+          "approval_state": null,
+          "approval_url": null,
+          "attempts": 0,
+          "code": "RETRIES_EXHAUSTED",
+          "execution_id": null,
+          "idempotency_key": null,
+          "message": "Hand to an administrator. Never resend under a new key.",
+          "outcome": "uncertain",
+          "reference": "TINES-FAULT-20260921-429-after",
+          "state": null
+        }
+      }
+    }
+  ],
+  "live_gateway_outcomes": [
+    {
+      "id": 1310883590,
+      "at": "2026-09-21T23:55:55.171Z",
+      "run": "9ff250f4-fad1-4dfe-8546-94c27506d48a",
+      "outcome": {
+        "approval_state": "PENDING",
+        "approval_url": "<gateway origin>/approvals",
+        "attempts": 0,
+        "code": null,
+        "execution_id": "12c68413-2a8e-4b7b-be0e-5a509f624fc8",
+        "idempotency_key": null,
+        "message": "A person must decide in the ExecBound console. To check again, call again with the same reference, never a new one.",
+        "outcome": "pending",
+        "reference": "TINES-EXPIRY-20260921-deadline",
+        "state": "PENDING_APPROVAL"
+      }
+    },
+    {
+      "id": 1310940766,
+      "at": "2026-09-22T00:01:05.911Z",
+      "run": "e0a06f8f-2004-4461-a37a-548876066168",
+      "outcome": {
+        "approval_state": null,
+        "approval_url": null,
+        "attempts": 0,
+        "code": "INVALID_REQUEST",
+        "execution_id": null,
+        "idempotency_key": null,
+        "message": "The gateway refused this request; read code.",
+        "outcome": "refused",
+        "reference": "TINES-FAULT-20260921-malformed-target",
+        "state": null
+      }
+    },
+    {
+      "id": 1311004965,
+      "at": "2026-09-22T00:06:36.425Z",
+      "run": "5264cc5b-52da-4357-b56b-f1d50cbd0fc7",
+      "outcome": {
+        "approval_state": "EXPIRED",
+        "approval_url": null,
+        "attempts": 0,
+        "code": null,
+        "execution_id": "12c68413-2a8e-4b7b-be0e-5a509f624fc8",
+        "idempotency_key": null,
+        "message": "The approval deadline passed; the authorization is stale.",
+        "outcome": "expired",
+        "reference": "TINES-EXPIRY-20260921-deadline",
+        "state": "STALE_AUTHORIZATION"
+      }
+    },
+    {
+      "id": 1311062832,
+      "at": "2026-09-22T00:14:32.708Z",
+      "run": "b5f0d15f-050c-4c5e-8f1f-ea0e62dc3b58",
+      "outcome": {
+        "approval_state": "EXPIRED",
+        "approval_url": null,
+        "attempts": 0,
+        "code": null,
+        "execution_id": "12c68413-2a8e-4b7b-be0e-5a509f624fc8",
+        "idempotency_key": null,
+        "message": "The approval deadline passed; the authorization is stale.",
+        "outcome": "expired",
+        "reference": "TINES-EXPIRY-20260921-deadline",
+        "state": "STALE_AUTHORIZATION"
+      }
+    }
+  ],
+  "expiry_snapshots": [
+    {
+      "at": "2026-09-21 23:56:29.652482+00:00",
+      "records": [
+        {
+          "execution_id": "12c68413-2a8e-4b7b-be0e-5a509f624fc8",
+          "operation_id": "c08a68d4-45dc-41c7-adfd-9791bd9f2ab2",
+          "state": "PENDING_APPROVAL",
+          "reference": "TINES-EXPIRY-20260921-deadline",
+          "provider_target": "workstation-25",
+          "approval": [
+            {
+              "approval_id": "3c4240e0-e320-418c-a61e-35ff2a24d409",
+              "state": "PENDING",
+              "created_at": "2026-09-21 23:55:54.313384+00:00",
+              "expires_at": "2026-09-22 00:05:54.313391+00:00"
+            }
+          ],
+          "events": [
+            {
+              "to_state": "ATTEMPTED",
+              "created_at": "2026-09-21 23:55:54.184004+00:00"
+            },
+            {
+              "to_state": "PENDING_APPROVAL",
+              "created_at": "2026-09-21 23:55:54.356233+00:00"
+            }
+          ],
+          "impact_rows": 0,
+          "journal_present": false
+        }
+      ]
+    },
+    {
+      "at": "2026-09-22 00:06:33.111301+00:00",
+      "records": [
+        {
+          "execution_id": "12c68413-2a8e-4b7b-be0e-5a509f624fc8",
+          "operation_id": "c08a68d4-45dc-41c7-adfd-9791bd9f2ab2",
+          "state": "PENDING_APPROVAL",
+          "reference": "TINES-EXPIRY-20260921-deadline",
+          "provider_target": "workstation-25",
+          "approval": [
+            {
+              "approval_id": "3c4240e0-e320-418c-a61e-35ff2a24d409",
+              "state": "PENDING",
+              "created_at": "2026-09-21 23:55:54.313384+00:00",
+              "expires_at": "2026-09-22 00:05:54.313391+00:00"
+            }
+          ],
+          "events": [
+            {
+              "to_state": "ATTEMPTED",
+              "created_at": "2026-09-21 23:55:54.184004+00:00"
+            },
+            {
+              "to_state": "PENDING_APPROVAL",
+              "created_at": "2026-09-21 23:55:54.356233+00:00"
+            }
+          ],
+          "impact_rows": 0,
+          "journal_present": false
+        }
+      ]
+    },
+    {
+      "at": "2026-09-22 00:06:54.247144+00:00",
+      "records": [
+        {
+          "execution_id": "12c68413-2a8e-4b7b-be0e-5a509f624fc8",
+          "operation_id": "c08a68d4-45dc-41c7-adfd-9791bd9f2ab2",
+          "state": "STALE_AUTHORIZATION",
+          "reference": "TINES-EXPIRY-20260921-deadline",
+          "provider_target": "workstation-25",
+          "approval": [
+            {
+              "approval_id": "3c4240e0-e320-418c-a61e-35ff2a24d409",
+              "state": "EXPIRED",
+              "created_at": "2026-09-21 23:55:54.313384+00:00",
+              "expires_at": "2026-09-22 00:05:54.313391+00:00"
+            }
+          ],
+          "events": [
+            {
+              "to_state": "ATTEMPTED",
+              "created_at": "2026-09-21 23:55:54.184004+00:00"
+            },
+            {
+              "to_state": "PENDING_APPROVAL",
+              "created_at": "2026-09-21 23:55:54.356233+00:00"
+            },
+            {
+              "to_state": "STALE_AUTHORIZATION",
+              "created_at": "2026-09-22 00:06:35.785194+00:00"
+            }
+          ],
+          "impact_rows": 0,
+          "journal_present": false
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "at": "2026-09-22 00:13:18.865285+00:00",
+    "removed_action_ids": [
+      2263431,
+      2263432,
+      2263433,
+      2263434,
+      2263435,
+      2263443,
+      2263445,
+      2263446,
+      2263447,
+      2263448,
+      2263449,
+      2263450,
+      2263451,
+      2263452,
+      2263453,
+      2263454,
+      2263455,
+      2263456,
+      2263477,
+      2263430
+    ],
+    "original_graph_unchanged": true
+  }
+}

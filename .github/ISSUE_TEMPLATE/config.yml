@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/ExecBound/execbound/security/policy
+    about: Never in a public issue. The security policy says how to report one privately.
+  - name: Ask a question
+    url: https://github.com/ExecBound/execbound/discussions
+    about: Questions about installing, configuring or using ExecBound.

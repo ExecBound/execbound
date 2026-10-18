@@ -1,0 +1,7 @@
+[
+  {"verdict": "None", "value": "no_detection"},
+  {"verdict": "Informational", "value": "no_detection"},
+  {"verdict": "Low", "value": "suspect"},
+  {"verdict": "Medium", "value": "compromised"},
+  {"verdict": "High", "value": "compromised"}
+]

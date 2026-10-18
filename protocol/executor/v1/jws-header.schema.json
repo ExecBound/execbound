@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "description": "The only header an ES256 attestation may carry.\n\nExactly the two fields Tines' JWT_SIGN writes, as observed against a live Tines tenant,\nso a `typ`, a key URL or any other header field is refused like every field the envelope\ndoes not name.",
+  "properties": {
+    "alg": {
+      "const": "ES256",
+      "title": "Alg",
+      "type": "string"
+    },
+    "kid": {
+      "pattern": "^[a-zA-Z0-9_.-]{1,64}$",
+      "title": "Kid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "alg",
+    "kid"
+  ],
+  "title": "JwsHeader",
+  "type": "object"
+}

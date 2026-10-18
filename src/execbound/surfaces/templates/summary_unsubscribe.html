@@ -1,0 +1,19 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block body %}
+<section class="login">
+  <p class="eyebrow">WEEKLY SUMMARY</p>
+  {% if done %}
+  <h1>Done.</h1>
+  <p class="intro">If this link was yours, the weekly summary is off.</p>
+  <p class="muted">You can turn it on again under My account.</p>
+  {% else %}
+  <h1>Stop the weekly summary.</h1>
+  <p class="intro">This stops the weekly summary the email with this link came from. Nothing else changes.</p>
+  <form method="post">
+    <input type="hidden" name="List-Unsubscribe" value="One-Click">
+    <button>Stop the weekly summary</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "Arguments": {
+      "description": "Bounded scalar options; the resolved action's catalog spec decides which are valid.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,62}$": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "title": "Arguments",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "account_id": {
+      "format": "uuid",
+      "title": "Account Id",
+      "type": "string"
+    },
+    "action": {
+      "default": "endpoint.isolate",
+      "pattern": "^[a-z][a-z0-9_]{0,31}\\.[a-z][a-z0-9_]{0,31}$",
+      "title": "Action",
+      "type": "string"
+    },
+    "arguments": {
+      "$ref": "#/$defs/Arguments"
+    },
+    "canonical_target_id": {
+      "format": "uuid",
+      "title": "Canonical Target Id",
+      "type": "string"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "expected_version": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Expected Version",
+      "type": "string"
+    },
+    "intent_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Intent Hash",
+      "type": "string"
+    },
+    "operation_id": {
+      "format": "uuid",
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "plan_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "provider": {
+      "default": "mock_crowdstrike",
+      "pattern": "^[a-z][a-z0-9_]{0,62}$",
+      "title": "Provider",
+      "type": "string"
+    },
+    "provider_operation": {
+      "default": "contain",
+      "pattern": "^[a-z][a-z0-9_]{0,62}$",
+      "title": "Provider Operation",
+      "type": "string"
+    },
+    "resource_provider_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Resource Provider Id",
+      "type": "string"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "tenant_id",
+    "account_id",
+    "canonical_target_id",
+    "resource_provider_id",
+    "expected_version",
+    "operation_id",
+    "execution_id",
+    "intent_hash",
+    "plan_hash"
+  ],
+  "title": "ProviderCommand",
+  "type": "object"
+}

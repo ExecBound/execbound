@@ -1,0 +1,17 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block head %}<script src="/assets/invite.js" defer></script>{% endblock %}
+{% block body %}
+<section class="login">
+  <p class="eyebrow">TEAMMATE INVITATION</p>
+  <h1>Open your invitation.</h1>
+  {% if problem %}<p class="notice" role="alert">{{ problem }}</p>{% endif %}
+  <form action="/join" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="token" id="invite-token" value="">
+    <label id="invite-paste">Paste the link from your email<input type="text" name="pasted" autocomplete="off" spellcheck="false" maxlength="250"></label>
+    <button id="invite-continue">Continue</button>
+  </form>
+  <p class="muted">Nothing changes until you continue. Links work only from the latest invitation sent to this address.</p>
+</section>
+{% endblock %}

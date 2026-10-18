@@ -1,0 +1,45 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>{{ title }} · ExecBound</title>
+  {# The same mark the console and the site carry, served from one copy in the package. A
+     browser asks for /favicon.ico whatever a document says; these two are so that it has the
+     SVG, and so that the pages that run before a session exists are not the one place in the
+     product with a blank tab. #}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="stylesheet" href="/assets/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body{% if body_class is defined and body_class %} class="{{ body_class }}"{% endif %}>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  {# A public page links nowhere: the brand is a mark, not a way in. #}
+{% if public is defined and public %}<span class="brand">{% else %}<a class="brand" href="{{ '/' if session else '/login' }}">{% endif %}<svg class="mark" width="26" height="26" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M 42 8 H 10 V 56 H 42" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M 54 8 V 22 M 54 42 V 56" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path class="mark-bar" d="M 40 32 H 62" fill="none" stroke-width="5" stroke-linecap="round"/></svg><span>ExecBound</span>{% if public is defined and public %}</span>{% else %}</a>{% endif %}
+  {% if session %}
+  {# These pages are the few that stay server-rendered, so there is no navigation to carry:
+     the console is where a person goes, and the brand above is the way back to it. #}
+  <form action="/session/logout" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="quiet">Sign out</button>
+  </form>
+  {% endif %}
+</header>
+{% if stop is defined and stop %}
+<aside class="stop-banner" role="status"><strong>Emergency stop active.</strong> {{ stop.reason }} · activated by {{ (stop.stopped_by|string)[:8] }} at {{ stop.stopped_at.isoformat() }}{% if committed is defined and committed %} · {{ committed }} committed operation{{ '' if committed == 1 else 's' }} await reconciliation{% endif %}. New actions, approval decisions and dispatch attempts are refused until an administrator resumes this tenant.</aside>
+{% endif %}
+{% if mode is defined and mode == 'OBSERVE' %}
+<aside class="mode-banner" role="status"><strong>Observe-only mode.</strong> Live requests are resolved and evaluated and their decisions recorded, but nothing is dispatched, approved, reserved or claimed until an administrator switches this tenant to enforcement.</aside>
+{% endif %}
+<main id="main">{% block body %}{% endblock %}</main>
+{# The deployment's own pages (`service`, `HumanConfig.service`): each link shows only where the
+   deployment named its address. The footer credits whoever runs the deployment when it names
+   them (`service.operator`), and the software otherwise. Source is where the code it runs can be
+   read: the public repository unless the deployment says otherwise. -#}
+<footer><span class="footer-brand"><svg class="mark" width="18" height="18" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><path d="M 42 8 H 10 V 56 H 42" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M 54 8 V 22 M 54 42 V 56" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path class="mark-bar" d="M 40 32 H 62" fill="none" stroke-width="5" stroke-linecap="round"/></svg>ExecBound</span><span>{% if service.operator %}© 2026 {{ service.operator }}{% else %}Powered by ExecBound{% endif %}{% if service.help_url %} · <a href="{{ service.help_url }}">Help</a>{% endif %}{% if service.privacy_url %} · <a href="{{ service.privacy_url }}">Privacy</a>{% endif %}{% if service.terms_url %} · <a href="{{ service.terms_url }}">Terms</a>{% endif %}{% if service.source_url %} · <a href="{{ service.source_url }}">Source</a>{% endif %}</span></footer>
+</body>
+</html>

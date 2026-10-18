@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://execbound.ai/schemas/integrations-manifest.json",
+  "title": "ExecBound integrations manifest",
+  "description": "One entry per integration path with its placement, enforcement mode, evidence state and what was tested. docs/INTEGRATIONS.md is rendered from it and tests/test_integrations_manifest.py checks every claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "integrations"],
+  "properties": {
+    "version": {"const": 1},
+    "integrations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "placement", "mode", "state", "versions", "evidence", "recipe", "limits", "landscape"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,60}$"},
+          "name": {"type": "string", "minLength": 1, "maxLength": 120},
+          "placement": {"enum": ["Execute", "Gate", "Monitor"]},
+          "mode": {"enum": ["Native", "Integrated", "Embedded", "Advisory", "Observed", "Unknown"]},
+          "state": {"enum": ["research-only", "fixture-tested", "platform-validated"]},
+          "versions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["execbound", "host", "sdk", "protocol"],
+            "properties": {
+              "execbound": {"type": ["string", "null"], "maxLength": 80},
+              "host": {"type": ["string", "null"], "maxLength": 80},
+              "sdk": {"type": ["string", "null"], "maxLength": 80},
+              "protocol": {"type": ["string", "null"], "maxLength": 80}
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tests", "trial"],
+            "properties": {
+              "tests": {
+                "type": "array",
+                "items": {"type": "string", "pattern": "^tests/[a-z0-9_/]+\\.py::test_[a-z0-9_]+(\\[.*\\])?$"}
+              },
+              "trial": {"type": ["string", "null"], "pattern": "^docs/trials/[a-z0-9-]+\\.md$"}
+            }
+          },
+          "recipe": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+          "limits": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1, "maxLength": 240}
+          },
+          "landscape": {"type": ["string", "null"], "pattern": "^#[a-z0-9-]+$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* The workspace menu (#678). It loads with the menu, the first time the menu opens, so the
+   shell and a cold approval link carry none of it. */
+.workspace-menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 80; width: min(320px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; padding: 12px; background: var(--eb-surface); border: 1px solid var(--eb-line); border-radius: 8px; box-shadow: var(--eb-shadow); }
+.workspace-menu h2 { font-size: 1rem; margin: 0 0 8px; }
+.workspace-filter { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+.workspace-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.workspace-option { display: grid; gap: 2px; min-height: 24px; padding: 7px 9px; border-radius: var(--radius-control); cursor: pointer; overflow-wrap: anywhere; }
+.workspace-option:hover, .workspace-option:focus-visible, .workspace-option[aria-selected="true"] { background: var(--eb-surface2); }
+.workspace-option small { color: var(--eb-muted); font-size: 12px; }
+.workspace-option .workspace-waiting { color: var(--eb-text); }
+.workspace-option[aria-disabled="true"] { cursor: default; }
+@media (max-width: 767px) {
+  /* Under the top bar, the width of the screen less its gutters, every option a thumb's height. */
+  .workspace-menu { position: fixed; top: 56px; left: 16px; right: 16px; width: auto; }
+  .workspace-option { min-height: 44px; }
+}

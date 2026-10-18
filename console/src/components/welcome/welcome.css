@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Getting started's progress (#678): a done step's tick and record, what an empty Space needs,
+   the start-by-watching line and the caveats one disclosure away. Loaded with the Getting
+   started page's own chunk, so a page that is not Getting started fetches none of it. */
+.setup-step svg { width: 14px; height: 14px; }
+.setup-done { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; color: var(--eb-muted); }
+.setup-done svg { width: 14px; height: 14px; color: var(--eb-allow); flex: none; }
+.setup-done a, .setup-readiness a, .watch-first a { text-decoration: underline; text-underline-offset: 2px; }
+.setup-readiness { margin: 0 0 12px; }
+.setup-foot { margin-top: 18px; }
+.pilot-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pilot-actions .btn { max-width: 100%; white-space: normal; text-align: left; }
+/* The actions nobody in this Space can review (A7 part 2): one row per action, its fixes beside it. */
+.review-coverage { margin: 0 0 12px; }
+.review-coverage h3 { font-size: inherit; margin: 0 0 6px; }
+.review-coverage-rows { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.review-coverage-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; overflow-wrap: anywhere; }
+.review-coverage-fixes { display: flex; flex-wrap: wrap; gap: 6px; }
+.review-coverage a { text-decoration: underline; text-underline-offset: 2px; }

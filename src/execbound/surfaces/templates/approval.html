@@ -1,0 +1,102 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block body %}
+{% set tone = 'pending' if status == 'pending' else ('allow' if approval.state == 'APPROVED' else ('deny' if approval.state == 'DENIED' else '')) %}
+<section class="page-heading">
+  <div><p class="eyebrow">{{ row.action_label|upper }}</p>
+    <h1>{{ frozen.resource_provider_id }}</h1>
+    <p class="intro">{{ row.resource_class }}{% if row.environment is not none %} · {{ row.environment }}{% endif %} · requested by agent {{ (row.principal_id|string)[:8] }}</p>
+  </div>
+  <div class="count count-text"><strong>{{ expires_in if status == 'pending' else approval.state|replace('_', ' ')|lower }}</strong><span>{{ 'until this approval expires' if status == 'pending' else 'approval state' }}</span></div>
+</section>
+<div class="scope-line"><span><a href="/approvals">Back to approvals</a></span><span>Request {{ row.request_ref }}</span></div>
+{% if status == 'settled' %}<p class="notice">This approval is {{ approval.state|replace('_', ' ')|lower }} and the request is {{ row.state|replace('_', ' ')|lower }}. Nothing more can be decided here.</p>
+{% elif status == 'decided' %}<p class="notice">Your decision ({{ own_decision|lower }}) is recorded. {% if quorum_text %}{{ quorum_text }}; the approval waits for the remaining approvers.{% endif %}</p>
+{% elif status == 'expired' %}<p class="notice">This approval has expired. The agent must submit a fresh plan.</p>
+{% elif status == 'paused' %}<p class="notice">Decisions are paused while the emergency stop is active.</p>
+{% endif %}
+<article class="record {{ 'approval' if can_decide else '' }}">
+  <div class="approval-content">
+  <div class="record-heading">
+    <div><p class="eyebrow">WHAT WOULD HAPPEN</p><h2>{{ row.action_label }} on {{ frozen.resource_provider_id }}</h2>
+      <p class="muted">Frozen plan {{ (row.plan_hash)[:12] }} · resource version {{ frozen.resource_version }} · mapping {{ frozen.mapping_version }}</p>
+    </div>
+    <span class="status {{ tone }}">{{ approval.state|replace('_', ' ') }}</span>
+  </div>
+  {% if row.external_case %}<p>Case {{ row.external_case.case_id }} · {{ row.external_case.source }} (source-reported, not verified incident context).</p>{% endif %}
+  <details><summary>Technical details</summary><p>Execution {{ row.execution_id }} · approval {{ approval.approval_id }}</p></details>
+  <dl class="bindings">
+    <div><dt>Agent</dt><dd>{{ (row.principal_id|string)[:8] }}</dd></div>
+    <div><dt>Canonical target</dt><dd class="mono">{{ row.canonical_target_id }}</dd></div>
+    <div><dt>Created</dt><dd>{{ approval.created_at.isoformat() }}</dd></div>
+    <div><dt>Expires</dt><dd>{{ approval.expires_at.isoformat() }} ({{ deadline_clock }})</dd></div>
+    {% if row.precondition %}<div><dt>Precondition</dt><dd>{{ row.precondition }}</dd></div>{% endif %}
+  </dl>
+  {% if row.checkpoint %}{% set gate = row.checkpoint %}
+  <p class="external-effect">{{ gate.notice }}</p>
+  <dl class="bindings evidence">
+    <div><dt>Grant</dt><dd>{{ gate.grant }}</dd></div>
+    <div><dt>Report window</dt><dd>{{ gate.report_window }}</dd></div>
+    <div><dt>Precondition</dt><dd>{{ gate.precondition }}</dd></div>
+    <div><dt>Evidence tier</dt><dd>{{ gate.tier }}</dd></div>
+    <div><dt>Target claim</dt><dd>{{ gate.claim }}</dd></div>
+  </dl>
+  {% if gate.effect %}<p class="external-effect">{{ gate.effect }}</p>{% endif %}
+  {% if gate.guidance %}<p class="external-effect">{{ gate.guidance }}</p>{% endif %}
+  {% if gate.correction %}<p class="external-effect">{{ gate.correction }}</p>{% endif %}
+  {% endif %}
+  {% for carrier in row.carriers %}
+  {% if loop.first %}<p class="external-effect">{{ carrier.notice }}</p>{% endif %}
+  <dl class="bindings evidence">
+    <div><dt>Control point execution</dt><dd>{{ carrier.control_point }}</dd></div>
+    <div><dt>Tool the platform named</dt><dd>{{ carrier.tool }}</dd></div>
+    <div><dt>Platform end user</dt><dd>{{ carrier.user }}</dd></div>
+    <div><dt>Extension answered</dt><dd>{{ carrier.answered }}</dd></div>
+    <div><dt>Platform reported</dt><dd>{{ carrier.reported }}</dd></div>
+    {% if carrier.code %}<div><dt>Reported code</dt><dd>{{ carrier.code }}</dd></div>{% endif %}
+    {% if carrier.error %}<div><dt>Reported error</dt><dd>{{ carrier.error }}</dd></div>{% endif %}
+    {% if carrier.metadata %}<div><dt>Reported metadata</dt><dd>{{ carrier.metadata }}</dd></div>{% endif %}
+  </dl>
+  {% endfor %}
+  <div class="detail-body">
+    <h3>Trusted facts and their sources</h3>
+    <div class="table-scroll"><table><caption class="muted">Authoritative context: the trusted facts frozen into the plan, with their source, permitted writers and observation time.</caption><thead><tr><th scope="col">Fact</th><th scope="col">Value</th><th scope="col">Source</th><th scope="col">Writers</th><th scope="col">Observed</th></tr></thead><tbody>
+    {% for fact in frozen.facts %}
+    <tr><th scope="row">{{ fact.name|replace('_', ' ') }}</th><td>{{ fact.value }}</td>
+      <td>{{ fact.origin|lower }} · {{ fact.source_kind }}{% if fact.source_kind == 'signal' and signal_labels.get(fact.source_id) %} · <bdi>{{ signal_labels[fact.source_id] }}</bdi>{% endif %}{% if fact.signal is not none %} ({{ fact.signal.capability }}){% endif %}<br><small>{{ fact.source_object_id }} · {{ fact.source_version }}</small></td>
+      <td>{{ fact.permitted_writers|join(', ') if fact.permitted_writers else 'derived' }}</td>
+      <td>{{ fact.observed_at.isoformat() }}<br><small>valid until {{ fact.valid_until.isoformat() }}</small></td></tr>
+    {% endfor %}
+    </tbody></table></div>
+    <div class="review-columns"><section><h3>Why approval is required</h3><ul>
+    {% for obligation in obligations %}<li>{% if obligation.startswith('limit:') %}Limit exceeded: {{ obligation[6:] }}{% elif obligation.startswith('policy:') %}Approval policy: {{ obligation[7:] }}{% else %}{{ obligation }}{% endif %}</li>{% else %}<li>None recorded</li>{% endfor %}
+    </ul></section><section><h3>Impact limits</h3><ul>
+    {% for item in row.applicable_limits %}
+      <li>{{ item.scope }}: {{ item.rule.max_targets }} {{ item.rule.budget }} targets per {{ item.rule.window_seconds }} seconds · {{ item.rule.on_exceed|replace('_', ' ')|lower }} · {{ item.actions }}</li>
+    {% else %}<li>None for this action</li>{% endfor %}
+    </ul></section></div>
+    {% if decisions %}<h3>Decisions so far</h3><ul>{% for decided in decisions %}<li>Approver {{ (decided.principal_id|string)[:8] }} · {{ decided.decision|lower }} · {{ decided.decided_at.isoformat() }}</li>{% endfor %}</ul>{% endif %}
+    {% if quorum_text %}<p class="muted">{{ quorum_text }}</p>{% endif %}
+    <p class="muted">Your authority, the frozen plan, the selected bundle and the approval expiry are checked again on the server when you decide, and once more before dispatch.</p>
+  </div>
+  </div>
+  {% if can_decide %}
+  <aside class="approval-panel" aria-labelledby="decide-heading">
+    <p class="eyebrow" id="decide-heading">Your decision</p>
+    <p class="panel-clock">{{ expires_in }}</p>
+    <p class="muted">until this approval expires ({{ deadline_clock }})</p>
+    <p class="panel-reason">{% for obligation in obligations %}{% if obligation.startswith('limit:') %}A limit is exceeded: {{ obligation[6:] }}.{% elif obligation.startswith('policy:') %}The policy requires a human: {{ obligation[7:] }}.{% else %}{{ obligation }}.{% endif %} {% else %}No obligation is recorded for this approval.{% endfor %}</p>
+    <p class="panel-recheck">Your authority, the frozen plan, the selected bundle and the expiry are checked again on the server when you decide.</p>
+    <form class="decision decision-detail" action="/approvals/{{ approval.approval_id }}/decide" method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="state" value="{{ row.state_token }}">
+      <label for="comment">Comment for the audit record (optional, up to 500 characters)</label>
+      <textarea id="comment" name="comment" maxlength="500" rows="3"></textarea>
+      <div class="decision-buttons">
+        <button name="decision" value="APPROVE">Approve this action</button>
+        <button class="secondary" name="decision" value="DENY">Deny</button>
+      </div>
+    </form>
+  </aside>
+  {% endif %}
+</article>
+{% endblock %}

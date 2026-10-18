@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="ExecBound">
+  <rect width="64" height="64" rx="8" fill="#0B0D11"/>
+  <path d="M 40 12 H 12 V 52 H 40" fill="none" stroke="#E8EBEF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 50 12 V 24 M 50 40 V 52" fill="none" stroke="#E8EBEF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M 38 32 H 56" fill="none" stroke="#35D3E6" stroke-width="6" stroke-linecap="round"/>
+</svg>

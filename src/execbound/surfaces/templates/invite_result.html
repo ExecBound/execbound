@@ -1,0 +1,29 @@
+{#- SPDX-License-Identifier: AGPL-3.0-only -#}
+{% extends 'base.html' %}
+{% block body %}
+<section class="login">
+  <p class="eyebrow">TEAMMATE INVITATION</p>
+  {% if kind == 'joined' %}
+  <h1>You have joined.</h1>
+  <p class="intro">You have joined {{ workspace }}. Choose it from the workspace menu.</p>
+  {% elif kind == 'ready' %}
+  <h1>You have joined.</h1>
+  <p class="intro">You have joined. <a href="/login">Sign in.</a></p>
+  {% elif kind == 'sign_in_first' %}
+  <h1>Sign in to continue.</h1>
+  <p class="intro">This address already has an ExecBound account. Sign in, then open the link again.</p>
+  {% elif kind == 'mismatch' %}
+  <h1>Signed in as a different account.</h1>
+  <p class="intro">You are signed in as a different account. Sign out, then sign in with the address this invitation was sent to.</p>
+  {% elif kind == 'revoked' %}
+  <h1>This invitation was withdrawn.</h1>
+  <p class="intro">This invitation was withdrawn. Ask whoever sent it for a new one.</p>
+  {% elif kind == 'retry' %}
+  <h1>Something went wrong on our side.</h1>
+  <p class="intro">Something went wrong on our side. Your invitation still works until it expires; try again in a moment.</p>
+  {% else %}
+  <h1>This invitation is not valid.</h1>
+  <p class="intro">This invitation is not valid or has expired. Ask whoever sent it for a new one.</p>
+  {% endif %}
+</section>
+{% endblock %}
