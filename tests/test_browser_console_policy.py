@@ -22,6 +22,7 @@ from sqlalchemy import text
 from test_browser_console import AXE_RUN, audit, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import world as world
@@ -109,9 +110,7 @@ def validated_bundle(db, world, noted_bundle):
 
 
 def no_sideways_scroll(page, what) -> None:
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (what, "horizontal scroll")
+    assert page.evaluate(FITS), (what, "horizontal scroll")
 
 
 @pytest.mark.parametrize("scheme", ["dark", "light"])

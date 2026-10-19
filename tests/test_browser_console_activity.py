@@ -16,6 +16,7 @@ from playwright.sync_api import expect
 from test_browser_console import AXE_RUN, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_console_api_activity import denied, executed, held, unscope
 from test_execution import registry as registry
@@ -100,9 +101,7 @@ def test_home_shows_the_figures_and_the_url_keeps_the_open_record(
     expect(console_page.get_by_role("dialog", name=re.compile("Isolate endpoint"))).to_be_visible()
     console_page.set_viewport_size({"width": 390, "height": 844})
     clean(console_page, "drawer at phone width")
-    assert console_page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
+    assert console_page.evaluate(FITS)
     console_page.emulate_media(color_scheme="light")
     clean(console_page, "drawer in light")
 
@@ -201,9 +200,7 @@ def test_activity_settles_an_unsettled_dispatch_from_the_drawer(
     clean(console_page, "the uncertain queue")
     console_page.set_viewport_size({"width": 390, "height": 844})
     clean(console_page, "the uncertain queue at phone width")
-    assert console_page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
+    assert console_page.evaluate(FITS)
     console_page.emulate_media(color_scheme="light")
     clean(console_page, "the uncertain queue in light at phone width")
     console_page.emulate_media(color_scheme="dark")

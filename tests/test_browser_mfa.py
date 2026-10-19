@@ -15,7 +15,7 @@ from datetime import timedelta
 import pytest
 from playwright.sync_api import expect
 from test_browser_console import AXE, AXE_RUN, COLLECT
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 from test_runtime import connector as connector
 from test_runtime import live_provider as live_provider
@@ -120,9 +120,7 @@ def test_the_second_step_is_one_code_on_its_own_page_and_then_the_console(page, 
         page.emulate_media(color_scheme=scheme)
         page.set_viewport_size({"width": width, "height": height})
         assert page.evaluate(AXE_RUN) == [], (scheme, width)
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), (scheme, width)
+        assert page.evaluate(FITS), (scheme, width)
     assert page.evaluate("window.__violations") == []
     page.set_viewport_size({"width": 1280, "height": 900})
     # A wrong code says so and leaves the person on the same step.

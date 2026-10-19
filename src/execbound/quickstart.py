@@ -116,7 +116,9 @@ def _configuration(private: Path) -> dict[str, Any]:
 
     try:
         configured = read_configuration(private / "gateway.json")
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, RecursionError) as error:
+        # `RecursionError` too: JSON nested past the parser's limit, under the size cap, is a
+        # file that does not read like any other, not an error the command cannot name.
         raise QuickstartError(
             f"The private configuration at {private / 'gateway.json'} is unreadable or invalid; "
             "run `execbound init` first"

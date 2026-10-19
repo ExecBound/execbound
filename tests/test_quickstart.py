@@ -419,6 +419,34 @@ def test_the_starter_rules_it_activates_come_from_the_image():
     assert {rule.effect for rule in ruleset.rules} == {"ALLOW", "DENY", "REVIEW"}
 
 
+# Nested past the JSON parser's recursion limit and under the configuration's 64 KiB cap, so
+# parsing it raises `RecursionError`, which is neither `OSError` nor `ValueError`.
+NESTED = "[" * 20_000 + "]" * 20_000
+
+
+def test_a_configuration_nested_past_the_recursion_limit_is_the_usual_refusal(
+    tmp_path, monkeypatch, capsys
+):
+    """Quickstart reads the private configuration before anything else, so a file it cannot
+    parse is refused as unreadable, with the advice to run `execbound init`, the same as any
+    other file it cannot read, and not as an error the command does not name."""
+    (tmp_path / "gateway.json").write_text(NESTED, encoding="utf-8")
+    assert (tmp_path / "gateway.json").stat().st_size <= 65536
+    with pytest.raises(quickstart.QuickstartError, match="unreadable or invalid"):
+        quickstart._configuration(tmp_path)
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", "unused")
+    monkeypatch.setenv("DATABASE_URL", "unused")
+    monkeypatch.delenv("EXECBOUND_PLUGINS", raising=False)
+    monkeypatch.setattr(sys, "argv", ["execbound", "quickstart", "--private", str(tmp_path)])
+    with pytest.raises(SystemExit) as caught:
+        main()
+    assert caught.value.code == 2
+    refusal = capsys.readouterr().err
+    assert refusal.startswith("Quickstart stopped: The private configuration at ")
+    assert "is unreadable or invalid; run `execbound init` first" in refusal
+    assert "RecursionError" not in refusal
+
+
 def test_a_runtime_check_refusal_stops_quickstart_without_advice_to_run_it_again(
     monkeypatch, capsys
 ):

@@ -27,7 +27,7 @@ import pytest
 from playwright.sync_api import expect
 from sqlalchemy import text
 from test_browser_console import AXE, AXE_RUN, COLLECT, SETTLED
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 from test_execution import provision_credential
 from test_execution import registry as registry
@@ -172,9 +172,7 @@ def test_an_invitation_asks_for_a_code_over_the_users_page_and_is_sent_without_l
         page.set_viewport_size({"width": width, "height": height})
         page.wait_for_function(SETTLED)
         assert page.evaluate(AXE_RUN) == [], (scheme, width)
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), (scheme, width)
+        assert page.evaluate(FITS), (scheme, width)
         expect(asking).to_be_in_viewport()
     page.set_viewport_size({"width": 1280, "height": 900})
     page.emulate_media(color_scheme="light")

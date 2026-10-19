@@ -5,7 +5,7 @@ The message links; nothing in a message decides. No kind renders an approve or r
 because a mail recipient or a chat identity is not an ExecBound principal and a control in a
 message would route authority around the session, CSRF and continuation model the approval
 page enforces. A message carries identifiers, catalog labels, fact labels passed through
-`safe_label`, the workspace and space names passed through `safe_label`, the requesting
+`safe_label`, the workspace and space names passed through `name_label`, the requesting
 agent's tenant-local handle ("Agent 3", never its label), the deadline to the second and the
 fixed link to the approval's own page, never an agent, provider or request string. Every
 recipient and URL comes from the private configuration.
@@ -20,26 +20,40 @@ decides nothing and does not say whether the action ran. An email close-out thre
 announcement it follows.
 
 A finding message (#31) is the third: the rule's fixed label, the finding's identifiers, when it
-was raised, the workspace and Space names reduced by `safe_label` and the console's link to the
+was raised, the workspace and Space names reduced by `name_label` and the console's link to the
 finding, with a fixed sentence that monitoring is not enforcement. It carries nothing a source,
 a provider or a person wrote.
+
+A name `name_label` keeps nothing of, such as one written in a non-Latin script, is left out
+of a message rather than shown as "unknown", and `choose_workspace` names the tenant id when
+the label is not the name as written. A name a chat target could format, such as `_x_`,
+`:smile:` or `example.com`, travels only where the target shows text as written: Slack's
+`plain_text` blocks and Teams' text runs. Neither target offers an escape for all of these,
+so nothing is escaped.
 """
 
 import ipaddress
 import json
+import math
 import re
 import smtplib
 import ssl
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from email.message import EmailMessage
-from email.utils import formatdate
+from email.policy import EmailPolicy
+from email.utils import formatdate, parsedate_to_datetime
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import httpx
 
 from execbound.egress import NOT_PUBLIC, refused
+
+if TYPE_CHECKING:
+    from execbound.resolution.models import Clock
 
 CODE = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
 _FULL_TIME = "%Y-%m-%d %H:%M:%S UTC"
@@ -123,23 +137,105 @@ def _domain(mail: MailConfig) -> str:
     return mail.sender.rsplit("@", 1)[1]
 
 
+class _OneClickPolicy(EmailPolicy):
+    """The default policy, except that `List-Unsubscribe` goes out on one line, unfolded.
+
+    Folded at 78 columns, a one-click link, which has no space to fold at, would go out as RFC
+    2047 encoded words, which a mail client reading `List-Unsubscribe` does not take for an
+    address. Every other header folds as usual, so a subject that grows with a workspace name
+    keeps its lines within 78 columns and any encoded word in it within RFC 2047's 75
+    characters. A renderer's own pattern for its link admits no space, CR or LF, and
+    `verify_generated_headers`, left on, still refuses a line break on the way out.
+    """
+
+    def fold(self, name: str, value: str) -> str:
+        if name.lower() == "list-unsubscribe":
+            return f"{name}: {value}{self.linesep}"
+        folded: str = super().fold(name, value)
+        return folded
+
+    def fold_binary(self, name: str, value: str) -> bytes:
+        if name.lower() == "list-unsubscribe":
+            return f"{name}: {value}{self.linesep}".encode("ascii")
+        return super().fold_binary(name, value)
+
+
+# The policy of every message that carries a one-click `List-Unsubscribe` (RFC 8058): core's
+# weekly summary and a plugin's own, such as the hosted approval email.
+ONE_CLICK_POLICY = _OneClickPolicy()
+
+
 _NOT_LABEL = re.compile(r"[^A-Za-z0-9 ._:/()-]")
 _SPACE = re.compile(r"\s+")
 LABEL_LENGTH = 80
 
 
+def _reduce(value: object) -> str:
+    """Fold accents and compatibility forms to their letters first (NFKD, then dropping the
+    combining marks), so `Équipe Sécurité` reads `Equipe Securite` rather than `quipe Scurit`;
+    then collapse whitespace, drop what is not label alphabet and cut to a label's length. The
+    fold only turns a character into others, which the alphabet still decides on."""
+    text = unicodedata.normalize("NFKD", str(value))
+    text = _SPACE.sub(" ", "".join(c for c in text if not unicodedata.combining(c)))
+    return _SPACE.sub(" ", _NOT_LABEL.sub("", text)).strip()[:LABEL_LENGTH].strip()
+
+
 def safe_label(value: object) -> str:
     """A label a subject, a body, a block or a card may show.
 
-    Letters, digits, space and ``._:/()-`` survive; whitespace collapses; anything else is
-    dropped rather than escaped, so no transport has markup, mention or header syntax to
-    interpret. Catalog labels pass through unchanged; fact values usually do.
+    Accents fold to their letters; letters, digits, space and ``._:/()-`` survive; whitespace
+    collapses; anything else is dropped rather than escaped, so no transport has markup,
+    mention or header syntax to interpret. Catalog labels pass through unchanged; fact values
+    usually do. A workspace's, a Space's or a person's name goes through `name_label` instead.
     """
     if value is None:
         return "unknown"
-    text = _SPACE.sub(" ", str(value))
-    text = _SPACE.sub(" ", _NOT_LABEL.sub("", text)).strip()[:LABEL_LENGTH].strip()
-    return text or "unknown"
+    return _reduce(value) or "unknown"
+
+
+def name_label(value: object) -> str | None:
+    """A workspace's, a Space's or a person's name as a message shows it: `safe_label`'s
+    reduction, or None when nothing of the name survives it, as nothing of one written in a
+    non-Latin script does.
+
+    A message words itself without a name it cannot show. "unknown" in its place would read as
+    a workspace ExecBound does not know, or one called that.
+    """
+    if value is None:
+        return None
+    return _reduce(value) or None
+
+
+def choose_workspace(name: object, tenant_id: UUID) -> str:
+    """The line that tells someone in several workspaces which one to open a message's link in.
+
+    It names the workspace alone only when `safe_label` shows the name as its administrators
+    wrote it, whitespace apart. A label that differs (`Acme, Inc.` reads `Acme Inc.`) could
+    match another workspace's name or none the reader sees, so the line gives the tenant id
+    beside it, keeping the label as a hint: the tenant id alone is often no help, because only
+    an administrator sees it, in Workspace settings. The tenant id stands alone only when
+    nothing of the name survives.
+    """
+    label = name_label(name)
+    lead = "If you belong to more than one workspace, choose"
+    if label is None:
+        return f"{lead} the one whose tenant id is {tenant_id}."
+    if label == _SPACE.sub(" ", str(name)).strip():
+        return f"{lead} {label}."
+    return f"{lead} the one named like {label} (tenant id {tenant_id})."
+
+
+# A chat target reads some of `safe_label`'s alphabet as formatting: Slack's mrkdwn and
+# Teams' Markdown take `_x_` as italics, Slack takes `:smile:` as an emoji, both may turn
+# `example.com` or a path into a link, and a Teams fact that starts `-` or `1)` is a list.
+# Neither offers an escape for all of these (Slack's mrkdwn escapes only `&`, `<` and `>`), so
+# a name that holds one travels only where the target shows text as written.
+_CHAT_PLAIN = re.compile(r"(?![0-9]+\)|-)[A-Za-z0-9 ()-]*")
+
+
+def _chat_plain(label: str | None) -> bool:
+    """Whether a chat target would show `label` as written wherever it reads markup."""
+    return label is None or _CHAT_PLAIN.fullmatch(label) is not None
 
 
 # The kinds an `ApprovalMessage` is sent as: the announcement, and the same message again as a
@@ -385,10 +481,12 @@ def render_email(
     (`_finding_email`); everything below is the announcement's, and a reminder's, which differs
     only in its subject and first line.
 
-    The subject names the workspace, because request references are counted per workspace
-    and two workspaces could otherwise send identical subjects. The `Message-ID` is derived
-    from the delivery id, so a redelivery after an uncertain attempt collapses into the first
-    in the recipient's mailbox.
+    The subject names the workspace whenever anything of its name survives `name_label`,
+    because request references are counted per workspace and two workspaces could otherwise
+    send identical subjects; a name nothing of which survives is left out of the subject and
+    of the sentences rather than read as "unknown", and two such workspaces can then send
+    identical subjects. The `Message-ID` is derived from the delivery id, so a redelivery after an
+    uncertain attempt collapses into the first in the recipient's mailbox.
 
     A finding's `Message-ID` is its delivery id's too, and a finding message carries that id
     itself, so a `delivery_id` that differs from it is refused.
@@ -400,7 +498,8 @@ def render_email(
         return _closed_email(mail, to, delivery_id, message)
     action = safe_label(message.action_label)
     resource = safe_label(message.resource_class)
-    workspace = None if message.workspace is None else safe_label(message.workspace)
+    workspace = name_label(message.workspace)
+    space = name_label(message.space)
     ref = safe_label(message.request_ref) if message.request_ref else None
     when = decide_by(message)
     email = EmailMessage()
@@ -428,8 +527,8 @@ def render_email(
         f"Resource class: {resource}",
         f"Environment: {safe_label(message.environment)}",
     ]
-    if message.space is not None:
-        lines.append(f"Space: {safe_label(message.space)}")
+    if space is not None:
+        lines.append(f"Space: {space}")
     if message.requested_by is not None:
         lines.append(f"Requested by: {safe_label(message.requested_by)}")
     if message.recorded is not None:
@@ -444,9 +543,10 @@ def render_email(
         "This message decides nothing. Approve or refuse on the page, signed in as yourself. "
         "If the deadline passes, nothing runs.",
     ]
-    if workspace is not None:
+    if message.workspace is not None:
         lines.append(
-            f"You receive this because this address is a notification destination for {workspace}."
+            "You receive this because this address is a notification destination"
+            + ("." if workspace is None else f" for {workspace}.")
         )
     lines.append("Sent automatically; replies are not read.")
     email.set_content("\n".join(lines) + "\n")
@@ -463,7 +563,7 @@ def _closed_email(
     """
     action = safe_label(message.action_label)
     resource = safe_label(message.resource_class)
-    workspace = None if message.workspace is None else safe_label(message.workspace)
+    workspace = name_label(message.workspace)
     ref = safe_label(message.request_ref) if message.request_ref else None
     email = EmailMessage()
     email["From"] = mail.sender
@@ -566,6 +666,18 @@ def deliver_email(
 
 
 _INVITE_LINK = re.compile(r"https?://[A-Za-z0-9.:\[\]-]{1,253}/join")
+# What a mail client could turn into a link in a label: a scheme's colon, a path's slash, or a
+# dotted host-like word such as `example.com`. A full stop that ends a word links nothing.
+_LINKABLE = re.compile(r"[:/]|[A-Za-z0-9]\.[A-Za-z0-9]")
+
+
+def _invitation_name(value: object, fallback: str) -> str:
+    """A workspace or inviter name as an invitation shows it: its label, or `fallback` when
+    nothing of it survives or the label holds anything a mail client could link."""
+    label = name_label(value)
+    return fallback if label is None or _LINKABLE.search(label) else label
+
+
 _INVITE_TOKEN = re.compile(r"ebt1\.[0-9a-f-]{36}\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}")
 
 
@@ -581,16 +693,21 @@ def render_teammate_invitation(
 ) -> EmailMessage:
     """The teammate `invitation` class: one recipient, a fixed template, and the link once.
 
-    Workspace and inviter names are reduced through `safe_label`, never rendered raw: an
-    administrator's own label or a workspace name is free text nobody else validated. The
-    secret travels in the fragment, exactly as a signup verification link's does, so a browser
-    never sends it to any server; the page that opens reads it with its own script. The
-    `Message-ID` is fresh for every attempt because every attempt carries a fresh link.
+    Workspace and inviter names are reduced through `name_label`, never rendered raw: an
+    administrator's own label or a workspace name is free text nobody else validated, and on
+    the hosted service anyone who signs up chooses both. A name nothing of which survives, or
+    whose label holds anything a mail client could make a link of (`_LINKABLE`), reads "a
+    workspace" or "An administrator", as the page the link opens says when it has no inviter's
+    name, so the only link in the message is the invitation's own; the invitee is not a member
+    yet, so a tenant id would tell them nothing, and that page names the workspace in full.
+    The secret travels in the fragment, exactly as a signup verification link's does, so a
+    browser never sends it to any server; the page that opens reads it with its own script.
+    The `Message-ID` is fresh for every attempt because every attempt carries a fresh link.
     """
     if not _INVITE_LINK.fullmatch(link) or not _INVITE_TOKEN.fullmatch(token) or not is_address(to):
         raise ValueError("INVALID_TEAMMATE_INVITATION")
-    workspace_label = safe_label(workspace)
-    inviter_label = safe_label(inviter)
+    workspace_label = _invitation_name(workspace, "a workspace")
+    inviter_label = _invitation_name(inviter, "An administrator")
     expires = expires_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
     email = EmailMessage()
     email["From"] = mail.sender
@@ -696,24 +813,31 @@ def render_weekly_summary(
     week_ending: date,
     origin: str,
     link: str,
+    *,
+    tenant_id: UUID,
 ) -> EmailMessage:
     """The `weekly summary` class: one recipient, a fixed template of counts, one link.
 
-    The workspace name is reduced through `safe_label`; nothing else in it is a string anybody
-    but this template wrote, so it carries no agent, provider, target or person, no approval
-    or execution identifier and no control. The unsubscribe link is the one-click address
-    RFC 8058 asks for, in the `List-Unsubscribe` header and once in the body.
+    The workspace name is reduced through `name_label`, and reads "your workspace" when nothing
+    of it survives; nothing else in it is a string anybody but this template wrote, so it
+    carries no agent, provider, target or person, no approval or execution identifier and no
+    control. `choose_workspace` names the workspace a reader of several should choose, by the
+    tenant id when the label is not the name as written. The unsubscribe link is the one-click
+    address RFC 8058 asks for, in the `List-Unsubscribe` header and once in the body; the
+    header goes out on one line under `ONE_CLICK_POLICY`, so a mail client reads it as the
+    address it is.
     """
     if (
         not is_address(to)
         or not _SUMMARY_ORIGIN.fullmatch(origin)
         or not _SUMMARY_LINK.fullmatch(link)
         or type(week_ending) is not date
+        or type(tenant_id) is not UUID
     ):
         raise ValueError("INVALID_WEEKLY_SUMMARY")
-    name = safe_label(workspace)
+    name = name_label(workspace) or "your workspace"
     day = week_ending.isoformat()
-    email = EmailMessage()
+    email = EmailMessage(policy=ONE_CLICK_POLICY)
     email["From"] = mail.sender
     email["To"] = to
     email["Subject"] = f"[ExecBound] Weekly summary for {name}: 7 days to {day}"
@@ -758,7 +882,7 @@ def render_weekly_summary(
         "prevented.",
         "",
         f"Open the console: {origin}/",
-        f"If you belong to more than one workspace, choose {name}.",
+        choose_workspace(workspace, tenant_id),
         "",
         "You get this because you turned on the weekly summary in My account.",
         f"Stop it with one click: {link}",
@@ -777,11 +901,14 @@ def send_weekly_summary(
     origin: str,
     link: str,
     *,
+    tenant_id: UUID,
     context: ssl.SSLContext | None = None,
     timeout: float = 10,
 ) -> SendResult:
     """One weekly summary through the relay."""
-    email = render_weekly_summary(mail, to, workspace, counts, previous, week_ending, origin, link)
+    email = render_weekly_summary(
+        mail, to, workspace, counts, previous, week_ending, origin, link, tenant_id=tenant_id
+    )
     return _deliver(mail, to, email, context=context, timeout=timeout)
 
 
@@ -798,7 +925,7 @@ class FindingMessage:
     """What every kind renders for one finding and one destination; built in the drain's lease.
 
     Identifiers, the rule's version and its fixed label (`monitoring.delivery.FINDING_RULES`),
-    when the finding was raised, the workspace and Space names (reduced by `safe_label` where
+    when the finding was raised, the workspace and Space names (reduced by `name_label` where
     they are rendered) and the console's link to the finding. Never the finding's stored title,
     its target, story, action or outcome, a person's or an agent's name, or anything a source
     or a provider supplied. Both names are required, as their columns are never null: a
@@ -865,13 +992,15 @@ def _raised(message: FindingMessage) -> str:
 def _choose(message: FindingMessage) -> str:
     """Hosted has no finding address of its own per workspace (#31), as the weekly summary has
     none: the console opens the finding in the workspace the person is signed in to."""
-    return f"If you belong to more than one workspace, choose {safe_label(message.workspace)}."
+    return choose_workspace(message.workspace, message.tenant_id)
 
 
 def _finding_facts(message: FindingMessage) -> list[tuple[str, str]]:
+    """The Workspace and Space facts, each left out when nothing of its name survives, then the
+    rule and when the finding was raised."""
+    names = [("Workspace", name_label(message.workspace)), ("Space", name_label(message.space))]
     return [
-        ("Workspace", safe_label(message.workspace)),
-        ("Space", safe_label(message.space)),
+        *((title, label) for title, label in names if label is not None),
         ("Rule", f"{message.rule_label} ({message.rule_version})"),
         ("Raised", _raised(message)),
     ]
@@ -906,8 +1035,10 @@ def finding_body(message: FindingMessage) -> bytes:
 def _finding_email(mail: MailConfig, to: str, message: FindingMessage) -> EmailMessage:
     """One `text/plain` message for a finding: a fixed subject naming the workspace and the
     rule's label, the facts, the identifiers, the link and the fixed sentence. The `Message-ID`
-    is the delivery id's, so a redelivery collapses into the first in the mailbox."""
-    workspace = safe_label(message.workspace)
+    is the delivery id's, so a redelivery collapses into the first in the mailbox. A workspace
+    name nothing of which survives `name_label` is left out of the subject and the sentences."""
+    workspace = name_label(message.workspace)
+    where = "" if workspace is None else f" in {workspace}"
     email = EmailMessage()
     email["From"] = mail.sender
     email["To"] = to
@@ -918,7 +1049,7 @@ def _finding_email(mail: MailConfig, to: str, message: FindingMessage) -> EmailM
     email["X-ExecBound-Delivery"] = str(message.delivery_id)
     email["X-ExecBound-Finding"] = str(message.finding_id)
     lines = [
-        f"A finding was raised in {workspace} at {_raised(message)}.",
+        f"A finding was raised{where} at {_raised(message)}.",
         "",
         *(f"{title}: {value}" for title, value in _finding_facts(message)),
         "",
@@ -928,7 +1059,8 @@ def _finding_email(mail: MailConfig, to: str, message: FindingMessage) -> EmailM
         _choose(message),
         "",
         FINDING_DISCLAIMER,
-        f"You receive this because this address is a findings destination for {workspace}.",
+        "You receive this because this address is a findings destination"
+        + ("." if workspace is None else f" for {workspace}."),
         "Sent automatically; replies are not read.",
     ]
     # Every line is `safe_label` copy or fixed ASCII, so the source reads as the body does.
@@ -937,11 +1069,14 @@ def _finding_email(mail: MailConfig, to: str, message: FindingMessage) -> EmailM
 
 
 def _finding_slack(message: FindingMessage) -> bytes:
-    """Block Kit for a finding: every text object `plain_text`, one link button."""
+    """Block Kit for a finding: every text object `plain_text`, one link button. The
+    notification line, which Slack reads as mrkdwn, names the workspace only when Slack would
+    show the name as written (`_chat_name`)."""
     header = f"Finding: {message.rule_label}"
+    workspace = _chat_name(message.workspace)
     return _encode(
         {
-            "text": f"{header} in {safe_label(message.workspace)}",
+            "text": header if workspace is None else f"{header} in {workspace}",
             "blocks": [
                 {"type": "header", "text": _plain(header)},
                 {
@@ -968,8 +1103,15 @@ def _finding_slack(message: FindingMessage) -> bytes:
 
 
 def _finding_teams(message: FindingMessage) -> bytes:
-    """The Adaptive Card that mirrors `_finding_slack`."""
+    """The Adaptive Card that mirrors `_finding_slack`. A name Teams could format puts the
+    facts and the line naming the workspace in text runs (`_teams_facts`)."""
     small = {"isSubtle": True, "size": "Small", "wrap": True}
+    runs = _runs(message.workspace, message.space)
+    choose = (
+        _run_line(_choose(message), isSubtle=True, size="Small")
+        if runs
+        else {"type": "TextBlock", "text": _choose(message), **small}
+    )
     card = {
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "type": "AdaptiveCard",
@@ -982,12 +1124,9 @@ def _finding_teams(message: FindingMessage) -> bytes:
                 "size": "Medium",
                 "wrap": True,
             },
-            {
-                "type": "FactSet",
-                "facts": [{"title": t, "value": v} for t, v in _finding_facts(message)],
-            },
+            *_teams_facts(_finding_facts(message), runs),
             {"type": "TextBlock", "text": FINDING_DISCLAIMER, "wrap": True},
-            {"type": "TextBlock", "text": _choose(message), **small},
+            choose,
             {"type": "TextBlock", "text": message.identifiers(), **small},
         ],
         "actions": [{"type": "Action.OpenUrl", "title": "Open the finding", "url": message.link}],
@@ -1058,10 +1197,10 @@ def _facts(message: ApprovalMessage) -> list[tuple[str, str]]:
     facts = [("Decide by", message.expires_at.astimezone(UTC).strftime(_FULL_TIME))]
     if message.sent_at is not None:
         facts.append(("Time to decide", f"{window_words(message)} when sent"))
-    if message.workspace is not None:
-        facts.append(("Workspace", safe_label(message.workspace)))
-    if message.space is not None:
-        facts.append(("Space", safe_label(message.space)))
+    for title, name in (("Workspace", message.workspace), ("Space", message.space)):
+        label = name_label(name)
+        if label is not None:
+            facts.append((title, label))
     facts += [
         ("Action", safe_label(message.action_label)),
         ("Resource class", safe_label(message.resource_class)),
@@ -1090,10 +1229,12 @@ def _header(message: ApprovalMessage) -> str:
 
 
 def _summary(message: ApprovalMessage) -> str:
-    """The one line a phone's notification shows: the header, the deadline and the workspace."""
+    """The one line a phone's notification shows: the header, the deadline and the workspace,
+    which Slack reads as mrkdwn, so a name it could format is left out (`_chat_name`)."""
     action = safe_label(message.action_label)
     lead = f"{safe_label(message.request_ref)} \u00b7 {action}" if message.request_ref else action
-    workspace = "" if message.workspace is None else f" in {safe_label(message.workspace)}"
+    name = _chat_name(message.workspace)
+    workspace = "" if name is None else f" in {name}"
     return f"{lead} {_needs(message)} by {decide_by(message)}{workspace}"
 
 
@@ -1117,6 +1258,51 @@ def _plain(value: str) -> dict[str, object]:
     return {"type": "plain_text", "text": value, "emoji": False}
 
 
+# How a chat message carries a workspace's or a Space's name (#31, #179). Slack shows a
+# `plain_text` object with `emoji` off as written, and every block already uses one; its one
+# field read as mrkdwn is the notification line, which leaves out a name Slack could format.
+# Teams reads every text block and every fact as Markdown, so a card with such a name, or an
+# approval whose environment (a fact value a provider reported) holds such text, carries its
+# facts, and the line naming the workspace, in text runs, which Adaptive Cards never read as
+# Markdown. A card whose names need none of this is unchanged.
+
+
+def _chat_name(value: object) -> str | None:
+    """A name for Slack's notification line, or None when the line must leave it out: nothing
+    of it survives `name_label`, or Slack could format what does."""
+    label = name_label(value)
+    return label if label is not None and _chat_plain(label) else None
+
+
+def _runs(*names: object) -> bool:
+    """Whether a Teams card carries its facts in text runs: one of `names` (the workspace's and
+    Space's names, and an approval's environment) survives `name_label` holding something Teams
+    could format."""
+    return not all(_chat_plain(name_label(name)) for name in names)
+
+
+def _run_line(text: str, **style: object) -> dict[str, object]:
+    """One line Teams shows as written: a RichTextBlock of a single TextRun."""
+    return {"type": "RichTextBlock", "inlines": [{"type": "TextRun", "text": text, **style}]}
+
+
+def _teams_facts(facts: list[tuple[str, str]], runs: bool) -> list[dict[str, object]]:
+    """The facts as one FactSet, or, when `runs`, one RichTextBlock per fact: a bold title run
+    and the value's own run, both shown as written."""
+    if not runs:
+        return [{"type": "FactSet", "facts": [{"title": t, "value": v} for t, v in facts]}]
+    return [
+        {
+            "type": "RichTextBlock",
+            "inlines": [
+                {"type": "TextRun", "text": f"{title}: ", "weight": "Bolder"},
+                {"type": "TextRun", "text": value},
+            ],
+        }
+        for title, value in facts
+    ]
+
+
 def _closed_header(message: ClosedMessage) -> str:
     """`EB-20 \u00b7 <action>: approved`, and the same for each outcome."""
     action = safe_label(message.action_label)
@@ -1127,8 +1313,9 @@ def _closed_header(message: ClosedMessage) -> str:
 def _closed_facts(message: ClosedMessage) -> list[tuple[str, str]]:
     """Workspace, Outcome and At: what ended and when, and nothing about the target."""
     facts = []
-    if message.workspace is not None:
-        facts.append(("Workspace", safe_label(message.workspace)))
+    workspace = name_label(message.workspace)
+    if workspace is not None:
+        facts.append(("Workspace", workspace))
     facts += [
         ("Outcome", CLOSED_WORDS[message.outcome][0]),
         ("At", message.closed_at.astimezone(UTC).strftime(_FULL_TIME)),
@@ -1148,7 +1335,8 @@ def _closed_identifiers(delivery_id: UUID, message: ClosedMessage) -> str:
 def _closed_slack(delivery_id: UUID, message: ClosedMessage) -> bytes:
     """A close-out's blocks: the header, three facts and the one link; no basic-page button,
     because nothing is left to decide."""
-    workspace = "" if message.workspace is None else f" in {safe_label(message.workspace)}"
+    name = _chat_name(message.workspace)
+    workspace = "" if name is None else f" in {name}"
     return _encode(
         {
             "text": f"{_closed_header(message)}{workspace}",
@@ -1193,10 +1381,7 @@ def _closed_teams(delivery_id: UUID, message: ClosedMessage) -> bytes:
                 "size": "Medium",
                 "wrap": True,
             },
-            {
-                "type": "FactSet",
-                "facts": [{"title": t, "value": v} for t, v in _closed_facts(message)],
-            },
+            *_teams_facts(_closed_facts(message), _runs(message.workspace)),
             {"type": "TextBlock", "text": CLOSED_DISCLAIMER, "wrap": True},
             {
                 "type": "TextBlock",
@@ -1227,10 +1412,12 @@ def render_slack(
 ) -> bytes:
     """Block Kit for an incoming webhook: every text object `plain_text`, link buttons only.
 
-    `plain_text` means Slack interprets no mention, link or formatting syntax; the labels
-    have been reduced by `safe_label` besides. An approval's buttons open its own page, and a
-    finding's opens the finding in the console; neither decides anything. A finding message
-    carries its own delivery id, so a `delivery_id` that differs from it is refused.
+    `plain_text` with `emoji` off means Slack interprets no mention, link, emoji or formatting
+    syntax; the labels have been reduced by `safe_label` besides, and the notification line,
+    which Slack reads as mrkdwn, leaves out a name it could format. An approval's buttons open
+    its own page, and a finding's opens the finding in the console; neither decides anything.
+    A finding message carries its own delivery id, so a `delivery_id` that differs from it is
+    refused.
     """
     if isinstance(message, FindingMessage):
         _own_delivery(delivery_id, message)
@@ -1275,7 +1462,9 @@ def render_teams(
     delivery_id: UUID, message: ApprovalMessage | ClosedMessage | FindingMessage
 ) -> bytes:
     """A Workflows `message` carrying one Adaptive Card that mirrors the Slack blocks, for an
-    approval or a finding; a finding message's own delivery id must be `delivery_id`."""
+    approval or a finding; a finding message's own delivery id must be `delivery_id`. A card
+    with a workspace or Space name Teams could format carries its facts in text runs, which
+    Teams shows as written (`_teams_facts`)."""
     if isinstance(message, FindingMessage):
         _own_delivery(delivery_id, message)
         return _finding_teams(message)
@@ -1293,10 +1482,10 @@ def render_teams(
                 "size": "Medium",
                 "wrap": True,
             },
-            {
-                "type": "FactSet",
-                "facts": [{"title": title, "value": value} for title, value in _facts(message)],
-            },
+            # The environment is a fact value a provider reported, so it counts as a name does.
+            *_teams_facts(
+                _facts(message), _runs(message.workspace, message.space, message.environment)
+            ),
             {
                 "type": "TextBlock",
                 "text": BASIC_PAGE[:-1] + ".",
@@ -1331,12 +1520,26 @@ def render_teams(
     )
 
 
-def retry_after_seconds(value: str | None) -> int:
-    """`Retry-After` in whole seconds, clamped to 1..3600; 30 when absent or a date."""
+def retry_after_seconds(value: str | None, clock: "Clock | None" = None) -> int:
+    """`Retry-After` in whole seconds, clamped to 1..3600; 30 when absent or unreadable.
+
+    The value is delta-seconds or an HTTP-date. A date is measured from `clock`, the drain's
+    when it has one and the host's otherwise, and rounded up, so a retry never lands before it;
+    a date already past is the floor of one second.
+    """
+    text = (value or "").strip()
     try:
-        seconds = int((value or "").strip())
+        seconds = int(text)
     except ValueError:
-        return RETRY_AFTER_DEFAULT
+        try:
+            when = parsedate_to_datetime(text)
+        except (TypeError, ValueError, IndexError, OverflowError):
+            return RETRY_AFTER_DEFAULT
+        if when.tzinfo is None:
+            # `-0000` and the obsolete asctime form carry no zone; an HTTP-date is always GMT.
+            when = when.replace(tzinfo=UTC)
+        now = clock.now() if clock is not None else datetime.now(UTC)
+        seconds = math.ceil((when - now).total_seconds())
     return min(max(seconds, 1), 3600)
 
 
@@ -1346,6 +1549,8 @@ def send_chat(
     delivery_id: UUID,
     message: ApprovalMessage | ClosedMessage | FindingMessage,
     client: httpx.Client,
+    *,
+    clock: "Clock | None" = None,
 ) -> SendResult:
     """One message rendered for its Slack or Teams destination and posted by `post_chat`."""
     body = (
@@ -1353,14 +1558,21 @@ def send_chat(
         if kind == "slack"
         else render_teams(delivery_id, message)
     )
-    return post_chat(kind, url, delivery_id, body, client)
+    return post_chat(kind, url, delivery_id, body, client, clock=clock)
 
 
 def post_chat(
-    kind: str, url: str, delivery_id: UUID, body: bytes, client: httpx.Client
+    kind: str,
+    url: str,
+    delivery_id: UUID,
+    body: bytes,
+    client: httpx.Client,
+    *,
+    clock: "Clock | None" = None,
 ) -> SendResult:
     """One POST of a body already rendered to a Slack or Teams webhook; reads only the status
-    and `Retry-After`. The findings drain renders under its lease and posts after it (#31).
+    and `Retry-After`, a date in it measured from `clock`. The findings drain renders under its
+    lease and posts after it (#31).
 
     Slack delivers on 200 and Teams on 200 or 202, since a Workflows trigger accepts the
     request and runs the flow afterwards. No exception text or response body leaves here,
@@ -1386,7 +1598,7 @@ def post_chat(
     if status == 200 or (kind == "teams" and status == 202):
         return DELIVERED
     if status == 429:
-        return SendResult(False, "RECEIVER_RATE_LIMITED", retry_after_seconds(retry))
+        return SendResult(False, "RECEIVER_RATE_LIMITED", retry_after_seconds(retry, clock))
     if 400 <= status < 500:
         return SendResult(False, "RECEIVER_REFUSED")
     return SendResult(False, "RECEIVER_UNAVAILABLE")

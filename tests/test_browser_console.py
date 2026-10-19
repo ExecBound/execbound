@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import expect
 from sqlalchemy import text
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import world as world
@@ -93,15 +93,6 @@ SETTLED = """
   return [...document.querySelectorAll('.dialog, .drawer, .palette')].every(
     (surface) => getComputedStyle(surface).opacity === '1'
   );
-}
-"""
-# Nothing scrolls sideways: neither the document nor `main`, which scrolls on its own at phone
-# width, so content wider than it pans inside it there without widening the document (#31).
-FITS = """
-() => {
-  const main = document.querySelector('main');
-  return document.documentElement.scrollWidth <= document.documentElement.clientWidth
-    && main.scrollWidth <= main.clientWidth;
 }
 """
 AXE_RUN = """
@@ -184,9 +175,7 @@ def audit(page, path, heading):
     assert violations == [], (path, violations)
     policy = page.evaluate("window.__violations")
     assert policy == [], (path, policy)
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (path, "horizontal scroll")
+    assert page.evaluate(FITS), (path, "horizontal scroll")
 
 
 def test_a_signed_out_visit_goes_to_login(console_page):
@@ -317,9 +306,7 @@ def test_every_entry_is_clean_at_phone_width(console_page, admin_engine, world, 
     settled(console_page)
     assert console_page.evaluate(AXE_RUN) == []
     assert console_page.evaluate("window.__violations") == []
-    assert console_page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
+    assert console_page.evaluate(FITS)
 
 
 def test_the_keyboard_reaches_everything(console_page, admin_engine, world):

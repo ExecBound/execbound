@@ -15,7 +15,7 @@ from sqlalchemy import text
 from test_browser_console import AXE, AXE_RUN, COLLECT, console_app, settled
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import world as world
@@ -32,9 +32,7 @@ def clean(page, what):
     settled(page)
     assert page.evaluate(AXE_RUN) == [], what
     assert page.evaluate("window.__violations") == [], what
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), what
+    assert page.evaluate(FITS), what
 
 
 @pytest.mark.parametrize("width", [1280, 390])
@@ -75,9 +73,7 @@ def test_workspace_switch_replaces_viewer_context_and_stops_old_tabs(
     expect(console_page.get_by_role("heading", name="Your workspaces")).to_be_visible()
     settled(console_page)
     assert console_page.evaluate(AXE_RUN) == []
-    assert console_page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
+    assert console_page.evaluate(FITS)
     console_page.get_by_role("option", name=re.compile("^Team")).click()
     expect(console_page.get_by_role("button", name=re.compile(r"^Workspace.*Team"))).to_be_visible()
     expect(old.get_by_role("heading", level=1)).to_have_text("Workspace changed")

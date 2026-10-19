@@ -922,7 +922,7 @@ def test_sr24_the_purge_passes_over_a_connection_a_collection_holds(
     elapse(admin_engine, tenant, MONTH)
     sent = []
 
-    def send(destination, delivery_id, body, client):
+    def send(destination, delivery_id, body, client, **kwargs):
         sent.append(delivery_id)
         return DELIVERED
 
@@ -953,7 +953,7 @@ def test_sr24_process_delivers_before_it_purges(db, admins, clock, monkeypatch, 
         first_read(db, admin, clock, connection_id, server)
     steps = []
 
-    def send(destination, delivery_id, body, client):
+    def send(destination, delivery_id, body, client, **kwargs):
         steps.append(("send", destination.tenant_id))
         return DELIVERED
 

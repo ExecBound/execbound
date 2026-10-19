@@ -22,6 +22,17 @@ class DemoError(RuntimeError):
 
 
 _STDLIB = Path(sysconfig.get_paths()["stdlib"]).resolve()
+# The browser suite's sideways check (`FITS` in tests/test_browser_surfaces.py), written out
+# because this script does not import the tests: neither the document nor `main`, which scrolls
+# on its own below 768 px, so content wider than it pans there without widening the document.
+FITS = """
+() => {
+  const root = document.documentElement;
+  const main = document.querySelector('main');
+  return root.scrollWidth <= root.clientWidth
+    && (main === null || main.scrollWidth <= main.clientWidth);
+}
+"""
 
 
 def _origin(failure: BaseException) -> str:
@@ -146,9 +157,7 @@ def run(private: Path, output: Path) -> None:
                 for view in ("connections", "activity", "findings", "alerts"):
                     page.goto(gateway + "/monitor?view=" + view)
                     page.get_by_role("heading", level=1, name="Monitoring").wait_for()
-                    assert page.evaluate(
-                        "document.documentElement.scrollWidth <= window.innerWidth"
-                    )
+                    assert page.evaluate(FITS), view
                     page.screenshot(path=str(output / (view + "-mobile.png")), full_page=True)
             finally:
                 browser.close()

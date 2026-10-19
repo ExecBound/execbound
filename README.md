@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-AGPL--3.0--only-0A7486" alt="Licence: AGPL-3.0-only"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-0A7486" alt="License: AGPL-3.0-only"></a>
   <a href="https://github.com/ExecBound/execbound/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ExecBound/execbound/ci.yml?branch=main&amp;label=CI" alt="CI status"></a>
   <a href="https://docs.execbound.ai"><img src="https://img.shields.io/badge/docs-read-0A7486" alt="Documentation"></a>
 </p>
@@ -111,8 +111,8 @@ Community is supported by the community, with no guarantee. Ask questions in Dis
 
 Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) says how a change is reviewed and reaches this repository, what it must pass, and the sign-off every commit carries. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
-## Licence
+## License
 
-ExecBound is licensed under AGPL-3.0-only ([LICENSE](LICENSE)). The [Python client](clients/python/), the [provider protocol](protocol/), the [connectors](connectors/), the [examples](examples/), the [integrations](integrations/), the [deployment files](deploy/) and the server's install bundle, starter policy packs and MCP recipes are Apache-2.0, the documentation in [docs](docs/) is CC BY 4.0 and the console's fonts are OFL-1.1, each directory with its own licence file and each source file with an `SPDX-License-Identifier` line naming its licence.
+ExecBound is licensed under AGPL-3.0-only ([LICENSE](LICENSE)). The [Python client](clients/python/), the [provider protocol](protocol/), the [connectors](connectors/), the [examples](examples/), the [integrations](integrations/), the [deployment files](deploy/) and the server's install bundle, starter policy packs and MCP recipes are Apache-2.0, the documentation in [docs](docs/) is CC BY 4.0 and the console's fonts are OFL-1.1, each directory with its own license file and each source file with an `SPDX-License-Identifier` line naming its license.
 
-An organization whose policies do not allow AGPL software can ask ExecBound LLC for the server and console under a free [internal-use licence](INTERNAL_USE_LICENSE.md). "ExecBound" and its mark are trademarks of ExecBound LLC; [TRADEMARK.md](TRADEMARK.md) says how you may use them. Contributions are made under the [contributor agreement](CONTRIBUTOR_AGREEMENT.md).
+An organization whose policies do not allow AGPL software can ask ExecBound LLC for the server and console under a free [internal-use license](INTERNAL_USE_LICENSE.md). "ExecBound" and its mark are trademarks of ExecBound LLC; [TRADEMARK.md](TRADEMARK.md) says how you may use them. Contributions are made under the [contributor agreement](CONTRIBUTOR_AGREEMENT.md).

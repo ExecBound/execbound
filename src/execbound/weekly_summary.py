@@ -10,7 +10,8 @@ recipient's own, read under their authority when the message is sent (`value.for
 so a person whose authority narrowed gets the narrowed counts and a deactivated one gets none.
 
 Nothing a summary says is a string an agent, a provider or a person wrote, apart from the
-workspace name through `safe_label`; it carries one link to the console and the one-click
+workspace name through `name_label`, and the workspace's tenant id where that name cannot be
+shown as written; it carries one link to the console and the one-click
 unsubscribe link RFC 8058 describes, whose fresh 256-bit secret is kept only as its SHA-256.
 A week with nothing in it is skipped. Delivery is logged, not audited, as approval
 notification delivery is; turning the summary on and off is audited.
@@ -217,7 +218,10 @@ def unsubscribe(db: Database, link: str, clock: Clock) -> bool:
     """End the subscription a one-click link names, when the link is that message's own.
 
     Every failure, a forged, unknown, used or malformed link and a tenant that does not exist
-    included, answers False and changes nothing; the caller answers every outcome alike.
+    included, answers False and changes nothing; the caller answers every outcome alike. A
+    database fault, such as a missing grant, an outage or a clock the definer refuses, is
+    logged as an error with a fixed code and no ids, since nothing of the link may reach a
+    line, and answered as every other failure is.
     """
     parsed = parse_link(link)
     if parsed is None:
@@ -241,6 +245,7 @@ def unsubscribe(db: Database, link: str, clock: Clock) -> bool:
                 {"via": "link"},
             )
     except (SQLAlchemyError, UnsafeDatabaseRole, ValueError, LookupError):
+        log_event("weekly_summary.refused", level="ERROR", code="UNAVAILABLE")
         return False
     log_event("weekly_summary.unsubscribed", tenant_id=tenant, message_id=message)
     return True
@@ -569,6 +574,7 @@ def run(
                 prepared.week,
                 origin,
                 prepared.link,
+                tenant_id=tenant,
                 context=tls_context,
             )
         except ValueError:

@@ -24,7 +24,7 @@ from test_browser_console import console_page as console_page
 from test_browser_console_step_up import RING, step
 from test_browser_console_step_up import gateway as gateway
 from test_browser_console_step_up import page as page
-from test_browser_surfaces import ACTION_TIMEOUT_MS
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import provision_identity, request, targets
 from test_execution import registry as registry
@@ -231,10 +231,8 @@ def test_the_phone_layout_pins_the_buttons_and_counts_from_the_servers_clock(
     expect(console_page.get_by_role("list", name="Also waiting").get_by_role("link")).to_have_count(
         1
     )
-    assert console_page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
     settled(console_page)
+    assert console_page.evaluate(FITS)
     violations = console_page.evaluate(AXE_RUN)
     assert violations == []
     assert console_page.evaluate("window.__violations") == []
@@ -375,9 +373,7 @@ def test_the_approval_route_is_clean_in_both_schemes_and_at_both_widths(
         violations = console_page.evaluate(AXE_RUN)
         assert violations == [], (width, violations)
         assert console_page.evaluate("window.__violations") == []
-        assert console_page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), width
+        assert console_page.evaluate(FITS), width
     console_page.set_viewport_size({"width": 1280, "height": 900})
     console_page.goto("/approvals")
     expect(console_page.get_by_role("heading", level=1)).to_have_text("Approvals")
@@ -403,7 +399,6 @@ DECISION_BAR = """
     overlap: buttons.some((b) => b.left < box.right && b.right > box.left
       && b.top < box.bottom && b.bottom > box.top),
     ring: ring === null ? null : getComputedStyle(ring).boxShadow,
-    scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   };
 }
 """
@@ -429,7 +424,7 @@ def test_the_decision_bar_keeps_its_comment_usable_from_768_up(
         assert geometry["label"] <= 20, (width, geometry)
         assert min(geometry["buttons"]) >= 140, (width, geometry)
         assert not geometry["overlap"], (width, geometry)
-        assert geometry["scroll"] <= 0, (width, geometry)
+        assert console_page.evaluate(FITS), (width, geometry)
         assert geometry["ring"] == "none", (width, geometry)
     assert console_page.evaluate("window.__violations") == []
 
@@ -561,10 +556,8 @@ def test_the_phone_bar_names_the_effect_the_time_and_the_workspace(
     expect(eyebrow.get_by_text("Waiting for you", exact=True)).to_be_visible()
     # Nothing on the page sits under the bar.
     assert page.evaluate(UNDER_THE_BAR) <= 1
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
     settled(page)
+    assert page.evaluate(FITS)
     assert page.evaluate(AXE_RUN) == []
     assert page.evaluate("window.__violations") == []
 
@@ -769,9 +762,7 @@ def test_waiting_on_others_lapsed_and_the_waiting_panel_are_clean(
             settled(page)
             assert page.evaluate(AXE_RUN) == [], (path, width)
             assert page.evaluate("window.__violations") == [], (path, width)
-            assert page.evaluate(
-                "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-            ), (path, width)
+            assert page.evaluate(FITS), (path, width)
     # One message lapses unsent inside the drain's margin: the Lapsed view flags it and says
     # why, and its detail carries the delivery line (#678).
     hook = [notified_by(world, receiver)]
@@ -788,17 +779,13 @@ def test_waiting_on_others_lapsed_and_the_waiting_panel_are_clean(
         settled(page)
         assert page.evaluate(AXE_RUN) == [], width
         assert page.evaluate("window.__violations") == [], width
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), width
+        assert page.evaluate(FITS), width
         page.goto(f"/approvals/{lapsing['approval_id']}?view=lapsed")
         expect(page.get_by_text("Not sent: the approval lapsed before delivery.")).to_be_visible()
         settled(page)
         assert page.evaluate(AXE_RUN) == [], ("detail", width)
         assert page.evaluate("window.__violations") == [], ("detail", width)
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), ("detail", width)
+        assert page.evaluate(FITS), ("detail", width)
 
 
 # What the page says about the message and the lapse (#678): AQ12 and AQ13.

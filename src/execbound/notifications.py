@@ -66,6 +66,11 @@ from execbound.transports import (
 )
 
 MAX_ATTEMPTS = 5
+# The wait after each failed attempt. Five attempts have four waits, 5, 25, 125 and 625 s: the
+# fifth value is looked up at every fifth attempt that brings no `Retry-After`, delivered or
+# not, and thrown away, since nothing follows a fifth (this drain, `monitoring.worker`, `export`
+# and the hosted approval email all stop at `MAX_ATTEMPTS`). It stays because this drain and the
+# hosted one index it there before they check the count.
 BACKOFF = (5, 25, 125, 625, 3125)
 # Delivery closes this long before an approval's deadline (#678): a message
 # that arrives later leaves the approver no time to open the page and decide.
@@ -537,14 +542,18 @@ def _send(
     client: httpx.Client,
     mail: MailConfig | None,
     tls_context: ssl.SSLContext | None,
+    clock: Clock,
 ) -> SendResult:
-    """One attempt through the destination's kind; the result settles the row."""
+    """One attempt through the destination's kind; the result settles the row. A chat
+    receiver's `Retry-After` date is measured from the drain's `clock`."""
     if destination.kind == "email":
         if mail is None or destination.to is None:
             raise ExecutionError("INVALID_CONFIGURATION")
         return send_email(mail, destination.to, notification_id, message, context=tls_context)
     if destination.kind in CHAT_KINDS:
-        return send_chat(destination.kind, destination.url, notification_id, message, client)
+        return send_chat(
+            destination.kind, destination.url, notification_id, message, client, clock=clock
+        )
     accepted = send_notification(destination, notification_id, body, client)
     return DELIVERED if accepted else SendResult(False, "RECEIVER_UNAVAILABLE")
 
@@ -950,6 +959,7 @@ def deliver_pending(
                     client,
                     mail,
                     tls_context,
+                    clock,
                 )
                 with db.transaction(admin.tenant_id) as conn:
                     _admin(conn, admin, clock)

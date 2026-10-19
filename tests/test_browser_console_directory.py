@@ -65,17 +65,14 @@ def audit_agent(page, path, heading):
     audit(page, path, heading)
     geometry = page.evaluate(
         """() => {
-            const main = document.querySelector('main');
             const steps = document.querySelector('.connection-steps');
             return {
-                mainWidth: main.clientWidth, mainScrollWidth: main.scrollWidth,
                 stepsWidth: steps?.clientWidth, stepsScrollWidth: steps?.scrollWidth,
                 documentHeight: document.documentElement.scrollHeight,
                 viewportHeight: innerHeight, viewportWidth: innerWidth,
             };
         }"""
     )
-    assert geometry["mainScrollWidth"] <= geometry["mainWidth"], geometry
     if geometry["stepsWidth"] is not None:
         assert geometry["stepsScrollWidth"] <= geometry["stepsWidth"], geometry
     if geometry["viewportWidth"] == 390:

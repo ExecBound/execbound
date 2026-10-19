@@ -54,6 +54,7 @@ from test_human_surface import form_values
 from test_human_surface import human_config as human_config
 from test_migration_without_bypass import fenced
 from test_migration_without_bypass import restricted as restricted
+from test_notification_transports import NON_LATIN_WORKSPACE
 from test_structured_logging import captured as captured
 from test_workspace_accounts import enroll
 
@@ -93,7 +94,7 @@ from execbound.passwords import PasswordError, issue_reset, set_email, sign_in_w
 from execbound.runtime import Runtime
 from execbound.surfaces import invite_pages, people_pages
 from execbound.surfaces.sessions import issue_session, load_session
-from execbound.transports import MailConfig
+from execbound.transports import MailConfig, render_teammate_invitation
 
 pytestmark = pytest.mark.integration
 
@@ -1329,6 +1330,69 @@ def test_ti2d_list_invitations_requires_access_manage_and_shows_the_address(
     with pytest.raises(InvitationError) as excinfo:
         list_invitations(runtime, member)
     assert excinfo.value.code == "FORBIDDEN"
+
+
+def invitation_email(workspace, inviter):
+    """A teammate invitation rendered with no database, for what it says about two names."""
+    return render_teammate_invitation(
+        MailConfig("localhost", 2525, "tls", RELAY_USER, RELAY_PASSWORD, SENDER),
+        "jane@example.com",
+        uuid4(),
+        workspace,
+        inviter,
+        "http://127.0.0.1/join",
+        f"ebt1.{uuid4()}.{uuid4()}.zYx-Wvu_TsrqPon987654321zYx-Wvu_TsrqPon9876",
+        datetime(2026, 10, 20, 12, 0, tzinfo=UTC),
+    )
+
+
+def test_ti3_an_invitation_leaves_out_a_name_nothing_of_which_survives():
+    """A workspace or inviter name in a script `safe_label` drops would read "unknown". The
+    invitee is not a member yet, so a tenant id would tell them nothing: the email says "a
+    workspace" and "An administrator", as the page the link opens does without an inviter's
+    name, and that page names the workspace in full."""
+    email = invitation_email(NON_LATIN_WORKSPACE, "\u0418\u0432\u0430\u043d")
+    body = email.get_content()
+    assert "unknown" not in str(email["Subject"]) + body
+    assert email["Subject"] == "[ExecBound] An administrator invited you to a workspace"
+    assert body.startswith("An administrator invited you to join a workspace on ExecBound.\n")
+    assert invitation_email("Synthetic SOC", None)["Subject"] == (
+        "[ExecBound] An administrator invited you to Synthetic SOC"
+    )
+    assert invitation_email("Synthetic SOC", "Robin Admin")["Subject"] == (
+        "[ExecBound] Robin Admin invited you to Synthetic SOC"
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "example.com",
+        "Verify at evil.example now",
+        "https://evil.example",
+        "Acme: urgent",
+        "Acme/Security",
+        # An inviter with no label is named by their address, which reads as a host.
+        "robin@example.com",
+    ],
+)
+def test_ti3_an_invitation_leaves_out_a_name_a_mail_client_could_link(name):
+    """On the hosted service anyone who signs up names the workspace and themselves, and the
+    invitee is not a member yet, so neither name may carry a web address a mail client turns
+    into a link inside a message sent from ExecBound's own address."""
+    email = invitation_email(name, name)
+    body = email.get_content()
+    assert email["Subject"] == "[ExecBound] An administrator invited you to a workspace"
+    assert body.startswith("An administrator invited you to join a workspace on ExecBound.\n")
+    # The only link left is the invitation's own.
+    assert body.count("http") == 1 and "http://127.0.0.1/join#ebt1." in body
+
+
+@pytest.mark.parametrize("name", ["Acme Inc.", "Acme_Prod", "SOC (EU) - East"])
+def test_ti3_an_invitation_keeps_a_name_no_mail_client_would_link(name):
+    """A full stop that ends a word, an underscore or a hyphen links nothing in an email."""
+    email = invitation_email(name, name)
+    assert email["Subject"] == f"[ExecBound] {name} invited you to {name}"
 
 
 def test_ti_invitation_token_round_trips_and_refuses_a_bad_code():

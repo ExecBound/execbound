@@ -33,7 +33,7 @@ from sqlalchemy import text
 from test_browser_console import AXE, AXE_RUN, COLLECT, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import world as world
@@ -81,9 +81,7 @@ def clean(page, what):
     violations = page.evaluate(AXE_RUN)
     assert violations == [], (what, violations)
     assert page.evaluate("window.__violations") == [], what
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (what, "horizontal scroll")
+    assert page.evaluate(FITS), (what, "horizontal scroll")
 
 
 def walk(page, check) -> None:

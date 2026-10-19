@@ -35,6 +35,7 @@ import httpcore
 import httpx
 import pytest
 from smtp_double import mint
+from test_notification_transports import ANSWERED, FixedClock
 from test_notification_transports import message as approval
 
 from execbound import egress
@@ -648,6 +649,20 @@ def test_fd12_every_other_status_has_its_code(status, expected):
     with answering_with(status, **{"Retry-After": "40"}) as client:
         assert post_signed(RECEIVER, uuid4(), b"{}", client) == expected
         assert send_notification(RECEIVER, uuid4(), b"{}", client) is False
+
+
+def test_fd3_the_signed_sender_reads_a_retry_after_date_against_its_clock():
+    """A date a minute after the clock's moment is a sixty-second wait, whatever the host's
+    clock says; a date it cannot read is the default."""
+    clock = FixedClock(ANSWERED)
+    with answering_with(429, **{"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}) as client:
+        assert post_signed(RECEIVER, uuid4(), b"{}", client, clock=clock) == SendResult(
+            False, "RECEIVER_RATE_LIMITED", 60
+        )
+    with answering_with(429, **{"Retry-After": "Wed, 99 Oct 2026 07:28:00 GMT"}) as client:
+        assert post_signed(RECEIVER, uuid4(), b"{}", client, clock=clock) == SendResult(
+            False, "RECEIVER_RATE_LIMITED", 30
+        )
 
 
 def test_fd12_no_response_body_is_ever_read():
