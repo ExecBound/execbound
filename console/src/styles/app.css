@@ -911,6 +911,8 @@ a.cite:hover { border-color: var(--eb-accent); }
 /* The single-key switch, in My account and the keyboard list, and Help's list of words. */
 .single-keys { margin-top: 12px; }
 .single-keys .check { display: flex; align-items: center; gap: 8px; }
+/* One choice of a list in a dialog, such as an actor's open paths (#355). */
+.check-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; overflow-wrap: anywhere; }
 .single-keys p { margin: 4px 0 0; font-size: 12.5px; }
 .glossary { margin: 0; display: grid; gap: 10px; }
 .glossary dt { font-weight: 600; }

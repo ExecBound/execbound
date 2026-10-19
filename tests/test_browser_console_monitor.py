@@ -126,10 +126,10 @@ def test_every_view_shows_collected_metadata_and_a_finding_is_acknowledged_from_
     tabs.get_by_role("link", name="Agents").click()
     expect(
         console_page.get_by_text(
-            "counts agents this connection could enumerate, not the agents that exist"
+            "counts actors the connections could enumerate, not the actors that exist"
         )
     ).to_be_visible()
-    table = console_page.get_by_role("table", name=re.compile("Agents the directory lists"))
+    table = console_page.get_by_role("table", name=re.compile("Actors the connections list"))
     expect(table).to_contain_text("payroll")
     expect(table).to_contain_text("Agent identity")
     expect(table).to_contain_text("1 sponsor")
@@ -164,7 +164,7 @@ def test_an_agents_page_is_clean_in_dark_and_at_phone_width(console_page, admin_
     seed_agent(db, world, scenario=detailed_scenario(agents=[agent(1, displayName=HOSTILE_NAME)]))
     sign_in_as(console_page, admin_engine, world["admin"])
     console_page.goto("/monitor?view=agents")
-    table = console_page.get_by_role("table", name=re.compile("Agents the directory lists"))
+    table = console_page.get_by_role("table", name=re.compile("Actors the connections list"))
     table.get_by_role("link", name=re.compile("payroll")).click()
     expect(console_page).to_have_url(re.compile(r"/monitor/agents/[0-9a-f-]{36}$"))
     path = "/monitor/agents/" + console_page.url.rsplit("/monitor/agents/", 1)[1]

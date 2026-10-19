@@ -2544,7 +2544,9 @@ def _main() -> None:
                 mail=schedule.mail_configured(path),
                 notify=schedule.destinations_configured(path),
                 weekly_summary=schedule.weekly_summary_configured(path),
-                collect=schedule.collect_configured(args.state, args.collector),
+                # Every installation (#355): the synthetic directory holds no credential,
+                # so `collect-due` always has something it can open.
+                collect=True,
                 deliver=schedule.runtime_configured(path),
             )
         except KeyError:

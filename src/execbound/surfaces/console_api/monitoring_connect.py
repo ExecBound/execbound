@@ -13,6 +13,10 @@ and answers Microsoft's sign-in address, the one answer here that carries a secr
 `{connection_id}/collect` asks for a collection the next scheduled pass answers,
 `{connection_id}/schedule` sets the intervals, `{connection_id}/egress` records the addresses a
 Tines tenant connects from (#355) and `{connection_id}/revoke` stops collection.
+`POST /monitor/connections/synthetic` adds the workspace's synthetic directory (#355, step 4),
+read from a fixed dataset in process and labelled wherever it is shown, which the same revoke
+removes; it holds no credential, so it asks for no second factor, and a personal access token
+cannot add one.
 
 Every route is an administrator's, behind the session, the exact Origin and CSRF, and answers
 the connection as the Connections view reads it, from the server: nothing is optimistic.
@@ -32,7 +36,7 @@ from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
-from execbound.monitoring import connect, consent, drivers
+from execbound.monitoring import connect, consent, drivers, synthetic
 from execbound.monitoring import store as monitor_store
 from execbound.monitoring.models import MonitorError
 from execbound.monitoring.sealing import CollectorPublicKey
@@ -186,6 +190,9 @@ _CODES = {
     "CONNECTION_NOT_SEALED": "CONFLICT",
     "CONNECTION_NOT_CONSENTED": "CONFLICT",
     "ATTEMPT_CAPACITY": "ATTEMPT_CAPACITY",
+    # The synthetic directory never shares a workspace with a Microsoft Entra connection (#355).
+    "DIRECTORY_CONNECTED": "DIRECTORY_CONNECTED",
+    "SYNTHETIC_DIRECTORY_PRESENT": "SYNTHETIC_DIRECTORY_PRESENT",
     # Egress is a Tines connection's alone.
     "INVALID_STATE": "CONFLICT",
 }
@@ -283,6 +290,21 @@ def monitoring_connect_routes(
             )
 
         return await run_in_threadpool(_applied, runtime, current, create)
+
+    @routes.post(
+        "/monitor/connections/synthetic",
+        response_model=MonitorConnection,
+        status_code=201,
+        operation_id="addSyntheticDirectory",
+        openapi_extra=body(ConnectionChange),
+    )
+    async def add_synthetic_directory(request: Request) -> MonitorConnection:
+        current, _ = await guards.mutation(request, ConnectionChange, kind="ADMIN")
+
+        def add() -> UUID:
+            return synthetic.add(runtime.db, current, clock=runtime.clock)
+
+        return await run_in_threadpool(_applied, runtime, current, add)
 
     @routes.post(
         "/monitor/connections/entra/start",

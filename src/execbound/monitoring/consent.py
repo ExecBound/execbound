@@ -155,6 +155,15 @@ def start(
         with db.transaction(identity.tenant_id) as conn:
             _session(conn, session, clock)
             _registry(conn, identity.tenant_id)
+            # A real directory never shares a workspace's lists with the synthetic one (#355,
+            # step 4): it is removed first, and nobody is sent to Microsoft before that.
+            if conn.execute(
+                text(
+                    "SELECT EXISTS (SELECT 1 FROM execbound.monitor_connections "
+                    "WHERE active AND kind = 'fixture')"
+                )
+            ).scalar_one():
+                raise MonitorError("SYNTHETIC_DIRECTORY_PRESENT")
             if connection_id is None:
                 try:
                     space = write_space(conn, identity.tenant_id, visible_spaces(conn, session))

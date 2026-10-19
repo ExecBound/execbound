@@ -17,7 +17,7 @@ import { answerWith, renderPage, settle } from "../../test/page";
 import { minted, options, SOURCE, source } from "../../test/source-data";
 import { Connections } from "./Connections";
 
-const empty: MonitorSnapshot = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], destinations: [], profile: null, open_findings: 0 };
+const empty: MonitorSnapshot = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], destinations: [], profile: null, open_findings: 0, synthetic_directory: { present: false, addable: true } };
 const ADMIN: SessionSummary = { ...PLACEHOLDER, role: "ADMIN" };
 const served = (service: Partial<typeof NO_SERVICE>): SessionSummary => ({ ...ADMIN, service: { ...NO_SERVICE, ...service } });
 

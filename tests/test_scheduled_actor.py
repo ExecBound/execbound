@@ -351,8 +351,16 @@ PINNED = {
     },
     "execbound/monitoring/collection.py": {"run", "_collect_audit"},
     # A run's read of the directory's service principal sign-ins (#355), which writes only
-    # through the three driver steps below, each inside the run's lease.
-    "execbound/monitoring/graph.py": {"run", "run_delta", "collect_audit", "collect_sign_ins"},
+    # through the three driver steps below, each inside the run's lease. `_run` is `run`'s own
+    # body under the lease `run` loaded, given the synthetic directory's in-process client or
+    # the caller's (#355, step 4).
+    "execbound/monitoring/graph.py": {
+        "run",
+        "_run",
+        "run_delta",
+        "collect_audit",
+        "collect_sign_ins",
+    },
     # Driver evidence (#355): the Space's recorded egress and the sign-in cursor read beside it,
     # the declared rows derived from what the store holds, and the sign-in matches written. Each
     # takes `store._check_actor` with `collecting=True`, so a scheduled actor without the run's

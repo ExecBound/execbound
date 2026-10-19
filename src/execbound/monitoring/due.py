@@ -305,8 +305,9 @@ _CREDENTIAL = (
     "sealed_key_id, client_ref FROM execbound.monitor_connections "
     "WHERE tenant_id = :t AND connection_id = :c AND active AND collecting_lease = :lease"
 )
-# The credential modes the collector opens itself, with no operator key file.
-OPENED = frozenset({"sealed", "platform_app"})
+# The credential modes the collector opens itself, with no operator key file. The synthetic
+# directory's holds no credential: it is read in process (`synthetic.client`, #355).
+OPENED = frozenset({"sealed", "platform_app", "synthetic"})
 
 
 def _credential(
@@ -474,6 +475,17 @@ def collect_workspace(
         mode = row["credential_mode"]
         app: graph.PlatformApp | None = None
         secret: str | None = None
+        if mode == "synthetic" and not delta:
+            # The synthetic directory, read in process with no credential: `graph.run` gives it
+            # its own client and never `client` (#355, step 4).
+            return graph.run(
+                db,
+                actor,
+                connection_id=row["connection_id"],
+                client=client,
+                clock=clock,
+                lease=lease,
+            )
         if mode == "platform_app":
             app, refused = _platform(row, platform_app)
         elif mode == "sealed" or path is None:

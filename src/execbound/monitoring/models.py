@@ -28,8 +28,10 @@ MONITOR_STATUS = {
 
 # A connection's intervals when its row leaves them null. Entra: a full directory read every
 # six hours. Tines: its audit records every fifteen minutes, and its inventory daily, which is
-# not adjustable. The schedule (`due.py`) and the overdue rule (`store.py`) both read these.
-DEFAULT_COLLECT_SECONDS = {"tines": 86400, "entra_agent_id": 21600}
+# not adjustable. The synthetic directory: hourly, so what a workspace adds it to shows a new
+# actor within the hour after its first collection (#355, step 4). The schedule (`due.py`) and
+# the overdue rule (`store.py`) both read these.
+DEFAULT_COLLECT_SECONDS = {"tines": 86400, "entra_agent_id": 21600, "fixture": 3600}
 DEFAULT_ACTIVITY_SECONDS = 900
 # The states a finding delivery or intent can be in (#31): what `deliveries --state` offers and
 # the listing takes. Here rather than in the worker, so building the command-line parser never

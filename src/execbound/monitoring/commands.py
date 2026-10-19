@@ -51,6 +51,7 @@ from execbound.monitoring.store import (
     revoke_source,
     rotate_source,
     set_profile,
+    withdraw_reach,
 )
 from execbound.monitoring.tines import TinesConfig, check_connection
 from execbound.plugins import PluginError, database_refusal, load_command_plugins
@@ -584,6 +585,22 @@ def build_parser() -> argparse.ArgumentParser:
     accept.add_argument("--path", required=True)
     accept.add_argument("--reason", required=True, help="A stable reason code, A to Z and _")
     accept.add_argument("--days", type=int, default=0, help="0 leaves the acceptance open")
+    withdraw = sub.add_parser(
+        "withdraw-reach", help="Withdraw an ADMIN's acceptance of one ungoverned path"
+    )
+    withdraw.add_argument("--credential-file", type=Path, required=True)
+    withdraw.add_argument(
+        "--connection", type=UUID, required=True, help="The connection that lists the agent"
+    )
+    withdraw.add_argument("--agent", required=True, help="The directory object identifier")
+    withdraw.add_argument("--action", required=True, help="The catalog action of the accepted path")
+    withdraw.add_argument(
+        "--path-kind",
+        required=True,
+        choices=("grant", "role", "inherited", "observation"),
+        help="The accepted path's kind",
+    )
+    withdraw.add_argument("--path", required=True, help="The accepted path's reference")
     set_profile_parser = sub.add_parser(
         "set-profile", help="Activate the next detection profile version as a current ADMIN"
     )
@@ -1056,6 +1073,23 @@ def main() -> None:
                     ),
                 )
                 print("Acceptance recorded; the path is unchanged and still shown.")
+                return
+            if args.command == "withdraw-reach":
+                if args.credential_file.stat().st_size > 1024:
+                    raise ValueError
+                identity = authenticate(
+                    db, args.credential_file.read_text(encoding="utf-8").strip()
+                )
+                withdraw_reach(
+                    db,
+                    identity,
+                    connection_id=args.connection,
+                    platform_ref=args.agent,
+                    action=args.action,
+                    path_kind=args.path_kind,
+                    path_ref=args.path,
+                )
+                print("Acceptance withdrawn; the path reads as ungoverned again.")
                 return
             if args.command in {"link-agent", "unlink-agent"}:
                 if args.credential_file.stat().st_size > 1024:

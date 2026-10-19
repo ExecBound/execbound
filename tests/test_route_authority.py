@@ -230,6 +230,9 @@ CONSOLE = {
     ("/api/console/v1/monitor/setup/verify", "POST"): SESSION,
     ("/api/console/v1/monitor/agents", "GET"): SESSION,
     ("/api/console/v1/monitor/agents/{agent_id}", "GET"): SESSION,
+    # Accepting an actor's ungoverned paths and withdrawing an acceptance (#355, step 4).
+    ("/api/console/v1/monitor/agents/{agent_id}/accept", "POST"): SESSION,
+    ("/api/console/v1/monitor/agents/{agent_id}/withdraw", "POST"): SESSION,
     ("/api/console/v1/monitor/findings", "GET"): SESSION,
     ("/api/console/v1/monitor/findings/{finding_id}", "GET"): SESSION,
     ("/api/console/v1/monitor/findings/{finding_id}/acknowledge", "POST"): SESSION,
@@ -245,6 +248,8 @@ CONSOLE = {
     ("/api/console/v1/monitor/connections/{connection_id}/egress", "POST"): SESSION,
     ("/api/console/v1/monitor/connections/{connection_id}/revoke", "POST"): SESSION,
     ("/api/console/v1/monitor/connections/entra/start", "POST"): SESSION,
+    # The synthetic directory, which needs no collector key (#355, step 4).
+    ("/api/console/v1/monitor/connections/synthetic", "POST"): SESSION,
     # Reporting sources from the console (#678): minting and rotation answer
     # CONNECT_UNAVAILABLE without console connect, but every route is served everywhere.
     ("/api/console/v1/monitor/sources", "POST"): SESSION,

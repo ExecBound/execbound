@@ -76,6 +76,41 @@ def test_a_bound_and_unbound_agent_leave_every_later_decision_replayable(
     decided_and_replayed(db, world, connector)
 
 
+def test_an_accepted_and_withdrawn_path_leaves_every_later_decision_replayable(
+    db, world, live_provider, connector, admin_engine
+):
+    """Accepting an ungoverned path and withdrawing the acceptance (#355, SR30) append one event
+    each. Only Monitoring reads an acceptance; no admission, policy or approval does."""
+    tenant, admin = world["identity"].tenant_id, world["admin"]
+    connection = collect(db, admin, world["clock"], scenario=detailed_scenario(agents=[agent(1)]))
+    with db.transaction(tenant) as conn:
+        path = (
+            conn.execute(
+                text(
+                    "SELECT a.platform_ref, r.action, r.path_kind, r.path_ref "
+                    "FROM execbound.monitor_agent_reach r JOIN execbound.monitor_agents a "
+                    "ON a.tenant_id = r.tenant_id AND a.agent_id = r.agent_id "
+                    "WHERE r.path_kind = 'grant' ORDER BY r.action LIMIT 1"
+                )
+            )
+            .mappings()
+            .one()
+        )
+    values = {
+        "connection_id": connection,
+        "platform_ref": path["platform_ref"],
+        "action": path["action"],
+        "path_kind": path["path_kind"],
+        "path_ref": path["path_ref"],
+        "clock": world["clock"],
+    }
+    monitor_store.accept_reach(db, admin, reason_code="BREAK_GLASS", **values)
+    monitor_store.withdraw_reach(db, admin, **values)
+    assert len(audit(admin_engine, tenant, "monitor.reach_accepted")) == 1
+    assert len(audit(admin_engine, tenant, "monitor.reach_withdrawn")) == 1
+    decided_and_replayed(db, world, connector)
+
+
 def test_a_draft_s_changed_rules_leave_every_later_decision_replayable(
     db, world, live_provider, connector, admin_engine
 ):

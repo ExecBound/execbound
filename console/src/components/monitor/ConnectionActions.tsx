@@ -14,9 +14,10 @@ import { answered, connectCopy } from "./connect";
 const ScheduleDialog = lazy(async () => ({ default: (await import("./ConnectionDialogs")).ScheduleDialog }));
 const RevokeDialog = lazy(async () => ({ default: (await import("./ConnectionDialogs")).RevokeDialog }));
 const ReplaceKeyDialog = lazy(async () => ({ default: (await import("./ConnectionDialogs")).ReplaceKeyDialog }));
+const EgressDialog = lazy(async () => ({ default: (await import("./ConnectionDialogs")).EgressDialog }));
 const ConnectEntra = lazy(async () => ({ default: (await import("./ConnectEntra")).ConnectEntra }));
 
-type Open = "schedule" | "revoke" | "key" | "consent" | null;
+type Open = "schedule" | "revoke" | "key" | "consent" | "egress" | null;
 
 /** The deployment's platform app, as a directory administrator sees it, where it is configured. */
 export interface PlatformApp {
@@ -112,6 +113,15 @@ export function ConnectionActions({
             Replace key
           </Button>
         ) : null}
+        {connection.kind === "tines" ? (
+          <Button
+            onClick={() => {
+              setOpen("egress");
+            }}
+          >
+            Record egress
+          </Button>
+        ) : null}
         {consented && connection.consent_needs_update && platformApp !== null ? (
           <Button
             onClick={() => {
@@ -127,13 +137,14 @@ export function ConnectionActions({
             setOpen("revoke");
           }}
         >
-          Revoke
+          {connection.kind === "fixture" ? "Remove" : "Revoke"}
         </Button>
       </div>
       <Suspense fallback={null}>
         {open === "schedule" ? <ScheduleDialog connection={connection} onClose={close} /> : null}
         {open === "revoke" ? <RevokeDialog connection={connection} platformApp={consented ? platformApp : null} onClose={close} /> : null}
         {open === "key" ? <ReplaceKeyDialog connection={connection} onClose={close} /> : null}
+        {open === "egress" ? <EgressDialog connection={connection} onClose={close} /> : null}
         {open === "consent" && platformApp !== null ? (
           <ConnectEntra displayName={platformApp.displayName} connectionId={connection.connection_id} onClose={close} />
         ) : null}

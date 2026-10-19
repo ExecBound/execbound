@@ -198,6 +198,7 @@ const DISCOVERED: AgentDetail = {
       sponsor_state: "read",
       first_seen_at: "2026-09-18T09:00:00Z",
       observed_at: "2026-09-19T12:00:00Z",
+      synthetic: false,
       gone_at: null,
     },
     findings: [],
@@ -740,6 +741,23 @@ describe("the agent detail", () => {
     expect(await screen.findByText("This agent is gone from its source, so it cannot be bound or governed.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Govern this agent" })).toBeNull();
     expect(screen.getByText("Gone from the source")).toHaveClass("badge-stale");
+  });
+
+  it("names an actor of the synthetic directory and offers it neither Govern nor Bind (#355)", async () => {
+    const found = DISCOVERED.discovered;
+    if (found === null) throw new Error("fixture");
+    const detail: AgentDetail = {
+      ...DISCOVERED,
+      discovered: { ...found, agent: { ...found.agent, synthetic: true, source_label: "Synthetic directory" } },
+    };
+    mount(<AgentDetailView detail={detail} />, `/agents/${SECOND}`);
+    expect(
+      await screen.findByText(/This actor comes from the synthetic directory, which exists only in ExecBound, so it cannot be bound or governed\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Synthetic directory · agent identity/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Govern this agent" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Bind" })).toBeNull();
+    expect(screen.getByRole("link", { name: "This agent's Monitoring page" })).toHaveAttribute("href", `/monitor/agents/${SECOND}`);
   });
 
   it("links each recent request to its record in Activity (UX13, #678)", async () => {

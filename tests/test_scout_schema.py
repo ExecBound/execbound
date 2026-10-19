@@ -137,7 +137,9 @@ def test_runtime_catalog_carries_the_four_scout_tables(db, seeded):
     assert "platform_ref" not in UPDATE_COLUMNS["monitor_agents"]
     assert "first_seen_at" not in UPDATE_COLUMNS["monitor_agents"]
     assert "value" not in UPDATE_COLUMNS["monitor_agent_grants"]
-    assert UPDATE_COLUMNS["monitor_reach_exceptions"] == {"withdrawn_at"}
+    # Since 0099 the runtime writes no acceptance itself: `admin_accept_reach` and
+    # `admin_withdraw_reach` are its writers, with its history (#355).
+    assert "monitor_reach_exceptions" not in UPDATE_COLUMNS
     with db.transaction(seeded["tenants"][0]) as conn:
         check_runtime(conn)
 
@@ -154,6 +156,8 @@ def test_the_runtime_cannot_delete_collected_agent_evidence(db, seeded, admin_en
     "statement",
     [
         "UPDATE execbound.monitor_agents SET platform_ref = 'moved'",
+        # A class moves within the classic family since 0099 (#355), and an agent identity
+        # never moves: `monitor_agents_class_family` refuses it.
         "UPDATE execbound.monitor_agents SET identity_class = 'service_principal'",
         "UPDATE execbound.monitor_agents SET first_seen_at = now()",
         "UPDATE execbound.monitor_agent_reach SET action = 'identity.enable'",
@@ -165,6 +169,42 @@ def test_the_runtime_cannot_rewrite_an_identity_or_its_history(db, seeded, admin
     add_agent(admin_engine, tenant, connection_id)
     with pytest.raises(DBAPIError), db.transaction(tenant) as conn:
         conn.execute(text(statement))
+
+
+CLASSES = (
+    "agent_identity",
+    "tines_story",
+    "service_principal",
+    "managed_identity",
+    "consented_app",
+)
+CLASSIC = {"service_principal", "managed_identity", "consented_app"}
+
+
+@pytest.mark.parametrize(("before", "after"), [(b, a) for b in CLASSES for a in CLASSES if b != a])
+def test_a_class_moves_only_within_the_classic_family_in_either_direction(
+    db, seeded, admin_engine, before, after
+):
+    """Since 0099 the runtime holds column `UPDATE` on `identity_class` (#355), so the trigger
+    `monitor_agents_class_family` is all that stops a runtime write: nothing becomes an agent
+    identity or a Tines story, neither becomes anything else, and a classic principal moves only
+    within its family."""
+    tenant, principal = seeded["tenants"][0], seeded["principals"][0]
+    connection_id = connect(admin_engine, tenant, principal)
+    agent_id = add_agent(admin_engine, tenant, connection_id, identity_class=before)
+    move = "UPDATE execbound.monitor_agents SET identity_class = :after WHERE agent_id = :a"
+    if before in CLASSIC and after in CLASSIC:
+        with db.transaction(tenant) as conn:
+            conn.execute(text(move), {"after": after, "a": agent_id})
+            stored = conn.execute(
+                text("SELECT identity_class FROM execbound.monitor_agents WHERE agent_id = :a"),
+                {"a": agent_id},
+            ).scalar_one()
+        assert stored == after
+        return
+    with pytest.raises(DBAPIError) as refused, db.transaction(tenant) as conn:
+        conn.execute(text(move), {"after": after, "a": agent_id})
+    assert refused.value.orig.diag.message_primary == "CLASS_FIXED"
 
 
 def test_each_tenant_reads_only_its_own_agents(db, seeded, admin_engine):

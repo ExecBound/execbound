@@ -190,6 +190,9 @@ class DiscoveredFacts(BaseModel):
     first_seen_at: datetime
     observed_at: datetime
     gone_at: datetime | None
+    # Listed by the synthetic directory (#355): it exists nowhere, so it is never governed or
+    # bound, and the page offers neither.
+    synthetic: bool
 
 
 class Finding(BaseModel):
@@ -442,6 +445,7 @@ def _discovered(found: dict[str, Any] | None) -> Discovered | None:
             credential_kinds=[str(kind) for kind in (facts["credential_kinds"] or [])],
             sponsors=_sponsors(facts["sponsors"]),
             sponsor_state=str(facts["sponsor_state"]),
+            synthetic=bool(facts["synthetic"]),
             first_seen_at=facts["first_seen_at"],
             observed_at=facts["observed_at"],
             gone_at=facts["gone_at"],

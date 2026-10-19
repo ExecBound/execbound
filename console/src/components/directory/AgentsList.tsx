@@ -144,6 +144,8 @@ function Row({ row, discovery }: { row: AgentRow; discovery: boolean }) {
         <Link to="/agents/$agentId" params={{ agentId: row.row_id }}>
           {principalName("Agent", row.name, row.number, row.row_id)}
         </Link>
+        {/* It exists only in ExecBound, and the list says so whatever columns it shows (#355). */}
+        {row.source === "fixture" ? <small>Synthetic directory</small> : null}
       </Td>
       <Td>{POPULATIONS[row.population]}</Td>
       {discovery ? <>

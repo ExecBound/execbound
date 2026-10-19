@@ -37,6 +37,7 @@ export const OBSERVED: MonitorFinding = {
   agent: null,
   connection_label: null,
   source_label: "Triage source",
+  synthetic: false,
 };
 
 export const REACH: MonitorFinding = {
@@ -148,8 +149,17 @@ export function story(changes: Partial<MonitorStory> = {}): MonitorStory {
 }
 
 export function snapshot(changes: Partial<MonitorSnapshot> = {}): MonitorSnapshot {
+  // Unless a case says otherwise, the workspace is the one Space shown: its synthetic directory is
+  // present where these connections hold an active one, and can be added where they hold none and
+  // no Microsoft Entra connection.
+  const connections = changes.connections ?? [connection()];
+  const present = connections.some((item) => item.kind === "fixture" && item.revoked_at === null);
   return {
-    connections: [connection()],
+    connections,
+    synthetic_directory: {
+      present,
+      addable: !present && !connections.some((item) => item.kind === "entra_agent_id"),
+    },
     sources: [],
     stories: [story()],
     credentials: [{ external_id: "9", name: "okta_api", item_type: "TEXT", source_updated_at: null, gone_at: null }],
@@ -182,10 +192,33 @@ export const agents: MonitorAgents = {
       lapsed: 0,
       unresolved: 1,
       open_findings: 1,
+      did: 0,
+      did_at_least: false,
+      open_paths: 1,
+      accepted: 0,
+      accepted_until: null,
+      driver: null,
+      drivers_more: 0,
+      tines_driven: false,
+      source: "entra_agent_id",
+      synthetic: false,
+      app_ref: null,
+      removal: "blueprint",
+      administered: true,
     },
   ],
   consequential: ["identity.disable"],
-  tenant: { enumerated: 1, shown: 1, with_reach: 1, governed: 0, unestablished: 1 },
+  tenant: {
+    enumerated: 1,
+    shown: 1,
+    with_reach: 1,
+    governed: 0,
+    unestablished: 1,
+    assessed: true,
+    built_in: false,
+    per_source: { entra: 1, tines: 0, synthetic: 0 },
+    unattributed: 1,
+  },
 };
 
 export function agentDetail(changes: Partial<MonitorAgentDetail["agent"]> = {}): MonitorAgentDetail {
@@ -209,6 +242,11 @@ export function agentDetail(changes: Partial<MonitorAgentDetail["agent"]> = {}):
       observed_at: "2026-09-19T05:00:00+00:00",
       user_agent_hint: null,
       user_agent_seen_at: null,
+      source: "entra_agent_id",
+      synthetic: false,
+      app_ref: null,
+      removal: "blueprint",
+      administered: true,
       ...changes,
     },
     grants: [],
@@ -220,5 +258,7 @@ export function agentDetail(changes: Partial<MonitorAgentDetail["agent"]> = {}):
     unresolved: 0,
     drivers: [],
     driver_gaps: { catalog_version: "egress.2026-10-18", unattributable: ["Zapier", "n8n Cloud"], pending: ["OpenAI"] },
+    acceptances: [],
+    assessed: true,
   };
 }

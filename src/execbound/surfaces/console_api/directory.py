@@ -148,6 +148,8 @@ REFUSALS: dict[str, tuple[str, list[str] | None]] = {
     "INVALID_ACTOR": ("FORBIDDEN", None),
     "INVALID_TENANT": ("FORBIDDEN", None),
     "PLAN_LIMIT": ("PLAN_LIMIT", None),
+    # The synthetic directory's actors exist nowhere, so none is governed or bound (#355).
+    "SYNTHETIC_ACTOR": ("SYNTHETIC_ACTOR", None),
     # A principal a re-invitation replaced is retired for good (0061); the person is managed
     # through the entry that replaced it, which "Something changed first" would not say.
     "PRINCIPAL_REPLACED": ("PRINCIPAL_REPLACED", None),

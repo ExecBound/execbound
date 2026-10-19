@@ -16,7 +16,7 @@ from execbound_connectors.graph import GRAPH_ORIGIN as GRAPH_ORIGIN
 from pydantic import ValidationError
 from sqlalchemy import TextClause, text
 from sqlalchemy.engine import Connection, RowMapping
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
 from execbound import bindings
 from execbound.administration import AdministrationError
@@ -79,6 +79,11 @@ SOURCE_COLUMNS = (
     + ADMINISTERS.format(space="e.space_id")
     + " AS administered"
 )
+# The synthetic directory's kind (#355, step 4): read like a Microsoft Entra directory, created
+# only by `admin_add_synthetic_directory` (`monitoring.synthetic`), never by `create_connection`.
+SYNTHETIC_KIND = "fixture"
+# The kinds that are a directory: everything a directory's collection writes admits both.
+DIRECTORY_KINDS = ("entra_agent_id", SYNTHETIC_KIND)
 RULE_VERSION = "sensitive-action.v2"
 CHANGE_RULE = "monitored-path-change.v1"
 KNOWN_RULE_VERSIONS = frozenset({"sensitive-action.v1", RULE_VERSION, CHANGE_RULE})
@@ -837,6 +842,68 @@ def _active_profile(conn: Connection, tenant: UUID) -> ProfileRecord | None:
     return _record(dict(row)) if row is not None else None
 
 
+# Whether the workspace's synthetic directory is active: what `consequential_actions` asks.
+_SYNTHETIC_ACTIVE = text(
+    "SELECT EXISTS (SELECT 1 FROM execbound.monitor_connections "
+    "WHERE tenant_id = :t AND kind = 'fixture' AND active)"
+)
+
+
+# The workspace's synthetic directory as Connections offers it, read across every Space because
+# it holds for every Space (#355, step 4): whether one is active, and whether any Space ever
+# connected Microsoft Entra, active or revoked, which is when none can be added.
+_SYNTHETIC_STATE = text(
+    "SELECT EXISTS (SELECT 1 FROM execbound.monitor_connections "
+    "WHERE tenant_id = :t AND kind = 'fixture' AND active) AS present, "
+    "EXISTS (SELECT 1 FROM execbound.monitor_connections "
+    "WHERE tenant_id = :t AND kind = 'entra_agent_id') AS directory_ever"
+)
+
+
+def synthetic_directory(conn: Connection, tenant: UUID, visibility: Visibility) -> dict[str, bool]:
+    """Whether the workspace's synthetic directory is present, and whether one can be added,
+    for the workspace rather than for the Space a session looks at, since it holds for every
+    Space: while one is active no Space connects Microsoft Entra, and none is added beside
+    another or where any Space ever connected a directory (0099's coexistence trigger).
+
+    `present` is every reader's, since it stops every Space connecting a directory and the
+    Agents page lists and labels its actors in every Space. `addable` is said only to a reader
+    of every Space, who may read every connection anyway, and is false to anyone else, who is
+    never told whether another Space connected a directory. Whether the reader may add one is
+    the console's `access.manage` and the writer's own check, not this.
+    """
+    row = conn.execute(_SYNTHETIC_STATE, {"t": tenant}).mappings().one()
+    present = bool(row["present"])
+    return {
+        "present": present,
+        "addable": visibility.everything and not present and not row["directory_ever"],
+    }
+
+
+def consequential_actions(
+    conn: Connection, tenant: UUID, profile: ProfileRecord | None
+) -> list[str]:
+    """What the reach rules and the pages call consequential, sorted: the active detection
+    profile's sensitive actions, the tenant's own list.
+
+    Without a profile nothing is, so the rules report insufficient evidence rather than match
+    every action, except in a workspace whose synthetic directory is active (#355, step 4). It
+    is assessed against the built-in sensitive action set the sensitive-action rule already
+    applies without a profile, `SENSITIVE_ACTIONS`, so a workspace that adds it in one click
+    sees what it is for before anyone sets a profile; a profile, once set, decides for it too.
+    Workspace-wide, and exact: while a synthetic directory is active the workspace holds no
+    Microsoft Entra connection, active or revoked (`monitor_connections_directory_coexist`),
+    only a directory's collection lists actors, and removing it marks its actors gone, so every
+    live actor in such a workspace is the synthetic directory's and no real one is assessed
+    against a list nobody chose.
+    """
+    if profile is not None:
+        return sorted(profile.profile.sensitive_actions)
+    if conn.execute(_SYNTHETIC_ACTIVE, {"t": tenant}).scalar_one():
+        return sorted(SENSITIVE_ACTIONS)
+    return []
+
+
 def set_profile(
     db: Database, identity: Identity, profile: DetectionProfile, *, clock: Clock = SYSTEM_CLOCK
 ) -> ProfileRecord:
@@ -1309,7 +1376,11 @@ FINDING_COLUMNS = (
     "a.sponsor_state, "
     "(SELECT count(*) FROM jsonb_array_elements(a.sponsors) x "
     "WHERE jsonb_typeof(x) = 'object') AS sponsor_count, "
-    "a.owner_count, a.linked_principal_id, n.label AS connection_label, s.label AS source_label"
+    "a.owner_count, a.linked_principal_id, n.label AS connection_label, s.label AS source_label, "
+    # Whether the synthetic directory raised it, by its connection or its actor's (#355, step 4).
+    "EXISTS (SELECT 1 FROM execbound.monitor_connections k WHERE k.tenant_id = f.tenant_id "
+    "AND k.connection_id = coalesce(f.connection_id, a.connection_id) AND k.kind = 'fixture') "
+    "AS synthetic"
 )
 FINDING_RELATION = (
     "execbound.monitor_findings f "
@@ -1583,6 +1654,9 @@ def snapshot(
             # Whether the reader may read every Space of this workspace, so that a named id
             # missing from `space_names` is no Space of it rather than one they cannot see.
             result["reads_every_space"] = visibility.everything
+            # The synthetic directory holds for every Space, so Connections reads it for the
+            # workspace, not from the connections of the Space shown (#355, step 4).
+            result["synthetic_directory"] = synthetic_directory(conn, tenant, visibility)
             _session(conn, session, clock)
             return result
     except DEPENDENCY_ERRORS:
@@ -1648,13 +1722,26 @@ AGENT_COLUMNS = (
     "agent_id, connection_id, platform_ref, identity_class, display_name, enabled, "
     "blueprint_ref, blueprint_object_ref, credential_kinds, sponsors, sponsor_state, "
     "sponsor_group_count, owner_count, tags, linked_principal_id, first_seen_at, observed_at, "
-    "gone_at, reach_gap_opened_at, sponsor_gap_opened_at, user_agent_hint, user_agent_seen_at"
+    "gone_at, reach_gap_opened_at, sponsor_gap_opened_at, user_agent_hint, user_agent_seen_at, "
+    "app_ref"
 )
+# The same columns of the alias `a`, for a read that joins the actor's connection.
+_ACTOR_COLUMNS = ", ".join(f"a.{column.strip()}" for column in AGENT_COLUMNS.split(","))
+# How many actors the Agents page lists: the first this many in its order (#355, step 4).
+AGENTS_SHOWN = 200
+# The title a `collection-health.v1` finding raised at a connection's observation bound starts
+# with, before 0095 and since: its reads dropped repeats then, so a count of them is "at least".
+_BOUND_TITLE = "Collection reached the connection's observation bound"
 
 
 def _agent_counts(
-    conn: Connection, tenant: UUID, consequential: list[str], now: datetime
+    conn: Connection,
+    tenant: UUID,
+    consequential: list[str],
+    now: datetime,
+    ids: list[UUID] | None = None,
 ) -> dict[UUID, dict[str, Any]]:
+    """Each actor's consequential, governed and lapsed paths: of `ids`, or of every actor."""
     rows = conn.execute(
         text("""
         SELECT r.agent_id,
@@ -1666,50 +1753,177 @@ def _agent_counts(
                count(*) FILTER (WHERE r.valid_until <= :now) AS lapsed
         FROM execbound.monitor_agent_reach r
         WHERE r.tenant_id = :t AND r.gone_at IS NULL
+          AND (CAST(:ids AS uuid[]) IS NULL OR r.agent_id = ANY(:ids))
         GROUP BY r.agent_id
     """),
-        {"t": tenant, "actions": consequential, "now": now},
+        {"t": tenant, "actions": consequential, "now": now, "ids": ids},
     ).mappings()
     return {row["agent_id"]: dict(row) for row in rows}
+
+
+# An actor's paths to a consequential action that are live and that nothing governs, split by
+# whether an acceptance in force covers them: `open` counts those none does, the page's to-do.
+_PATHS_SQL = """
+    SELECT r.agent_id,
+           count(*) FILTER (WHERE e.agent_id IS NULL) AS open,
+           count(*) FILTER (WHERE e.agent_id IS NOT NULL) AS accepted,
+           min(e.expires_at) AS accepted_until
+    FROM execbound.monitor_agent_reach r
+    LEFT JOIN execbound.monitor_reach_exceptions e
+      ON e.tenant_id = r.tenant_id AND e.agent_id = r.agent_id AND e.action = r.action
+     AND e.path_kind = r.path_kind AND e.path_ref = r.path_ref AND e.withdrawn_at IS NULL
+     AND (e.expires_at IS NULL OR e.expires_at > :now)
+    WHERE r.tenant_id = :t AND r.gone_at IS NULL AND r.valid_until > :now
+      AND r.path_kind IN ('grant', 'role', 'inherited') AND r.action = ANY(:actions)
+    GROUP BY r.agent_id
+"""
+# The Agents page's rows in its order (#355, step 4), cut after ordering so that no actor that
+# needs attention is cut by its name. "Did" counts an actor's successful consequential
+# observations of the last thirty days attributed to it as observed reach attributes them,
+# baseline-era ones included, leaving out those ExecBound's own settled executions account for
+# (the one settled-execution match, `SETTLED_OBSERVATIONS`); "at least" while its connection
+# meets its observation bound or has within the thirty days, since repeats were dropped then.
+# The connection's Space, and whether the reader bound as `:administrator` administers it
+# (`ADMINISTERS`), say whether this session may accept or withdraw the actor's paths.
+_AGENT_ROWS_SQL = """
+    WITH {settled},
+    did AS (
+        SELECT a.agent_id, count(*) AS did
+        FROM execbound.monitor_agents a
+        JOIN execbound.monitor_observations o
+          ON o.tenant_id = a.tenant_id AND o.connection_id = a.connection_id
+         AND o.actor_ref = a.platform_ref
+        WHERE a.tenant_id = :t AND a.gone_at IS NULL
+          AND o.action = ANY(:actions) AND o.occurred_at > :horizon
+          AND coalesce(o.outcome, 'success') = 'success'
+          AND NOT EXISTS (SELECT 1 FROM settled s WHERE s.observation_id = o.observation_id)
+        GROUP BY a.agent_id
+    ),
+    paths AS ({paths})
+    SELECT {columns}, c.kind AS source, c.space_id AS connection_space,
+           {administers} AS administers_space,
+           coalesce(d.did, 0) AS did,
+           (c.audit_bound_since IS NOT NULL OR EXISTS (
+               SELECT 1 FROM execbound.monitor_findings f
+               WHERE f.tenant_id = c.tenant_id AND f.connection_id = c.connection_id
+                 AND f.rule_version = 'collection-health.v1' AND f.created_at > :horizon
+                 AND starts_with(f.title, :bound_title))) AS did_at_least,
+           coalesce(p.open, 0) AS open_paths,
+           coalesce(p.accepted, 0) AS accepted,
+           p.accepted_until
+    FROM execbound.monitor_agents a
+    JOIN execbound.monitor_connections c
+      ON c.tenant_id = a.tenant_id AND c.connection_id = a.connection_id
+    LEFT JOIN did d ON d.agent_id = a.agent_id
+    LEFT JOIN paths p ON p.agent_id = a.agent_id
+    WHERE a.tenant_id = :t AND a.gone_at IS NULL
+    ORDER BY coalesce(d.did, 0) > 0 DESC, coalesce(d.did, 0) DESC,
+             coalesce(p.open, 0) > 0 DESC, coalesce(p.open, 0) DESC,
+             a.display_name, a.agent_id
+    LIMIT :shown
+"""
+
+
+def _agent_rows() -> TextClause:
+    # Formatted when read: the settled-execution match is defined further down this module.
+    return text(
+        _AGENT_ROWS_SQL.format(
+            settled=SETTLED_OBSERVATIONS,
+            paths=_PATHS_SQL,
+            columns=_ACTOR_COLUMNS,
+            administers=ADMINISTERS.format(space="c.space_id"),
+        )
+    )
+
+
+# The tenant line's own figures, over every live actor, not the rows shown: the actors per source,
+# and the directory actors no current driver row the session may see attributes. A `tines:` row is
+# seen only when its connection is in the session's Spaces, under `space_clause`'s predicate on
+# alias `k`, as `drivers.agents_summary` sees one for the rows, so the figure counts every row the
+# page calls unattributed and never tells a session that something it cannot see attributes one.
+_AGENT_TOTALS = """
+    SELECT c.kind, count(*) AS actors,
+           count(*) FILTER (WHERE NOT EXISTS (
+               SELECT 1 FROM execbound.monitor_actor_drivers d
+               WHERE d.tenant_id = a.tenant_id AND d.agent_id = a.agent_id
+                 AND d.gone_at IS NULL
+                 AND (d.platform_ref NOT LIKE 'tines:%' OR EXISTS (
+                     SELECT 1 FROM execbound.monitor_connections k
+                     WHERE k.tenant_id = d.tenant_id AND k.kind = 'tines'
+                       AND d.platform_ref = 'tines:' || k.connection_id::text{seen}))))
+             AS unattributed
+    FROM execbound.monitor_agents a
+    JOIN execbound.monitor_connections c
+      ON c.tenant_id = a.tenant_id AND c.connection_id = a.connection_id
+    WHERE a.tenant_id = :t AND a.gone_at IS NULL
+    GROUP BY c.kind
+"""
+# The sources an actor comes from, by connection kind, as the tenant line names them.
+SOURCES = {"entra_agent_id": "entra", "tines": "tines", SYNTHETIC_KIND: "synthetic"}
 
 
 def agents_snapshot(
     db: Database, session: Session, *, clock: Clock = SYSTEM_CLOCK
 ) -> dict[str, Any]:
-    """The Agents page's rows, and a tenant line that states its own denominator."""
+    """The Agents page's rows, in the order of the to-do list, and a tenant line that states its
+    own denominator (#355, step 4).
+
+    The rows are the first `AGENTS_SHOWN` in the order SQL gives them: actors that did something
+    consequential outside ExecBound in the last thirty days, most first; then actors with open
+    paths, live and ungoverned and with no acceptance in force, most first; then the rest; then
+    by name and identifier. Each carries what it did, its open and accepted paths, and the
+    strongest current driver row the session may see, with how many more and whether any is a
+    Tines tenant's. Without a detection profile nothing is consequential, so nothing is counted
+    as done or open.
+    """
     now = _now(clock)
+    horizon = now - reach.EVIDENCE_VALIDITY
+    # Imported here: the drivers module builds on this one.
+    from execbound.monitoring import drivers
+
     try:
         with db.transaction(session.identity.tenant_id) as conn:
             _session(conn, session, clock)
             tenant = session.identity.tenant_id
             profile = _active_profile(conn, tenant)
-            consequential = sorted(profile.profile.sensitive_actions) if profile else []
-            total = conn.execute(
-                text(
-                    "SELECT count(*) FROM execbound.monitor_agents "
-                    "WHERE tenant_id=:t AND gone_at IS NULL"
-                ),
-                {"t": tenant},
-            ).scalar_one()
+            consequential = consequential_actions(conn, tenant, profile)
+            visibility = visible_spaces(conn, session)
+            seen = space_clause(visibility, "k")
+            totals = (
+                conn.execute(
+                    # The predicate is the one helper's, on its literal alias; values are bound.
+                    text(_AGENT_TOTALS.format(seen=seen.sql)),
+                    {"t": tenant, **seen.params},
+                )
+                .mappings()
+                .all()
+            )
             agents = [
                 dict(row)
                 for row in conn.execute(
-                    text(
-                        # AGENT_COLUMNS is a literal; only :t is bound.
-                        f"SELECT {AGENT_COLUMNS} FROM execbound.monitor_agents "  # nosec B608 - a literal
-                        "WHERE tenant_id=:t AND gone_at IS NULL "
-                        "ORDER BY identity_class, display_name LIMIT 200"
-                    ),
-                    {"t": tenant},
+                    _agent_rows(),
+                    {
+                        "t": tenant,
+                        "actions": consequential,
+                        "now": now,
+                        "horizon": horizon,
+                        "allowance": SETTLED_ALLOWANCE,
+                        "settled_since": horizon,
+                        "bound_title": _BOUND_TITLE,
+                        "shown": AGENTS_SHOWN,
+                        "administrator": session.identity.principal_id,
+                    },
                 ).mappings()
             ]
-            counts = _agent_counts(conn, tenant, consequential, now)
+            ids = [agent["agent_id"] for agent in agents]
+            counts = _agent_counts(conn, tenant, consequential, now, ids)
             grants = conn.execute(
                 text(
                     "SELECT agent_id, grant_kind, resource_ref, value FROM "
-                    "execbound.monitor_agent_grants WHERE tenant_id=:t AND gone_at IS NULL"
+                    "execbound.monitor_agent_grants WHERE tenant_id=:t AND gone_at IS NULL "
+                    "AND agent_id = ANY(:ids)"
                 ),
-                {"t": tenant},
+                {"t": tenant, "ids": ids},
             ).mappings()
             unresolved: dict[UUID, int] = {}
             for grant in grants:
@@ -1717,7 +1931,7 @@ def agents_snapshot(
                     ENTRA, grant["grant_kind"], grant["resource_ref"], grant["value"]
                 ):
                     unresolved[grant["agent_id"]] = unresolved.get(grant["agent_id"], 0) + 1
-            space = space_clause(visible_spaces(conn, session), "e")
+            space = space_clause(visibility, "e")
             findings = conn.execute(
                 text(
                     "SELECT e.agent_id, count(*) AS open FROM execbound.monitor_findings e "
@@ -1729,6 +1943,7 @@ def agents_snapshot(
                 {"t": tenant, **space.params},
             ).mappings()
             open_findings = {row["agent_id"]: row["open"] for row in findings}
+            driven = drivers.agents_summary(conn, tenant, ids, visibility)
             for agent in agents:
                 row = counts.get(agent["agent_id"], {})
                 agent["consequential"] = row.get("consequential", 0)
@@ -1736,12 +1951,26 @@ def agents_snapshot(
                 agent["lapsed"] = row.get("lapsed", 0)
                 agent["unresolved"] = unresolved.get(agent["agent_id"], 0)
                 agent["open_findings"] = open_findings.get(agent["agent_id"], 0)
+                agent["synthetic"] = agent["source"] == SYNTHETIC_KIND
+                agent["administered"] = _decides(
+                    visibility, agent.pop("connection_space"), agent.pop("administers_space")
+                )
+                summary = driven.get(agent["agent_id"])
+                agent["driver"] = summary["driver"] if summary else None
+                agent["drivers_more"] = summary["more"] if summary else 0
+                agent["tines_driven"] = bool(summary and summary["tines"])
             principals = _principal_rows(
                 conn, tenant, [agent["linked_principal_id"] for agent in agents]
             )
             _session(conn, session, clock)
     except DEPENDENCY_ERRORS:
         raise MonitorError() from None
+    per_source = dict.fromkeys(SOURCES.values(), 0)
+    unattributed = 0
+    for total in totals:
+        per_source[SOURCES.get(total["kind"], total["kind"])] = int(total["actors"])
+        if total["kind"] in DIRECTORY_KINDS:
+            unattributed += int(total["unattributed"])
     return {
         "principals": principals,
         "agents": agents,
@@ -1749,7 +1978,7 @@ def agents_snapshot(
         "tenant": {
             # Every number here counts agents this connection could enumerate. It is not a
             # count of the agents that exist, and the page says so in those words.
-            "enumerated": total,
+            "enumerated": sum(per_source.values()),
             "shown": len(agents),
             "with_reach": sum(1 for a in agents if a["consequential"]),
             "governed": sum(1 for a in agents if a["governed"]),
@@ -1762,6 +1991,14 @@ def agents_snapshot(
                 or a["lapsed"]
                 or a["sponsor_state"] in {"unreadable", "not_read"}
             ),
+            # Whether anything is consequential: without a profile, nothing is done or open,
+            # unless the synthetic directory is assessed against the built-in set.
+            "assessed": bool(consequential),
+            "built_in": profile is None and bool(consequential),
+            # The actors each source lists, and the directory actors with no driver row: both
+            # count what the connections could enumerate, as the rest of the line does.
+            "per_source": per_source,
+            "unattributed": unattributed,
         },
     }
 
@@ -1791,6 +2028,22 @@ def agent_detail(
             )
             if agent is None:
                 raise MonitorError("AGENT_UNAVAILABLE")
+            # Its connection's kind and Space, and whether this administrator administers that
+            # Space (`ADMINISTERS`), for `administered`.
+            source, connection_space, administers = conn.execute(
+                text(
+                    "SELECT m.kind, m.space_id, "  # nosec B608 - literals and the module's own expression; values bound
+                    + ADMINISTERS.format(space="m.space_id")
+                    + " FROM execbound.monitor_connections m "
+                    "WHERE m.tenant_id=:t AND m.connection_id=:c"
+                ),
+                {
+                    "t": tenant,
+                    "c": agent["connection_id"],
+                    "administrator": session.identity.principal_id,
+                },
+            ).one()
+            consequential = set(consequential_actions(conn, tenant, _active_profile(conn, tenant)))
             grants = [
                 dict(row)
                 for row in conn.execute(
@@ -1814,7 +2067,7 @@ def agent_detail(
                     text(
                         "SELECT r.action, r.path_kind, r.path_ref, r.certainty, "
                         "r.enforcement_mode, r.catalog_version, r.computed_at, r.valid_until, "
-                        "r.gone_at, e.reason_code, e.accepted_at, e.expires_at "
+                        "r.gone_at, e.reason_code, e.accepted_at, e.expires_at, e.accepted_by "
                         "FROM execbound.monitor_agent_reach r "
                         "LEFT JOIN execbound.monitor_reach_exceptions e "
                         "  ON e.tenant_id=r.tenant_id AND e.agent_id=r.agent_id "
@@ -1828,6 +2081,32 @@ def agent_detail(
             ]
             for row in reach_rows:
                 row["effective"] = reach.effective(row, now)
+                # In force: an acceptance that has not expired. An expired one reads as what it
+                # was, and the path is open again (#355, step 4).
+                row["accepted"] = row["reason_code"] is not None and (
+                    row["expires_at"] is None or row["expires_at"] > now
+                )
+                # A gone actor's paths are never open, whatever its rows say: Accept refuses it.
+                row["open"] = (
+                    agent["gone_at"] is None
+                    and row["path_kind"] in {"grant", "role", "inherited"}
+                    and row["action"] in consequential
+                    and row["gone_at"] is None
+                    and row["valid_until"] > now
+                    and not row["accepted"]
+                )
+            acceptances = [
+                dict(row)
+                for row in conn.execute(
+                    text(
+                        "SELECT change, action, path_kind, path_ref, reason_code, expires_at, "
+                        "recorded_by, recorded_at FROM execbound.monitor_reach_acceptances "
+                        "WHERE tenant_id=:t AND agent_id=:a "
+                        "ORDER BY recorded_at DESC, acceptance_id LIMIT 50"
+                    ),
+                    {"t": tenant, "a": agent_id},
+                ).mappings()
+            ]
             # The findings the read and acknowledge routes would answer for: the reads' own
             # space predicate, so this list names nothing in a space the session does not see.
             visibility = visible_spaces(conn, session)
@@ -1857,7 +2136,15 @@ def agent_detail(
                     {"t": tenant, "ref": agent["platform_ref"]},
                 ).mappings()
             ]
-            principals = _principal_rows(conn, tenant, [agent["linked_principal_id"]])
+            principals = _principal_rows(
+                conn,
+                tenant,
+                [
+                    agent["linked_principal_id"],
+                    *(row["accepted_by"] for row in reach_rows),
+                    *(row["recorded_by"] for row in acceptances),
+                ],
+            )
             # Who drives it, and how that is known (#355), held to the same visible Spaces: a
             # Tines tenant is its Space's. Imported here: the drivers module builds on this one.
             from execbound.monitoring import drivers
@@ -1870,7 +2157,14 @@ def agent_detail(
         raise MonitorError() from None
     return {
         "principals": principals,
-        "agent": dict(agent),
+        "agent": {
+            **dict(agent),
+            "source": source,
+            "synthetic": source == SYNTHETIC_KIND,
+            "administered": _decides(visibility, connection_space, administers),
+        },
+        "assessed": bool(consequential),
+        "acceptances": acceptances,
         "grants": grants,
         "reach": reach_rows,
         "findings": findings,
@@ -2089,10 +2383,12 @@ SYNC_FRESH = 2 * COLLECTION_FRESH
 # the scheduled collector opens itself is overdue at twice its own interval or a day,
 # whichever is shorter: `now - least(2 * interval, a day)` is the later of `now - 2 * interval`
 # and `:fresh_after`. The numbers are the kinds' default intervals (`DEFAULT_ACTIVITY_SECONDS`,
-# `DEFAULT_COLLECT_SECONDS`), which a test holds this to.
+# `DEFAULT_COLLECT_SECONDS`), which a test holds this to. The synthetic directory is not counted:
+# Home, the workspace's settings and the weekly summary count the workspace's own connections,
+# and Home does not count it as watching either (#355, step 4); its own card says when it is late.
 OVERDUE_CONNECTIONS = (
     "SELECT count(*) FROM execbound.monitor_connections e "
-    "WHERE e.tenant_id = :t AND e.active AND e.revoked_at IS NULL "
+    "WHERE e.tenant_id = :t AND e.active AND e.revoked_at IS NULL AND e.kind <> 'fixture' "
     "AND (COALESCE(e.last_run_at, e.created_at) <= CASE WHEN e.credential_mode = 'key_file' "
     "THEN CAST(:fresh_after AS timestamptz) "
     "ELSE GREATEST(CAST(:fresh_after AS timestamptz), CAST(:now AS timestamptz) - "
@@ -2324,6 +2620,19 @@ def create_connection(
             # including the implicit default. Space tables remain SELECT-only to the
             # runtime; registration confers no execution authority.
             _check_connection_space(conn, identity, space)
+            # A real directory never shares a workspace's lists with the synthetic one (#355,
+            # step 4): it is removed first. The database's trigger holds the same rule.
+            if (
+                kind == "entra_agent_id"
+                and conn.execute(
+                    text(
+                        "SELECT EXISTS (SELECT 1 FROM execbound.monitor_connections "
+                        "WHERE active AND kind = :synthetic)"
+                    ),
+                    {"synthetic": SYNTHETIC_KIND},
+                ).scalar_one()
+            ):
+                raise MonitorError("SYNTHETIC_DIRECTORY_PRESENT")
             # One per platform per space, not one per tenant: an MSSP runs one Tines
             # connection for each of its customers, and a tenant runs Tines and Entra
             # at once.
@@ -2449,7 +2758,9 @@ def revoke_connection(
     The statement that clears `active` also ends any lease a run holds (0086's trigger), so a
     run in progress writes nothing more. A Tines connection's revocation also marks gone every
     driver row naming it (#355): its recorded egress no longer matches a sign-in and its
-    credentials join nothing. One administrator narrowed to other spaces is refused; with a
+    credentials join nothing. Removing the synthetic directory also marks gone its actors, their
+    driver rows, their grants and the paths those grants established, and keeps every row and
+    finding. One administrator narrowed to other spaces is refused; with a
     console `session`, a connection outside its spaces does not exist for it. The revocation
     appends `monitor.connection_revoked` as its last write.
     """
@@ -2497,6 +2808,44 @@ def revoke_connection(
                 from execbound.monitoring import drivers
 
                 drivers.end_tines(conn, identity.tenant_id, connection_id, now)
+            if row["kind"] == SYNTHETIC_KIND:
+                # Removing the synthetic directory (#355, step 4): none of its actors exists
+                # anywhere, so they leave the lists with it, as a full collection leaves a
+                # principal it no longer lists: what drives them, their grants and the paths
+                # those grants established stop being live claims, and are kept. What it raised
+                # stays, labelled.
+                from execbound.monitoring import drivers
+
+                drivers.end_connection(conn, identity.tenant_id, connection_id, now)
+                scope = {"now": now, "t": identity.tenant_id, "c": connection_id}
+                conn.execute(
+                    text("""
+                    UPDATE execbound.monitor_agent_grants g
+                       SET gone_at = GREATEST(:now, g.observed_at)
+                    FROM execbound.monitor_agents a
+                    WHERE g.tenant_id = a.tenant_id AND g.agent_id = a.agent_id
+                      AND a.tenant_id = :t AND a.connection_id = :c AND g.gone_at IS NULL
+                """),
+                    scope,
+                )
+                conn.execute(
+                    text("""
+                    UPDATE execbound.monitor_agent_reach r
+                       SET gone_at = GREATEST(:now, r.computed_at)
+                    FROM execbound.monitor_agents a
+                    WHERE r.tenant_id = a.tenant_id AND r.agent_id = a.agent_id
+                      AND a.tenant_id = :t AND a.connection_id = :c AND r.gone_at IS NULL
+                      AND r.path_kind <> 'observation'
+                """),
+                    scope,
+                )
+                conn.execute(
+                    text("""
+                    UPDATE execbound.monitor_agents SET gone_at = GREATEST(:now, first_seen_at)
+                    WHERE tenant_id = :t AND connection_id = :c AND gone_at IS NULL
+                """),
+                    scope,
+                )
             if session is None:
                 check_admin(conn, identity, clock=clock)
             else:
@@ -2852,9 +3201,11 @@ def apply_agents(
 ) -> dict[str, int]:
     """Replace one connection's agent snapshot; principals no longer listed are marked gone.
 
-    Identity, class and first sighting are written once and never rewritten: an agent that
-    changed its display name is the same agent, and one that changed its object identifier
-    is a different one.
+    Identity and first sighting are written once and never rewritten: an agent that changed its
+    display name is the same agent, and one that changed its object identifier is a different
+    one. A class is rewritten only within the classic family (#355, step 4), as the record's
+    class says (`graph._as_held`); an agent identity's never moves, and no principal becomes or
+    stops being one.
     """
     now = _now(clock)
     if len(records) > MAX_AGENTS:
@@ -2878,17 +3229,25 @@ def apply_agents(
                     (tenant_id, agent_id, connection_id, platform_ref, identity_class,
                      display_name, display_name_truncated, enabled, blueprint_ref, tags,
                      sponsors, sponsor_state, first_seen_at, observed_at, owner_org_ref,
-                     ai_publisher)
+                     ai_publisher, app_ref)
                     VALUES (:t, :a, :c, :ref, :class, :name, :truncated, :enabled, :blueprint,
                             CAST(:tags AS jsonb), '[]'::jsonb, 'not_read', :now, :now, :owner,
-                            :publisher)
+                            :publisher, :app)
                     ON CONFLICT (tenant_id, connection_id, platform_ref) DO UPDATE
                     SET display_name=EXCLUDED.display_name,
                         display_name_truncated=EXCLUDED.display_name_truncated,
                         enabled=EXCLUDED.enabled, blueprint_ref=EXCLUDED.blueprint_ref,
                         tags=EXCLUDED.tags, observed_at=EXCLUDED.observed_at,
                         owner_org_ref=EXCLUDED.owner_org_ref,
-                        ai_publisher=EXCLUDED.ai_publisher, gone_at=NULL
+                        ai_publisher=EXCLUDED.ai_publisher, app_ref=EXCLUDED.app_ref,
+                        identity_class=CASE
+                            WHEN execbound.monitor_agents.identity_class
+                                     IN ('service_principal', 'managed_identity', 'consented_app')
+                             AND EXCLUDED.identity_class
+                                     IN ('service_principal', 'managed_identity', 'consented_app')
+                            THEN EXCLUDED.identity_class
+                            ELSE execbound.monitor_agents.identity_class END,
+                        gone_at=NULL
                 """),
                     {
                         "t": tenant,
@@ -2903,6 +3262,7 @@ def apply_agents(
                         "tags": json.dumps(list(record.tags)),
                         "owner": record.owner_org_ref,
                         "publisher": record.ai_publisher,
+                        "app": getattr(record, "app_ref", None),
                         "now": now,
                     },
                 )
@@ -2949,6 +3309,7 @@ def held_agents(
     A delta pass reads these before it reads anything else from the directory: Graph represents
     an updated instance with only some of its properties, so the class that decides whether
     sponsors or owners are read, and the blueprint whose inherited grants apply, are the store's.
+    A full collection reads them too, of a Microsoft Entra directory or the synthetic one.
     """
     if len(refs) > MAX_AGENTS:
         raise MonitorError("AGENT_CAPACITY")
@@ -2956,8 +3317,9 @@ def held_agents(
     try:
         with db.transaction(tenant) as conn:
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
-            if _locked_connection(conn, tenant, connection_id, lease=lease)["kind"] != (
-                "entra_agent_id"
+            if (
+                _locked_connection(conn, tenant, connection_id, lease=lease)["kind"]
+                not in DIRECTORY_KINDS
             ):
                 raise MonitorError("INVALID_STATE")
             rows = conn.execute(
@@ -2989,7 +3351,8 @@ def apply_agent_changes(
     restored. One removed is marked gone, with its grants and the paths they established. Nothing
     else about a principal the store already holds is rewritten: Graph represents an updated
     instance with at least its changed properties, so a missing field is not a cleared one, and
-    the full collection refreshes the rest. Its AI publisher key is only ever added here.
+    the full collection refreshes the rest. Its AI publisher key and its application id are only
+    ever added here.
 
     A full collection refuses a directory past `MAX_AGENTS` principals whole, and so does this:
     changes that would leave the connection holding more are refused with `AGENT_CAPACITY` and
@@ -3032,10 +3395,10 @@ def apply_agent_changes(
                         (tenant_id, agent_id, connection_id, platform_ref, identity_class,
                          display_name, display_name_truncated, enabled, blueprint_ref, tags,
                          sponsors, sponsor_state, first_seen_at, observed_at, owner_org_ref,
-                         ai_publisher)
+                         ai_publisher, app_ref)
                         VALUES (:t, :a, :c, :ref, :class, :name, :truncated, :enabled,
                                 :blueprint, CAST(:tags AS jsonb), '[]'::jsonb, 'not_read',
-                                :now, :now, :owner, :publisher)
+                                :now, :now, :owner, :publisher, :app)
                     """),
                         {
                             "t": tenant,
@@ -3050,6 +3413,8 @@ def apply_agent_changes(
                             "tags": json.dumps(list(record.tags)),
                             "owner": record.owner_org_ref,
                             "publisher": record.ai_publisher,
+                            # The application id the page names for its removal (#355, step 4).
+                            "app": getattr(record, "app_ref", None),
                             "now": now,
                         },
                     )
@@ -3059,12 +3424,14 @@ def apply_agent_changes(
                     text("""
                     UPDATE execbound.monitor_agents
                     SET gone_at = NULL, observed_at = :now,
-                        ai_publisher = COALESCE(ai_publisher, :publisher)
+                        ai_publisher = COALESCE(ai_publisher, :publisher),
+                        app_ref = COALESCE(app_ref, :app)
                     WHERE tenant_id=:t AND connection_id=:c AND platform_ref=:ref
                 """),
                     {
                         "now": now,
                         "publisher": record.ai_publisher,
+                        "app": getattr(record, "app_ref", None),
                         "t": tenant,
                         "c": connection_id,
                         "ref": record.platform_ref,
@@ -3228,6 +3595,127 @@ _MARKERS = {
 }
 
 
+# Why an administrator lives with an ungoverned path, as the console offers it (#355, step 4).
+# The command line takes any code of `[A-Z_]{1,48}`, which the console shows as it was written.
+ACCEPT_REASONS = (
+    "COMPENSATING_CONTROL",
+    "VENDOR_MANAGED",
+    "BUSINESS_REQUIRED",
+    "GOVERNANCE_PLANNED",
+    "BREAK_GLASS",
+)
+# How long an acceptance made in the console lasts, in days; it always expires.
+ACCEPT_PERIODS = (30, 90, 180, 365)
+# The paths one acceptance names at most: an actor's open paths, each one action on one path.
+MAX_ACCEPT_PATHS = 50
+ACCEPT_PATH_KINDS = frozenset({"grant", "role", "inherited", "execbound", "observation"})
+_ACCEPT_REFUSALS = {
+    "INVALID_TENANT": "INVALID_ADMIN",
+    "INVALID_ACTOR": "INVALID_ADMIN",
+    "INVALID_AGENT": "AGENT_UNAVAILABLE",
+    "INVALID_STATE": "NOT_ACCEPTED",
+    "INVALID_INPUT": "INVALID_INPUT",
+}
+
+
+def _path_shape(action: object, path_kind: object, path_ref: object) -> bool:
+    return (
+        type(action) is str
+        and re.fullmatch(r"[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,31}", action) is not None
+        and path_kind in ACCEPT_PATH_KINDS
+        and type(path_ref) is str
+        and re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", path_ref) is not None
+    )
+
+
+def _decided(
+    conn: Connection,
+    identity: Identity,
+    agent: Mapping[str, Any] | RowMapping,
+    paths: Sequence[tuple[str, str, str]],
+    *,
+    reason_code: str | None,
+    expires_at: datetime | None,
+) -> None:
+    """Accept each of `paths` (`reason_code` given) or withdraw it (none), through the one writer
+    of an acceptance, and append one audit event for each as the transaction's last writes."""
+    for action, path_kind, path_ref in paths:
+        try:
+            if reason_code is not None:
+                conn.execute(
+                    text(
+                        "SELECT execbound.admin_accept_reach(:actor, :agent, :action, :kind, "
+                        ":path, :reason, :expires)"
+                    ),
+                    {
+                        "actor": identity.principal_id,
+                        "agent": agent["agent_id"],
+                        "action": action,
+                        "kind": path_kind,
+                        "path": path_ref,
+                        "reason": reason_code,
+                        "expires": expires_at,
+                    },
+                )
+            else:
+                conn.execute(
+                    text(
+                        "SELECT execbound.admin_withdraw_reach(:actor, :agent, :action, "
+                        ":kind, :path)"
+                    ),
+                    {
+                        "actor": identity.principal_id,
+                        "agent": agent["agent_id"],
+                        "action": action,
+                        "kind": path_kind,
+                        "path": path_ref,
+                    },
+                )
+        except DBAPIError as exc:
+            diagnostic = getattr(exc.orig, "diag", None)
+            message = str(getattr(diagnostic, "message_primary", None) or "")
+            raise MonitorError(_ACCEPT_REFUSALS.get(message, "MONITOR_UNAVAILABLE")) from None
+    for action, path_kind, path_ref in paths:
+        path = {
+            "agent_id": str(agent["agent_id"]),
+            "connection_id": str(agent["connection_id"]),
+            "action": action,
+            "path_kind": path_kind,
+            "path_ref": path_ref,
+        }
+        if reason_code is not None:
+            append_event(
+                conn,
+                identity.tenant_id,
+                identity.principal_id,
+                "monitor.reach_accepted",
+                {
+                    **path,
+                    "reason_code": reason_code,
+                    "expires_at": expires_at.isoformat() if expires_at is not None else None,
+                    **acted_with(identity.credential_id),
+                },
+                space=agent["space_id"],
+            )
+        else:
+            append_event(
+                conn,
+                identity.tenant_id,
+                identity.principal_id,
+                "monitor.reach_withdrawn",
+                {**path, **acted_with(identity.credential_id)},
+                space=agent["space_id"],
+            )
+
+
+_ACTOR_OF_CONNECTION = text("""
+    SELECT a.agent_id, a.connection_id, c.space_id FROM execbound.monitor_agents a
+    JOIN execbound.monitor_connections c
+      ON c.tenant_id = a.tenant_id AND c.connection_id = a.connection_id
+    WHERE a.tenant_id = :t AND a.connection_id = :c AND a.platform_ref = :ref
+""")
+
+
 def accept_reach(
     db: Database,
     identity: Identity,
@@ -3245,12 +3733,14 @@ def accept_reach(
 
     The reach row stays exactly as it was. An exception says the organization has decided to
     live with that route, not that the route closed, which is why it is recorded beside the
-    finding rather than by deleting the evidence that produced it.
+    finding rather than by deleting the evidence that produced it. `admin_accept_reach` is its
+    one writer (#355, step 4): accepting a path again renews it, with this reason, expiry, author
+    and moment, and clears a withdrawal; each change is kept in `monitor_reach_acceptances` and
+    appends `monitor.reach_accepted`.
     """
     now = _now(clock)
     if (
-        re.fullmatch(r"[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,31}", action or "") is None
-        or path_kind not in {"grant", "role", "inherited", "execbound", "observation"}
+        not _path_shape(action, path_kind, path_ref)
         or re.fullmatch(r"[A-Z_]{1,48}", reason_code or "") is None
         or (expires_at is not None and expires_at <= now)
     ):
@@ -3259,37 +3749,191 @@ def accept_reach(
         with db.transaction(identity.tenant_id) as conn:
             check_admin(conn, identity, clock=clock)
             _locked_connection(conn, identity.tenant_id, connection_id)
-            agent_id = conn.execute(
-                text(
-                    "SELECT agent_id FROM execbound.monitor_agents "
-                    "WHERE tenant_id=:t AND connection_id=:c AND platform_ref=:ref"
-                ),
-                {"t": identity.tenant_id, "c": connection_id, "ref": platform_ref},
-            ).scalar_one_or_none()
-            if agent_id is None:
+            agent = (
+                conn.execute(
+                    _ACTOR_OF_CONNECTION,
+                    {"t": identity.tenant_id, "c": connection_id, "ref": platform_ref},
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if agent is None:
                 raise MonitorError("AGENT_UNAVAILABLE")
-            conn.execute(
-                text("""
-                INSERT INTO execbound.monitor_reach_exceptions
-                (tenant_id, agent_id, action, path_kind, path_ref, accepted_by, accepted_at,
-                 expires_at, reason_code)
-                VALUES (:t, :a, :action, :kind, :path, :by, :now, :expires, :reason)
-                ON CONFLICT (tenant_id, agent_id, action, path_kind, path_ref) DO UPDATE
-                SET withdrawn_at = NULL
-            """),
-                {
-                    "t": identity.tenant_id,
-                    "a": agent_id,
-                    "action": action,
-                    "kind": path_kind,
-                    "path": path_ref,
-                    "by": identity.principal_id,
-                    "now": now,
-                    "expires": expires_at,
-                    "reason": reason_code,
-                },
+            _decided(
+                conn,
+                identity,
+                agent,
+                [(action, path_kind, path_ref)],
+                reason_code=reason_code,
+                expires_at=expires_at,
             )
             check_admin(conn, identity, clock=clock)
+    except DEPENDENCY_ERRORS:
+        raise MonitorError() from None
+
+
+def withdraw_reach(
+    db: Database,
+    identity: Identity,
+    *,
+    connection_id: UUID,
+    platform_ref: str,
+    action: str,
+    path_kind: str,
+    path_ref: str,
+    clock: Clock = SYSTEM_CLOCK,
+) -> None:
+    """Withdraw an acceptance of one path, as an ADMIN (#355, step 4): the path reads as ungoverned
+    again, `ungoverned-reach.v1` reopens at the next collection, and the change is kept in
+    `monitor_reach_acceptances` and appends `monitor.reach_withdrawn`. `NOT_ACCEPTED` when no
+    acceptance of it stands."""
+    if not _path_shape(action, path_kind, path_ref):
+        raise MonitorError("INVALID_INPUT")
+    try:
+        with db.transaction(identity.tenant_id) as conn:
+            check_admin(conn, identity, clock=clock)
+            _locked_connection(conn, identity.tenant_id, connection_id)
+            agent = (
+                conn.execute(
+                    _ACTOR_OF_CONNECTION,
+                    {"t": identity.tenant_id, "c": connection_id, "ref": platform_ref},
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if agent is None:
+                raise MonitorError("AGENT_UNAVAILABLE")
+            _decided(
+                conn,
+                identity,
+                agent,
+                [(action, path_kind, path_ref)],
+                reason_code=None,
+                expires_at=None,
+            )
+            check_admin(conn, identity, clock=clock)
+    except DEPENDENCY_ERRORS:
+        raise MonitorError() from None
+
+
+# One actor's open paths, as `_PATHS_SQL` counts them for the page: live, ungoverned, to a
+# consequential action, and with no acceptance in force.
+_OPEN_PATHS = text("""
+    SELECT r.action, r.path_kind, r.path_ref FROM execbound.monitor_agent_reach r
+    WHERE r.tenant_id = :t AND r.agent_id = :a AND r.gone_at IS NULL AND r.valid_until > :now
+      AND r.path_kind IN ('grant', 'role', 'inherited') AND r.action = ANY(:actions)
+      AND NOT EXISTS (
+          SELECT 1 FROM execbound.monitor_reach_exceptions e
+          WHERE e.tenant_id = r.tenant_id AND e.agent_id = r.agent_id AND e.action = r.action
+            AND e.path_kind = r.path_kind AND e.path_ref = r.path_ref AND e.withdrawn_at IS NULL
+            AND (e.expires_at IS NULL OR e.expires_at > :now))
+""")
+
+
+def _decides(visibility: Visibility, space: UUID, administers: bool) -> bool:
+    """Whether a session may accept or withdraw an actor's paths (#355, step 4): its
+    connection's Space is one the session shows (`_visible_actor`) and one this administrator
+    administers (`ADMINISTERS`, the acceptance functions' own rule), so a page never offers an
+    Accept or a Withdraw the store refuses."""
+    return visibility.allows(space) and bool(administers)
+
+
+def _visible_actor(conn: Connection, session: Session, agent_id: UUID) -> dict[str, Any]:
+    """An actor and its connection's Space, when the session's Spaces hold that connection: one
+    outside them does not exist for this session."""
+    row = (
+        conn.execute(
+            text("""
+            SELECT a.agent_id, a.connection_id, a.gone_at, c.space_id, c.kind
+            FROM execbound.monitor_agents a
+            JOIN execbound.monitor_connections c
+              ON c.tenant_id = a.tenant_id AND c.connection_id = a.connection_id
+            WHERE a.tenant_id = :t AND a.agent_id = :a
+        """),
+            {"t": session.identity.tenant_id, "a": agent_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None or not visible_spaces(conn, session).allows(row["space_id"]):
+        raise MonitorError("AGENT_UNAVAILABLE")
+    return dict(row)
+
+
+def accept_paths(
+    db: Database,
+    session: Session,
+    agent_id: UUID,
+    paths: Sequence[tuple[str, str, str]],
+    *,
+    reason_code: str,
+    days: int,
+    clock: Clock = SYSTEM_CLOCK,
+) -> None:
+    """The console's Accept (#355, step 4): one to `MAX_ACCEPT_PATHS` of an actor's open paths,
+    accepted together for one of `ACCEPT_REASONS` and for one of `ACCEPT_PERIODS` days. Each
+    must be open now, as the page counts it (`_PATHS_SQL`): a live grant, role or inherited path
+    to an action the workspace calls consequential, with no acceptance in force. One whose
+    acceptance expired is open again, and accepting it renews it; one accepted and in force is
+    withdrawn first. All or none are recorded."""
+    now = _now(clock)
+    unique = list(dict.fromkeys(paths))
+    if (
+        type(agent_id) is not UUID
+        or not 1 <= len(paths) <= MAX_ACCEPT_PATHS
+        or len(unique) != len(paths)
+        or reason_code not in ACCEPT_REASONS
+        or days not in ACCEPT_PERIODS
+        or not all(_path_shape(*path) for path in paths)
+    ):
+        raise MonitorError("INVALID_INPUT")
+    try:
+        with db.transaction(session.identity.tenant_id) as conn:
+            _session(conn, session, clock)
+            agent = _visible_actor(conn, session, agent_id)
+            tenant = session.identity.tenant_id
+            consequential = consequential_actions(conn, tenant, _active_profile(conn, tenant))
+            opened = {
+                (row["action"], row["path_kind"], row["path_ref"])
+                for row in conn.execute(
+                    _OPEN_PATHS, {"t": tenant, "a": agent_id, "actions": consequential, "now": now}
+                ).mappings()
+            }
+            if agent["gone_at"] is not None:
+                raise MonitorError("AGENT_UNAVAILABLE")
+            if any(path not in opened for path in paths):
+                raise MonitorError("INVALID_INPUT")
+            _decided(
+                conn,
+                session.identity,
+                agent,
+                unique,
+                reason_code=reason_code,
+                expires_at=now + timedelta(days=days),
+            )
+            _session(conn, session, clock)
+    except DEPENDENCY_ERRORS:
+        raise MonitorError() from None
+
+
+def withdraw_path(
+    db: Database,
+    session: Session,
+    agent_id: UUID,
+    path: tuple[str, str, str],
+    *,
+    clock: Clock = SYSTEM_CLOCK,
+) -> None:
+    """The console's Withdraw (#355, step 4): one path's standing acceptance, as `withdraw_reach`
+    withdraws it."""
+    if type(agent_id) is not UUID or not _path_shape(*path):
+        raise MonitorError("INVALID_INPUT")
+    try:
+        with db.transaction(session.identity.tenant_id) as conn:
+            _session(conn, session, clock)
+            agent = _visible_actor(conn, session, agent_id)
+            _decided(conn, session.identity, agent, [path], reason_code=None, expires_at=None)
+            _session(conn, session, clock)
     except DEPENDENCY_ERRORS:
         raise MonitorError() from None
 
@@ -3345,8 +3989,9 @@ def evaluate_agents(
             profile = _active_profile(conn, actor.tenant_id)
             # "Consequential" is the tenant's own list, which an ADMIN sets and the
             # sensitive-action rule already uses. Without one, this rule has no subject: it
-            # reports insufficient evidence rather than matching against every action.
-            consequential = set(profile.profile.sensitive_actions) if profile else set()
+            # reports insufficient evidence rather than matching against every action, unless
+            # this is the synthetic directory, which the built-in set assesses.
+            consequential = set(consequential_actions(conn, actor.tenant_id, profile))
             agents = (
                 conn.execute(
                     text(
@@ -3797,6 +4442,7 @@ UNLINK_REASON = "withdrawn with unlink-agent"
 LINK_CODES = {
     "INVALID_PRINCIPAL": "PRINCIPAL_UNAVAILABLE",
     "INVALID_AGENT": "AGENT_UNAVAILABLE",
+    "SYNTHETIC_ACTOR": "SYNTHETIC_ACTOR",
     "INVALID_STATE": "LINK_CONFLICT",
     "INVALID_ACTOR": "INVALID_ADMIN",
     "INVALID_TENANT": "INVALID_ADMIN",
@@ -4083,7 +4729,7 @@ _FIRST_ACTIONS_SQL = """
         LIMIT 1
     ) t ON true
     WHERE a.tenant_id = :t AND a.gone_at IS NULL
-      AND c.kind = 'entra_agent_id' AND c.baseline_at IS NOT NULL
+      AND c.kind IN ('entra_agent_id', 'fixture') AND c.baseline_at IS NOT NULL
       AND (CAST(:after AS uuid) IS NULL OR a.agent_id > :after)
       AND (a.first_action_opened_at IS NOT NULL OR (
           t.observation_id IS NOT NULL
@@ -4152,7 +4798,7 @@ def evaluate_actions(
         with db.transaction(actor.tenant_id) as conn:
             _check_actor(conn, actor, clock)
             profile = _active_profile(conn, actor.tenant_id)
-            consequential = sorted(profile.profile.sensitive_actions) if profile else []
+            consequential = consequential_actions(conn, actor.tenant_id, profile)
             if not consequential:
                 counts["insufficient"] = int(
                     conn.execute(
@@ -4419,7 +5065,7 @@ def purge_audit_observations(
                 conn.execute(
                     text(
                         "SELECT connection_id FROM execbound.monitor_connections "
-                        "WHERE tenant_id=:t AND kind='entra_agent_id' "
+                        "WHERE tenant_id=:t AND kind IN ('entra_agent_id', 'fixture') "
                         "ORDER BY created_at, connection_id"
                     ),
                     {"t": tenant},
@@ -4490,6 +5136,32 @@ def _derived(
 
 
 MAX_AGENT_GRANTS = 200
+# A classic principal's class between `service_principal` and `consented_app`, as
+# `apply_agent_detail` decides it (#355, step 4), for every principal of the connection or, in a
+# delta pass, the ones it listed.
+_CONSENTED_CLASS = text("""
+    UPDATE execbound.monitor_agents a
+    SET identity_class = n.decided
+    FROM (
+        SELECT x.agent_id,
+               CASE WHEN x.owner_org_ref IS NOT NULL
+                         AND lower(x.owner_org_ref) <> lower(c.directory_ref)
+                         AND EXISTS (
+                             SELECT 1 FROM execbound.monitor_agent_grants g
+                             WHERE g.tenant_id = x.tenant_id AND g.agent_id = x.agent_id
+                               AND g.gone_at IS NULL
+                               AND g.grant_kind IN ('graph_role', 'graph_scope'))
+                    THEN 'consented_app' ELSE 'service_principal' END AS decided
+        FROM execbound.monitor_agents x
+        JOIN execbound.monitor_connections c
+          ON c.tenant_id = x.tenant_id AND c.connection_id = x.connection_id
+        WHERE x.tenant_id = :t AND x.connection_id = :c AND x.gone_at IS NULL
+          AND x.identity_class IN ('service_principal', 'consented_app')
+          AND c.directory_ref IS NOT NULL
+          AND (NOT :partial OR x.platform_ref = ANY(:refs))
+    ) n
+    WHERE a.tenant_id = :t AND a.agent_id = n.agent_id AND a.identity_class <> n.decided
+""")
 
 
 def apply_agent_detail(
@@ -4510,6 +5182,13 @@ def apply_agent_detail(
 
     A full collection read every agent, so a grant of any agent this run did not see is gone.
     A delta pass (`only_listed`) read only the agents it lists, so only theirs can be (#355).
+
+    Last, in the same transaction, a classic principal's class between `service_principal` and
+    `consented_app` is decided from what is now held (#355, step 4): another organization's
+    application (its `owner_org_ref` names a directory other than the connection's) holding a
+    live application or delegated permission grant is a consented app, and any other is a
+    classic service principal, so a principal moves as consent is given and withdrawn. A managed
+    identity and an agent identity are left as they are.
     """
     now = _now(clock)
     counts = {
@@ -4667,6 +5346,7 @@ def apply_agent_detail(
             """),
                 scope,
             ).rowcount
+            conn.execute(_CONSENTED_CLASS, scope)
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
     except DEPENDENCY_ERRORS:
         raise MonitorError() from None
@@ -5135,7 +5815,7 @@ def apply_directory_audit(
             check_runtime(conn)
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
             row = _locked_connection(conn, tenant, connection_id, lease=lease, guarded=True)
-            if row["kind"] != "entra_agent_id":
+            if row["kind"] not in DIRECTORY_KINDS:
                 raise MonitorError("INVALID_STATE")
             retained = conn.execute(
                 text(
@@ -5294,7 +5974,7 @@ def end_audit_episode(
         with db.transaction(tenant) as conn:
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
             row = _locked_connection(conn, tenant, connection_id, lease=lease, guarded=True)
-            if row["kind"] != "entra_agent_id":
+            if row["kind"] not in DIRECTORY_KINDS:
                 raise MonitorError("INVALID_STATE")
             if not conn.execute(
                 text("""

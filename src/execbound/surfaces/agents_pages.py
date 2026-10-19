@@ -84,6 +84,7 @@ _PROBLEMS: dict[str, tuple[str, int]] = {
     "INVALID_PRINCIPAL": ("That agent principal cannot be used here.", 400),
     "INVALID_AGENT": ("That discovered agent is gone from its source or not in this tenant.", 409),
     "INVALID_STATE": ("That agent is already in that state, or already bound.", 409),
+    "SYNTHETIC_ACTOR": ("A synthetic directory's actor cannot be governed or bound.", 409),
     "INVALID_KIND": ("Only agents can be created here.", 400),
     "INVALID_LIFETIME": ("The lifetime is outside the allowed range.", 400),
     "INVALID_DIGEST": ("The credential could not be prepared.", 503),
@@ -284,12 +285,14 @@ FROM execbound.agent_bindings b
 WHERE b.tenant_id = :t AND b.principal_id = :p AND b.unbound_at IS NULL
 """
 
+# The discovered agents a governed agent may be bound to. Never the synthetic directory's
+# (#355): binding one is refused (`SYNTHETIC_ACTOR`), so the picker never offers it.
 _UNBOUND_AGENTS = """
 SELECT a.agent_id, a.display_name, a.identity_class, c.kind AS source
 FROM execbound.monitor_agents a
 JOIN execbound.monitor_connections c
   ON c.tenant_id = a.tenant_id AND c.connection_id = a.connection_id
-WHERE a.tenant_id = :t AND a.gone_at IS NULL
+WHERE a.tenant_id = :t AND a.gone_at IS NULL AND c.kind <> 'fixture'
   AND NOT EXISTS (SELECT 1 FROM execbound.agent_bindings b
                    WHERE b.tenant_id = a.tenant_id AND b.agent_id = a.agent_id
                      AND b.unbound_at IS NULL)
@@ -306,10 +309,12 @@ WHERE p.tenant_id = :t AND p.kind = 'AGENT' AND p.active
 ORDER BY (p.label IS NULL), p.label, p.principal_id LIMIT :limit
 """
 
-SOURCE_LABELS = {"entra_agent_id": "Entra", "tines": "Tines"}
+SOURCE_LABELS = {"entra_agent_id": "Entra", "tines": "Tines", "fixture": "Synthetic directory"}
 CLASS_LABELS = {
     "agent_identity": "agent identity",
     "service_principal": "classic service principal",
+    "managed_identity": "managed identity",
+    "consented_app": "consented app",
     "tines_story": "Tines story",
 }
 
@@ -498,9 +503,11 @@ def tenant_line(conn: Connection, tenant: UUID, now: datetime) -> dict[str, Any]
 
 
 def _consequential(conn: Connection, tenant: UUID) -> list[str]:
-    """The sensitive actions of the active detection profile, as Monitoring counts them."""
-    profile = monitor_store._active_profile(conn, tenant)
-    return sorted(profile.profile.sensitive_actions) if profile else []
+    """What Monitoring counts as consequential: the active detection profile's sensitive
+    actions, or the built-in set for a synthetic directory with none (#355, step 4)."""
+    return monitor_store.consequential_actions(
+        conn, tenant, monitor_store._active_profile(conn, tenant)
+    )
 
 
 def agents_overview(

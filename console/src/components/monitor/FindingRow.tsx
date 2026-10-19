@@ -162,6 +162,7 @@ export function FindingRow({
         <div className="finding-meta">
           <Time at={finding.created_at} />
           <Badge tone={open ? "hold" : "stale"}>{open ? "Open" : "Acknowledged"}</Badge>
+          {finding.synthetic ? <Badge tone="accent">Synthetic directory</Badge> : null}
         </div>
         <Button className="finding-toggle" aria-expanded={expanded} aria-controls={body} onClick={onToggle}>
           {expanded ? "Hide details" : "Show details"}

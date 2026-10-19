@@ -138,6 +138,9 @@ def test_source_binding_secrets_and_protected_state_unchanged(db, setup_monitor,
         # whether they read every Space, for Alert settings (#31): no secret.
         "space_names",
         "reads_every_space",
+        # Whether the workspace's synthetic directory is present and can be added (#355, step
+        # 4): no secret.
+        "synthetic_directory",
     }
     assert len(state["findings"]) == len(state["deliveries"]) == 1
     assert state["observations"][0]["evaluation_result"] == "MATCH"

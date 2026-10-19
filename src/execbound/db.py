@@ -14,7 +14,7 @@ from sqlalchemy.engine import URL, Connection, RowMapping
 
 from execbound.connection import connect_args, database_url
 
-SCHEMA_REVISION = "0098_scout_drivers"
+SCHEMA_REVISION = "0099_scout_agents_page"
 # SECURITY DEFINER functions: owned by the schema owner, executable by the runtime role unless
 # dormant (below), and the only way the runtime writes principals, credentials, scopes, a
 # session's expiry, a sandbox claim or a sandbox's fact observation times.
@@ -435,6 +435,20 @@ FUNCTIONS = (
     # A Tines tenant's egress addresses (0098): the one writer of what an administrator of the
     # connection's Space recorded, at most eight single public addresses.
     ("admin_set_egress_addresses", "p_actor uuid, p_connection uuid, p_addresses inet[]"),
+    # The synthetic directory (0099): the one writer of a connection of kind `fixture`, which
+    # holds no credential, one per workspace and never beside a Microsoft Entra connection.
+    ("admin_add_synthetic_directory", "p_actor uuid, p_space uuid, p_connection uuid"),
+    # Accepting an ungoverned path and withdrawing the acceptance (0099): the only writers of
+    # `monitor_reach_exceptions` and of its append-only history.
+    (
+        "admin_accept_reach",
+        "p_actor uuid, p_agent uuid, p_action text, p_kind text, p_path text, p_reason text, "
+        "p_expires timestamp with time zone",
+    ),
+    (
+        "admin_withdraw_reach",
+        "p_actor uuid, p_agent uuid, p_action text, p_kind text, p_path text",
+    ),
 )
 # Trigger functions that run as their owner. A trigger function is fired, never called, so
 # each is held to this list by name rather than to an EXECUTE grant: 0088's keeps the
@@ -517,6 +531,9 @@ TABLES = (
     "monitor_reach_exceptions",
     # Who drives a directory actor, and how that is known (0098).
     "monitor_actor_drivers",
+    # Every acceptance of an ungoverned path and its withdrawal, append-only (0099). SELECT only;
+    # `admin_accept_reach` and `admin_withdraw_reach` are its writers.
+    "monitor_reach_acceptances",
     "arcade_hooks",
     "agent_bindings",
     "assistant_turns",
@@ -690,6 +707,10 @@ UPDATE_COLUMNS = {
         # The leading product token of the newest sign-in's user agent, a hint (0098).
         "user_agent_hint",
         "user_agent_seen_at",
+        # The class within the classic family, which moves with a principal's type and its
+        # consents, and its application id (0099).
+        "identity_class",
+        "app_ref",
     },
     "monitor_agent_grants": {"path_ref", "observed_at", "gone_at"},
     "monitor_agent_reach": {
@@ -700,7 +721,6 @@ UPDATE_COLUMNS = {
         "valid_until",
         "gone_at",
     },
-    "monitor_reach_exceptions": {"withdrawn_at"},
     "monitor_actor_drivers": {
         "first_seen_at",
         "last_seen_at",
@@ -1246,7 +1266,6 @@ def check_runtime(conn: Connection) -> None:
                     "monitor_agents",
                     "monitor_agent_grants",
                     "monitor_agent_reach",
-                    "monitor_reach_exceptions",
                     "monitor_actor_drivers",
                     "arcade_hooks",
                     "space_policy_selection",

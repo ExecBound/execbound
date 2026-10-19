@@ -196,6 +196,26 @@ def functions_in_schema(engine):
         )
 
 
+# The trigger functions, which are not definer functions and never run as one. The synthetic
+# directory's four (#355, step 4) keep its actors unbound, its findings unsent, its kind apart
+# from Microsoft Entra's and an agent identity's class fixed.
+TRIGGER_FUNCTIONS = [
+    "access_protect_last_admin",
+    "agent_bindings_not_synthetic",
+    "job_tenants_enroll",
+    "monitor_agents_class_family",
+    "monitor_connections_directory_coexist",
+    "monitor_connections_revoked_unleased",
+    "monitor_deliveries_not_synthetic",
+    "monitor_findings_acknowledged_once",
+    "number_agent_key",
+    "number_principal",
+    "onboarding_slot_expiry",
+    "principal_guard",
+    "principals_system_frozen",
+]
+
+
 def trigger_functions_in_schema(engine):
     with engine.connect() as conn:
         return sorted(
@@ -212,18 +232,7 @@ def trigger_functions_in_schema(engine):
 def test_ca9_migration_round_trip_keeps_owner_commands_working(db, admin_engine, seeded):
     expected = sorted(name for name, _ in FUNCTIONS)
     assert functions_in_schema(admin_engine) == expected
-    # The trigger functions, which are not definer functions and never run as one.
-    assert trigger_functions_in_schema(admin_engine) == [
-        "access_protect_last_admin",
-        "job_tenants_enroll",
-        "monitor_connections_revoked_unleased",
-        "monitor_findings_acknowledged_once",
-        "number_agent_key",
-        "number_principal",
-        "onboarding_slot_expiry",
-        "principal_guard",
-        "principals_system_frozen",
-    ]
+    assert trigger_functions_in_schema(admin_engine) == TRIGGER_FUNCTIONS
     config = migration_config()
     command.downgrade(config, "0020_resource_facts_long")
     try:
@@ -232,17 +241,7 @@ def test_ca9_migration_round_trip_keeps_owner_commands_working(db, admin_engine,
     finally:
         command.upgrade(config, "head")
     assert functions_in_schema(admin_engine) == expected
-    assert trigger_functions_in_schema(admin_engine) == [
-        "access_protect_last_admin",
-        "job_tenants_enroll",
-        "monitor_connections_revoked_unleased",
-        "monitor_findings_acknowledged_once",
-        "number_agent_key",
-        "number_principal",
-        "onboarding_slot_expiry",
-        "principal_guard",
-        "principals_system_frozen",
-    ]
+    assert trigger_functions_in_schema(admin_engine) == TRIGGER_FUNCTIONS
     # The owner commands run after the round trip rather than inside it: every tenant has
     # a space from migration 0041, and an agent principal carries one, so the owner path
     # writes a column the schema of twenty revisions ago does not have. What this test is

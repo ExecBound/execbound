@@ -231,6 +231,8 @@ export function modeWords(connection: MonitorConnection): string {
       return "Admin consent";
     case "key_file":
       return "Operator key file";
+    case "synthetic":
+      return "None: the synthetic directory exists only in ExecBound";
   }
 }
 
@@ -241,6 +243,9 @@ export function connectCopy(error: unknown, fields: Record<string, string> = {})
     CONNECTION_EXISTS: "This Space already has an active connection for that platform. Revoke it first, or use another Space.",
     CONNECTION_CAPACITY: "This workspace has as many monitoring connections as it can hold.",
     ATTEMPT_CAPACITY: "Too many connection attempts. Try again later.",
+    DIRECTORY_CONNECTED: "A synthetic directory is added only to a workspace that has never connected Microsoft Entra.",
+    SYNTHETIC_DIRECTORY_PRESENT:
+      "This workspace holds a synthetic directory, which a workspace administrator removes before Microsoft Entra is connected in any Space.",
     SPACE_REQUIRED: "Choose a Space in the space switcher first; this connection belongs to one.",
     SPACE_ARCHIVED: "This Space is archived and takes no new connection. Choose an active Space.",
     CONFLICT: "This connection was revoked, or it changed first. Reload to see it as it is now.",

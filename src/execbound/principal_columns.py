@@ -97,6 +97,8 @@ UNGUARDED: dict[tuple[str, str], str] = {
     ("monitor_findings", "acknowledged_by"): _ACT,
     ("monitor_profiles", "created_by"): _ACT,
     ("monitor_reach_exceptions", "accepted_by"): _ACT,
+    # Who accepted an ungoverned path or withdrew the acceptance (0099): an attribution.
+    ("monitor_reach_acceptances", "recorded_by"): _ACT,
     ("monitor_sources", "created_by"): _ACT,
     ("monitor_sources", "revoked_by"): _ACT,
     ("monitor_sources", "rotated_by"): _ACT,

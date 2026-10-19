@@ -167,6 +167,7 @@ describe("choosing a key's lifetime (AK1)", () => {
           agent_id: DISCOVERED, platform_ref: "sp-1", identity_class: "agent_identity", class_label: "agent identity",
           source_label: "Entra", display_name: "Synthetic", enabled: true, blueprint_ref: null, credential_kinds: [],
           sponsors: [], sponsor_state: "read", first_seen_at: "2026-10-01T00:00:00Z", observed_at: "2026-10-08T00:00:00Z", gone_at: null,
+          synthetic: false,
         },
         findings: [],
         observations: [],

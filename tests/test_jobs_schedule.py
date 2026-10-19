@@ -358,26 +358,14 @@ def test_hv15_the_summary_job_needs_a_relay_and_the_flag(state):
     ]
 
 
-def test_mc7_collection_runs_only_where_a_key_file_collector_key_or_platform_app_is_present(
-    tmp_path,
-):
-    """`collect-due` every five minutes on its own lock key (#678), scheduled only where the
-    state directory holds operator key files or the collector's directory holds its key, the
-    key a rotation is retiring or the platform app's credential, which open key-file, sealed
-    and consented connections; every other job, and each one's key, as before."""
+def test_mc7_collection_is_scheduled_everywhere_and_names_only_what_this_host_holds(tmp_path):
+    """`collect-due` every five minutes on its own lock key (#678), which the jobs service
+    schedules on every installation (#355): the synthetic directory needs nothing to open. Its
+    command names the state directory's key files, and nothing else until the collector's
+    directory holds a key or the platform app's credential; every other job, and each one's
+    key, as before."""
     state = tmp_path / "state"
     state.mkdir()
-    assert schedule.collect_configured(state) is False
-    (state / schedule.KEY_FILES).mkdir()
-    assert schedule.collect_configured(state) is True
-    keyed = tmp_path / "keyed"
-    keyed.mkdir()
-    (keyed / schedule.COLLECTOR_KEY).write_text("{}", encoding="utf-8")
-    assert schedule.collect_configured(tmp_path / "empty", keyed) is True
-    consented = tmp_path / "consented"
-    consented.mkdir()
-    (consented / schedule.SCOUT_APP).write_text("{}", encoding="utf-8")
-    assert schedule.collect_configured(tmp_path / "empty", consented) is True
     assert (schedule.COLLECT.name, schedule.COLLECT.key, schedule.COLLECT.interval) == (
         "collect-due",
         9_005,
@@ -404,8 +392,11 @@ def test_mc7_collection_runs_only_where_a_key_file_collector_key_or_platform_app
     )
     every = (*schedule.JOBS, schedule.INVITATIONS, schedule.WEEKLY_SUMMARY, schedule.COLLECT)
     assert len({job.key for job in every}) == len(every)
-    # No credential: the scheduled actor of every active workspace.
-    assert schedule.argv(schedule.COLLECT, state) == [
+    # No credential: the scheduled actor of every active workspace. A host holding nothing
+    # is given nothing but where key files would be, which need not exist.
+    empty = tmp_path / "collector"
+    empty.mkdir()
+    assert schedule.argv(schedule.COLLECT, state, collector=empty) == [
         sys.executable,
         "-m",
         "execbound.monitoring.commands",
@@ -420,15 +411,14 @@ def test_mc3_the_collectors_key_is_read_from_its_own_directory_and_named_on_the_
     tmp_path,
 ):
     """The collector's private key sits in a directory only the jobs container mounts, never
-    in the state directory the gateway also mounts (#678). Where it is present, collection is
-    scheduled and `collect-due` is given it; where it is not, the command names no key."""
+    in the state directory the gateway also mounts (#678). Where it is present, `collect-due`
+    is given it; where it is not, the command names no key."""
     state = tmp_path / "state"
     state.mkdir()
     collector = tmp_path / "collector"
     collector.mkdir()
-    assert schedule.collect_configured(state, collector) is False
+    assert "--collector-key" not in schedule.argv(schedule.COLLECT, state, collector=collector)
     (collector / schedule.COLLECTOR_KEY).write_text("{}", encoding="utf-8")
-    assert schedule.collect_configured(state, collector) is True
     assert schedule.argv(schedule.COLLECT, state, collector=collector) == [
         sys.executable,
         "-m",
@@ -449,9 +439,8 @@ def test_mc3_the_collectors_key_is_read_from_its_own_directory_and_named_on_the_
         "--collector-key",
         str(collector / schedule.COLLECTOR_PREVIOUS_KEY),
     ]
-    # The key being retired alone still schedules collection, and is still named.
+    # The key being retired alone is still named.
     (collector / schedule.COLLECTOR_KEY).unlink()
-    assert schedule.collect_configured(state, collector) is True
     assert schedule.argv(schedule.COLLECT, state, collector=collector)[-2:] == [
         "--collector-key",
         str(collector / schedule.COLLECTOR_PREVIOUS_KEY),
@@ -459,7 +448,6 @@ def test_mc3_the_collectors_key_is_read_from_its_own_directory_and_named_on_the_
     # The state directory no longer counts as holding the collector's key.
     (state / schedule.COLLECTOR_KEY).write_text("{}", encoding="utf-8")
     (state / schedule.COLLECTOR_PREVIOUS_KEY).write_text("{}", encoding="utf-8")
-    assert schedule.collect_configured(state, tmp_path / "absent") is False
     assert schedule.argv(schedule.COLLECT, state, collector=tmp_path / "absent")[-1] == str(
         state / schedule.KEY_FILES
     )
@@ -469,14 +457,13 @@ def test_mc3_the_collectors_key_is_read_from_its_own_directory_and_named_on_the_
 def test_mc3_the_platform_apps_credential_is_read_from_the_collectors_directory(tmp_path):
     """The platform app's certificate reads every directory that consented to it, so it sits
     with the collector's key in the directory only the jobs container mounts. Where it is
-    present, collection is scheduled and `collect-due` is given it."""
+    present, `collect-due` is given it."""
     state = tmp_path / "state"
     state.mkdir()
     collector = tmp_path / "collector"
     collector.mkdir()
     (collector / schedule.SCOUT_APP).write_text("{}", encoding="utf-8")
     assert schedule.SCOUT_APP == "scout-app.json"
-    assert schedule.collect_configured(state, collector) is True
     assert schedule.argv(schedule.COLLECT, state, collector=collector)[-2:] == [
         "--platform-app",
         str(collector / schedule.SCOUT_APP),
@@ -490,7 +477,6 @@ def test_mc3_the_platform_apps_credential_is_read_from_the_collectors_directory(
     ]
     # Never from the state directory, which the gateway mounts too.
     (state / schedule.SCOUT_APP).write_text("{}", encoding="utf-8")
-    assert schedule.collect_configured(state, tmp_path / "absent") is False
     assert "--platform-app" not in schedule.argv(
         schedule.COLLECT, state, collector=tmp_path / "absent"
     )
@@ -603,12 +589,21 @@ def test_the_jobs_command_schedules_the_drain_from_the_configuration_it_runs_wit
     cli._main()
     assert seen == [(False, False), (False, False), (True, False), (True, True), (True, False)]
     assert summaries == [False, False, False, False, True]
-    # Collection only where the state directory holds a key file (#678).
+    # Collection on every installation (#355): the synthetic directory is read in process
+    # with no credential, so a host whose state and collector directories hold nothing still
+    # has a connection `collect-due` can open, and one added later is collected without a
+    # restart.
     state = tmp_path / "state"
-    (state / schedule.KEY_FILES).mkdir(parents=True)
-    monkeypatch.setattr(sys, "argv", ["execbound", "jobs", "--once", "--state", str(state)])
+    state.mkdir()
+    empty = tmp_path / "collector"
+    empty.mkdir()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["execbound", "jobs", "--once", "--state", str(state), "--collector", str(empty)],
+    )
     cli._main()
-    assert collects == [False, False, False, False, False, True]
+    assert collects == [True] * 6
     # `--deliver` wherever the configuration reads, findings destination or none (ruling 21).
     assert delivers == [False, True, True, True, True, True]
     # And none where the variable names a file that does not read.

@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
+import { addSyntheticDirectoryMutation } from "../../api/@tanstack/react-query.gen";
 import type { MonitorConnectAttempt, MonitorConnection, MonitorSnapshot, MonitorSource } from "../../api/types.gen";
 import { useEdition } from "../../edition/context";
 import { serverNow } from "../../lib/clock";
+import { useServerMutation } from "../../lib/mutation";
+import { refusal } from "../../lib/refusal";
+import { can, useSession } from "../../lib/session";
 import { PrincipalName } from "../PrincipalName";
 import { count, when } from "../../lib/when";
 import { Badge, type Tone } from "../ui/Badge";
@@ -13,7 +18,7 @@ import { Definition, Definitions } from "../ui/Definitions";
 import { EmptyState } from "../ui/EmptyState";
 import { Table, Td, Th } from "../ui/Table";
 import { Time } from "../ui/Time";
-import { capabilityName, modeWords, UNCONFIGURED, useConnectOptionsQuery } from "./connect";
+import { answered, capabilityName, connectCopy, modeWords, UNCONFIGURED, useConnectOptionsQuery } from "./connect";
 import { ConnectionActions, type PlatformApp } from "./ConnectionActions";
 import { MonitorSetup } from "./MonitorSetup";
 import { isQuietConnection, isQuietSource } from "./quiet";
@@ -105,6 +110,47 @@ function ordered<T>(items: readonly T[], rank: (item: T) => number): T[] {
 }
 
 const connectionRank = (connection: MonitorConnection) => (isQuietConnection(connection) ? 0 : connection.reporting ? 2 : 1);
+
+/** Add the workspace's synthetic directory (#355): a directory that exists only in ExecBound,
+ * for seeing what Scout does before a real one is connected. It holds for every Space, so it is
+ * offered only to a workspace administrator, and only where no Microsoft Entra connection was
+ * ever made here and none is present; the server decides again. */
+function AddSynthetic() {
+  const queryClient = useQueryClient();
+  const [problem, setProblem] = useState<string | null>(null);
+  const adding = useServerMutation({
+    ...addSyntheticDirectoryMutation(),
+    onSuccess: (fresh) => {
+      setProblem(null);
+      answered(queryClient, fresh);
+    },
+    onError: (error) => {
+      setProblem(
+        refusal(error).code === "FORBIDDEN"
+          ? "Only a workspace administrator adds the synthetic directory, because it holds for every Space."
+          : connectCopy(error),
+      );
+    },
+  });
+  return (
+    <>
+      <Button
+        disabled={adding.isPending}
+        aria-busy={adding.isPending}
+        onClick={() => {
+          adding.mutate({ body: {} });
+        }}
+      >
+        {adding.isPending ? "Adding…" : "Add a synthetic directory"}
+      </Button>
+      {problem !== null ? (
+        <p role="alert" className="problem">
+          {problem}
+        </p>
+      ) : null}
+    </>
+  );
+}
 const sourceRank = (source: MonitorSource) => (isQuietSource(source) ? 0 : source.coverage === "Reporting" ? 2 : 1);
 
 /** The Connections view: each collection connection, the figures, then each reporting source.
@@ -171,6 +217,18 @@ export function Connections({
     if (read) onConnectRead?.();
   }, [read, onConnectRead]);
   const connections = ordered(data.connections, connectionRank);
+  // The synthetic directory never shares a workspace with a real one: while it is present, it is
+  // removed first, and it is offered only where no directory was ever connected (#355). It holds
+  // for every Space, so the server answers both for the workspace, never from the connections of
+  // the Space shown here.
+  const synthetic = data.synthetic_directory.present;
+  const syntheticHere = data.connections.some((item) => item.kind === "fixture" && item.revoked_at === null);
+  // Workspace-wide `access.manage`, which an administrator narrowed to Spaces does not hold.
+  const workspace = can(useSession(), "access.manage");
+  const offered = workspace && data.synthetic_directory.addable;
+  // What a narrowed reader is told, who is never told whether another Space connected a directory:
+  // only what the Spaces shown here hold.
+  const directoryHere = data.connections.some((item) => item.kind === "entra_agent_id");
   const sources = ordered(data.sources, sourceRank);
   // The one card the count included and the link was built for, if one is still quiet.
   const marked =
@@ -198,10 +256,11 @@ export function Connections({
               </Button>
             ) : null}
             {platformApp !== null ? (
-              <Button variant={tinesAvailable ? "default" : "primary"} onClick={() => { setSetup({ kind: "entra" }); }}>
+              <Button variant={tinesAvailable ? "default" : "primary"} disabled={synthetic} onClick={() => { setSetup({ kind: "entra" }); }}>
                 Connect Microsoft Entra
               </Button>
             ) : null}
+            {offered ? <AddSynthetic /> : null}
             {sourcesAvailable ? (
               <Button onClick={() => { setSetup({ kind: "source" }); }}>
                 Add a reporting source
@@ -223,6 +282,23 @@ export function Connections({
         </p>
         {platformApp !== null ? (
           <p>Connect Microsoft Entra by a directory administrator&apos;s consent to {platformApp.displayName}, which reads it on a schedule.</p>
+        ) : null}
+        {synthetic ? (
+          <p className="monitor-note">
+            {syntheticHere
+              ? "The synthetic directory is present. Remove it before connecting Microsoft Entra: "
+              : "The workspace's synthetic directory is in another Space, and is removed there before Microsoft Entra is connected: "}
+            a real directory and the synthetic one never share a workspace.
+          </p>
+        ) : offered || (!workspace && !directoryHere) ? (
+          <p className="muted">
+            A synthetic directory shows what Scout does with a directory before you connect your own: a fixed set of
+            actors, drivers and actions that exists only in ExecBound, labelled wherever it is shown. Nothing it finds is
+            sent anywhere, and none of its actors can be governed.
+            {workspace
+              ? ""
+              : " It holds for every Space, so only a workspace administrator adds it."}
+          </p>
         ) : null}
         <p className="muted">Monitoring is visibility. It does not enforce action policy or prevent an external connector from acting.</p>
         {returned !== null ? (
@@ -292,6 +368,7 @@ export function Connections({
           const overdue = connection.overdue_since !== null;
           const word = overdue && connection.health_state === "COLLECTING" ? "Collection overdue" : healthWord(connection.health_state);
           const entra = connection.base_url === "https://graph.microsoft.com";
+          const fixture = connection.kind === "fixture";
           const capabilities = Object.entries(connection.capabilities).sort(([a], [b]) => a.localeCompare(b));
           return (
             <Card
@@ -305,7 +382,13 @@ export function Connections({
                 <Definition term="Platform origin" mono>
                   {connection.base_url}
                 </Definition>
-                <Definition term="Collection scope">{entra ? "Registered Microsoft Entra directory" : connection.team_id ?? "Every team the key can read"}</Definition>
+                <Definition term="Collection scope">
+                  {fixture
+                    ? "The synthetic directory, read in process from a fixed dataset"
+                    : entra
+                      ? "Registered Microsoft Entra directory"
+                      : (connection.team_id ?? "Every team the key can read")}
+                </Definition>
                 <Definition term="Credential">{modeWords(connection)}</Definition>
                 <Definition term="Audit cursor" mono>
                   {connection.audit_cursor === null ? "Nothing collected yet" : when(connection.audit_cursor)}
@@ -341,7 +424,35 @@ export function Connections({
                 {connection.next_due_at !== null ? (
                   <Definition term="Schedule">{scheduleWords(connection)}</Definition>
                 ) : null}
+                {connection.kind === "tines" ? (
+                  <Definition term="Egress addresses">
+                    {connection.egress_addresses.length > 0 ? (
+                      <>
+                        <span className="mono">{connection.egress_addresses.join(", ")}</span>
+                        {connection.egress_recorded_at !== null ? (
+                          <small>
+                            Recorded <Time at={connection.egress_recorded_at} /> by{" "}
+                            {connection.egress_recorded_by !== null ? (
+                              <PrincipalName principal={connection.egress_recorded_by} kind="ADMIN" />
+                            ) : (
+                              "an administrator"
+                            )}
+                          </small>
+                        ) : null}
+                      </>
+                    ) : (
+                      "None recorded"
+                    )}
+                  </Definition>
+                ) : null}
               </Definitions>
+              {fixture ? (
+                <p className="monitor-note">
+                  <Badge tone="accent">Synthetic directory</Badge> Nothing in it is real. Its actors, drivers and actions
+                  are a fixed dataset read in process, with no network and no credential; what it raises is shown here
+                  and never sent anywhere.
+                </p>
+              ) : null}
               {connection.collecting ? (
                 <p className="monitor-note">Collecting now.</p>
               ) : connection.next_due_at !== null ? (
@@ -404,10 +515,16 @@ export function Connections({
                 </p>
               ) : null}
               <p className="muted">
-                {entra ? "Collected directory identities and grants infer authority. Where the audit log capability is available, the directory's own log shows which mapped identity actions an application took, by object id; neither shows that an external route is governed. Azure RBAC and group-mediated roles are not covered." : "Collected from the platform's audit and inventory APIs with a read-only key. An ordinary action's effect is not an audit record, so this does not establish what a connector did. Audit and AI-audit capabilities remain fixture-tested."}
+                {fixture
+                  ? "The synthetic directory is read the way a real directory is, from a fixed dataset inside ExecBound with no key and no network, so every page shows what a directory's actors look like; none of it establishes anything about a real one."
+                  : entra
+                    ? "Collected directory identities and grants infer authority. Where the audit log capability is available, the directory's own log shows which mapped identity actions an application took, by object id; neither shows that an external route is governed. Azure RBAC and group-mediated roles are not covered."
+                    : "Collected from the platform's audit and inventory APIs with a read-only key. An ordinary action's effect is not an audit record, so this does not establish what a connector did. Audit and AI-audit capabilities remain fixture-tested."}
               </p>
               <ConnectionActions connection={connection} connectAvailable={tinesAvailable} platformApp={platformApp} />
-              <Button onClick={() => { setSetup({ kind: "guide", provider: entra ? "entra_agent_id" : "tines", connectionId: connection.connection_id }); }}>Verify connection</Button>
+              {fixture ? null : (
+                <Button onClick={() => { setSetup({ kind: "guide", provider: entra ? "entra_agent_id" : "tines", connectionId: connection.connection_id }); }}>Verify connection</Button>
+              )}
             </Card>
           );
         })

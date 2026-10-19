@@ -607,6 +607,8 @@ def test_mq13_the_assistant_finding_tool_carries_no_note(db, admin_engine, world
     assert result.data["findings"]
     for row in result.data["findings"]:
         assert "note" not in row and "acknowledgement_note" not in row
+        # A real connection's finding, which the synthetic directory's label never marks.
+        assert row["synthetic"] is False
     assert "Private reasoning." not in repr(result.data)
 
 

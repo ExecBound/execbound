@@ -93,6 +93,10 @@ STEP_UP_NESTED = (
     # Recording a Tines tenant's egress changes what a directory's actors are attributed to.
     ("/api/console/v1/monitor/connections/", "/egress"),
     ("/api/console/v1/monitor/connections/", "/revoke"),
+    # Accepting an ungoverned path and withdrawing an acceptance decide what is shown as needing
+    # attention (#355, step 4).
+    ("/api/console/v1/monitor/agents/", "/accept"),
+    ("/api/console/v1/monitor/agents/", "/withdraw"),
 )
 # Exact paths, where a prefix would catch too much: installing and refreshing the samples
 # activate the starter policy, but a `/samples` prefix would also catch `/samples/remove`,

@@ -75,6 +75,21 @@ CODES = {
         "A sample request is waiting for approval or provider evidence; settle it first.",
     ),
     "SAMPLES_UNAVAILABLE": (409, "Sample targets are not available on this deployment."),
+    # The synthetic directory (#355, step 4): the whole workspace's, added by a workspace
+    # administrator only to a workspace that never connected a Microsoft Entra directory; a
+    # directory is connected in any Space only once it is removed, and its actors exist nowhere,
+    # so none is governed or bound.
+    "DIRECTORY_CONNECTED": (
+        409,
+        "A synthetic directory is added only to a workspace that has never connected Microsoft "
+        "Entra.",
+    ),
+    "SYNTHETIC_DIRECTORY_PRESENT": (
+        409,
+        "This workspace holds a synthetic directory, which a workspace administrator removes "
+        "before Microsoft Entra is connected in any Space.",
+    ),
+    "SYNTHETIC_ACTOR": (409, "A synthetic directory's actor cannot be governed or bound."),
     "TOO_MANY_REQUESTS": (429, "Too many requests; try again shortly."),
     "UNAVAILABLE": (503, "ExecBound is unavailable; try again shortly."),
     # Teammate invitations (#487): business refusals specific enough to say what

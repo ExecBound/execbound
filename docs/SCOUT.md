@@ -37,7 +37,7 @@ One row per `(action, path_kind, path_ref)`, never one per action. An agent that
 
 A grant path can never claim an enforced mode. Nothing ExecBound operates stands between an agent and its own credential, so those rows are `unknown`. The [enforcement modes](INTEGRATIONS.md#enforcement-modes) are defined with the integrations.
 
-**Adding a governed path does not close an ungoverned one.** Registering an operation mapping, a policy and an executor gives the agent a route that is enforced *for requests that traverse it*. The directory grant is still there. `ungoverned-reach.v1` therefore stays open until the grant is gone at a later collection, or until an ADMIN records an acceptance with `accept-reach` — which leaves the reach row exactly where it was, because deciding to live with a route is not the route disappearing.
+**Adding a governed path does not close an ungoverned one.** Registering an operation mapping, a policy and an executor gives the agent a route that is enforced *for requests that traverse it*. The directory grant is still there. `ungoverned-reach.v1` therefore stays open until the grant is gone at a later collection, or until an administrator accepts the path ([below](#accepting-a-path)) — which leaves the reach row exactly where it was, because deciding to live with a route is not the route disappearing.
 
 ## Accountability
 
@@ -98,7 +98,7 @@ Every full collection and every delta pass reads the directory's audit log (`aud
 
 The read's result counts `bounded`, `kept_at_bound` and `dropped_at_bound`, and `collect-due` counts it `audit_bounded`; none of it changes the run's outcome, health state or last refusal. The first read the bound applies to raises *Collection reached the connection's observation bound and keeps only each actor's first action* at once, once for the episode. The episode ends with the first read after which the connection holds fewer than 180,000 observations, a tenth under the bound, as the retention below brings about: a directory whose month of evidence keeps it at the bound, each purge bringing it just under and the next read filling it again, is one episode and one finding. Meeting the bound after the episode has ended is an episode of its own. A finding raised before this behaviour keeps the title it was raised with, *Collection reached the connection's observation bound and records no more*.
 
-**How long observations are kept.** A directory's audit observation is kept while it is current, for the thirty days evidence counts, and for as long as a rule still reads it or may yet read it. The `process` pass ([Monitoring](TINES_MONITORING.md)), as its last step once every rule has read them, removes from each Microsoft Entra connection, active or revoked, the audit observations that are older than thirty days by the database's own clock, evaluated, and cited by no finding, which stays too. The thirty days are 720 hours, the same thirty days the rules count evidence current for, whatever time zone the database session keeps. It keeps three kinds the rules still read or may yet read:
+**How long observations are kept.** A directory's audit observation is kept while it is current, for the thirty days evidence counts, and for as long as a rule still reads it or may yet read it. The `process` pass ([Monitoring](TINES_MONITORING.md)), as its last step once every rule has read them, removes from each Microsoft Entra connection and the synthetic directory, active or revoked, the audit observations that are older than thirty days by the database's own clock, evaluated, and cited by no finding, which stays too. The thirty days are 720 hours, the same thirty days the rules count evidence current for, whatever time zone the database session keeps. It keeps three kinds the rules still read or may yet read:
 
 - For each principal of the connection and each action, the earliest observation that counts the principal as acting in the activity baseline, that ExecBound's own execution does not account for and that no execution still unsettled could account for. An actor in the baseline therefore stays in it once its observations are a month old, as an actor seen acting in it counts as existing behaviour, and an execution settling later cannot turn the observation kept into ExecBound's own.
 - An old observation an execution could account for beside one that stays, including one kept as the next kind. Removing it would leave the one that stays the only observation that execution accounts for, taken for ExecBound's own and its actor's action outside ExecBound hidden.
@@ -159,6 +159,62 @@ A row is marked gone when its condition ends, and cleared when it holds again, d
 
 **Not yet established.** No real directory's sign-ins have been read: the filter, `$select`, the casing of Graph's next links, and the status of the license and permission refusals are fixture-verified until a read-only probe of a directory with P1 or P2 and `AuditLog.Read.All`. Whether a shared-cloud Tines tenant's egress addresses are its own is not documented.
 
+## The identity classes
+
+An actor is anything non-human that can act here. Its class is what the directory says it is, and there are five:
+
+| Class | What makes it so |
+| --- | --- |
+| `agent_identity` | The directory's agent identity cast, `@odata.type` or `servicePrincipalType` `ServiceIdentity` says so |
+| `service_principal` | A classic service principal registered here, or another organization's holding no consent here |
+| `managed_identity` | The directory states the type `ManagedIdentity` |
+| `consented_app` | Another organization's application (its `appOwnerOrganizationId` names another directory) holding a live application or delegated permission grant here; Microsoft's own applications holding a consent count too |
+| `tines_story` | A Tines story a Tines connection lists |
+
+A class moves only within the classic family: a full collection's stated type decides `managed_identity`, and whether a classic principal is a consented app is decided again at the end of every write of its grants, in a full collection and a delta pass alike, so it moves as consent is given and withdrawn. A record that states no type keeps the stored class, and an agent identity or a Tines story never moves; the database refuses any other change (`CLASS_FIXED`). The rules read the class only for their titles: a finding raised from now on names it ("New consented app reaches…"), and findings already raised keep their words. The principal's application id (`app_ref`, a GUID) is kept so that the page can say what to filter the admin center's enterprise applications by.
+
+## The Agents page as the to-do list
+
+**Monitoring → Agents** lists the actors in the order of a list to work through, cut at 200 after ordering so that nothing needing attention is cut by its name:
+
+1. Actors that **did** something consequential outside ExecBound in the last 30 days, most first.
+2. Then actors with **open paths**: live grant, role or inherited paths to a consequential action that nothing governs and no acceptance in force covers, most first.
+3. Then the rest, by name.
+
+**Did** counts an actor's successful observations of a consequential action in the last 30 days, attributed to it as observed reach attributes them (its connection and its directory object id), the ones from before the baseline included, since the baseline governs alerts only. An observation ExecBound's own settled execution accounts for is left out, by the same match as `first-consequential-action.v1`, and so is a failure. While the connection is at its observation bound, or raised its `CAPACITY` finding within the 30 days, the count reads "at least", because repeats were dropped there. Without a detection profile nothing is consequential, so nothing is done or open, and the page says so; the synthetic directory alone is assessed against the built-in sensitive action set then, and the page names it.
+
+**Driver** shows the strongest current driver row the reader may see, in the order the agent detail lists them (joined, declared, network), and "and N more"; an actor with none is **Unattributed**, which is not the same as nothing driving it. The agent page lists every row, the gaps of the egress catalog and the user agent hint, labelled as no evidence.
+
+**Governed** shows the governed paths beside the open ones and the accepted ones in force, with the earliest expiry.
+
+**The tenant line** counts the actors each source lists (Microsoft Entra, Tines, the synthetic directory) and the directory actors no current driver row the reader may see attributes, each over what the connections could enumerate. A Tines row counts there only where the reader may see it, as in the Driver column, so the figure matches the rows marked **Unattributed**.
+
+**What each row offers.** **Govern this agent**, as before; **Govern this action**, which opens Policy; **Accept**, for an actor with open paths where the reader may accept them (below); and **Remove in Entra**, since Scout never writes to the directory: for a service principal or a consented app, the admin center's enterprise applications, with the application id to filter by under **Application ID starts with**, then **Permissions**, which is Microsoft's documented path (Microsoft documents no address for one application's permissions); for a managed identity a sentence saying its access is removed on the Azure resource it belongs to, and for an agent identity through its blueprint. The link is the console's constant address, and no value from a record becomes part of it. A Tines-driven row, a Tines story or an actor a Tines tenant's egress or credentials attribute by any current row the reader may see, its strongest or not, points at the Tines Gate recipe in `integrations/tines/README.md` of the release.
+
+## Accepting a path
+
+An administrator accepts an actor's open paths from the console, all chosen and any left out, for one of five reasons and 30, 90 (the default), 180 or 365 days, or one path with `accept-reach`, whose `--days 0` leaves it open-ended. The console accepts only a path open now, so one whose acceptance expired is accepted again and renewed, and one in force is withdrawn first; `accept-reach` renews any. `withdraw-reach`, or **Withdraw** on the agent page, withdraws a standing acceptance of any kind, an observed path's included, and is recorded for an actor that has gone from its directory, though nothing new is accepted for one. Both functions refuse an approver, an agent, the scheduler, an inactive administrator and one a membership narrows away from the actor's connection's Space, whoever called them. The Agents page and an actor's page list every actor of the workspace, but an acceptance is its connection's Space's: each row and each actor's page say whether the reader may accept or withdraw there (`administered`, a Space the reader holds and administers, whichever Space the page shows), and the console offers **Accept** and **Withdraw** only then, saying otherwise that an administrator of its Space accepts or withdraws them.
+
+| Code | Shown as |
+| --- | --- |
+| `COMPENSATING_CONTROL` | Another control covers this path |
+| `VENDOR_MANAGED` | The vendor manages this application |
+| `BUSINESS_REQUIRED` | The business needs this access as it is |
+| `GOVERNANCE_PLANNED` | Governing it is planned |
+| `BREAK_GLASS` | Emergency access |
+
+A code the command line recorded outside the list is shown as it was written; no free text is taken. `admin_accept_reach` and `admin_withdraw_reach` are the only writers: a renewal sets the reason, the expiry, who and when, and clears a withdrawal, which the runtime's own insert could not before. Every change is kept, append-only, in `monitor_reach_acceptances`, and appends `monitor.reach_accepted` or `monitor.reach_withdrawn`. The console's routes ask for a recent second factor and refuse a personal access token. An acceptance takes the path out of the page's open paths at once; the `ungoverned-reach.v1` episode closes at the next collection, and an expiry or a withdrawal opens a new one there.
+
+## The synthetic directory
+
+A workspace that has never connected Microsoft Entra can add one synthetic directory from **Monitoring → Connections** to see what Scout does before it connects its own. It holds for every Space, since while it is present no Space connects Microsoft Entra, so a workspace administrator adds it, never one a membership narrows to their Spaces. Connections reads whether it is present, and whether one can be added, for the whole workspace, whichever Space it shows: an administrator looking at another Space is told it is in another Space, and is not offered one where any Space connected Microsoft Entra. It is a connection of kind `fixture` and credential mode `synthetic`, labelled **Synthetic directory**, with no key, no consent and one fixed shape: an address in the reserved `.invalid` domain, which resolves nowhere, and a directory and client no directory holds. `admin_add_synthetic_directory` is its one writer.
+
+**How it is read.** The real Graph collector reads it on a directory's schedule, in the scheduled `collect-due` that every installation's jobs service runs whether or not it holds a collector key, hourly by default and every one to twenty-four hours as an administrator sets it (anything else is `INVALID_SCHEDULE`), through an in-process transport (`httpx.MockTransport`) over a fixed dataset in `monitoring/synthetic.py`: no socket is opened, the token is a constant that authenticates nothing, and no real connection is ever read through it. It takes no delta link and no delta pass, matches its sign-ins against the egress catalog alone and joins no Tines tenant. The dataset holds an agent identity with a blueprint and a sponsor; a consented application with Anthropic's catalogued application id and a delegated consent; a classic service principal that can disable users, signs in from Anthropic's published outbound range and disables a synthetic user every day; a managed identity; a principal with nobody accountable that can revoke sessions and signs in from a documentation address nobody publishes; and one principal served only once the connection has a baseline, so the collection after the first raises `new-actor.v1` and `ungoverned-reach.v1` for it and `process` its `first-consequential-action.v1`. Its people and sponsors are synthetic object ids. With no detection profile set it is assessed against the built-in sensitive action set, the one the sensitive-action rule applies without a profile, so all of this shows the moment it is added; once a profile is set, the profile decides, and a real directory is never assessed against a list nobody chose.
+
+**How it is kept apart.** It never shares a workspace with a real directory: it is refused where a Microsoft Entra connection exists or ever existed (`DIRECTORY_CONNECTED`), and while it is present connecting Microsoft Entra is refused (`SYNTHETIC_DIRECTORY_PRESENT`), by `create-connection`, by the console before anyone is sent to Microsoft and by the database whichever path inserts. Its findings are never sent to a destination: routing closes their intents `SYNTHETIC_DIRECTORY`, and the database refuses a destination's delivery of one. They show on Monitoring alone, labelled, and the console assistant's findings tool marks each `synthetic`: Home, the workspace settings, the Spaces page and the weekly summary count neither them nor a late collection of it. Its actors are never governed or bound, so never billed (`SYNTHETIC_ACTOR`, refused by the database whichever path binds), but Accept works. Home neither counts it as watching nor draws its observations, and every page that shows it says so. A governed agent's page on Agent connections never offers one of its actors to bind. **Remove** (the connection's Revoke) takes its actors off the lists, as a full collection leaves a principal it no longer lists: their driver rows, their grants and the paths those grants established stop being live claims, so no page offers to accept a path of one, and what it raised stays, labelled.
+
+**Not in it yet.** A Foundry project, with its agents and their shared identity, is not part of the dataset yet.
+
 ## Commands
 
 ```sh
@@ -171,6 +227,9 @@ uv run python -m execbound.monitoring.commands link-agent \
 uv run python -m execbound.monitoring.commands accept-reach \
   --credential-file <admin> --connection <id> --agent <object id> \
   --action <action> --path-kind <kind> --path <path> --reason <CODE> [--days 90]
+uv run python -m execbound.monitoring.commands withdraw-reach \
+  --credential-file <admin> --connection <id> --agent <object id> \
+  --action <action> --path-kind <kind> --path <path>
 uv run python -m execbound.monitoring.commands record-egress \
   --credential-file <admin> --connection <tines connection id> --address <address> [--address ...]
 ```
@@ -207,7 +266,7 @@ Every refusal ends the attempt, creates nothing and logs only a code. An attempt
 
 ## Pages
 
-`/monitor?view=agents` and `/monitor/agents/{agent_id}` are ADMIN-only console views inside the monitoring authority predicate; the former `/monitor/agents` list address redirects to the query view. The list carries the tenant line and its denominator; the detail page shows every path with its certainty, mode and freshness, every grant with what it reaches, the findings and the observations attributed by object identifier. The detail's console API answer also carries the actor's drivers and its user agent hint ([above](#who-drives-an-actor)), which the pages do not show yet. Its **Govern this agent** opens `/agents/{agent_id}` with the same identifier, where the agent can be governed (a principal, a binding and a first API key in one step) or bound to an agent principal that already exists; a linked agent offers **Open the governed agent** instead. The `link-agent` and `accept-reach` commands sit folded under **Operator commands** where the deployment's console offers them. On the Agents list, a row with consequential reach and no link offers **Govern**, and a linked row links to its governing agent. The way back is the agent page's own note, which links to this agent's Monitoring page.
+`/monitor?view=agents` and `/monitor/agents/{agent_id}` are ADMIN-only console views inside the monitoring authority predicate; the former `/monitor/agents` list address redirects to the query view. The list carries the tenant line and its denominator; the detail page shows every path with its certainty, mode and freshness, every grant with what it reaches, the findings and the observations attributed by object identifier. The detail shows the actor's drivers and its user agent hint ([above](#who-drives-an-actor)), every acceptance of its paths with **Withdraw**, and where its access is removed. Its **Govern this agent** opens `/agents/{agent_id}` with the same identifier, where the agent can be governed (a principal, a binding and a first API key in one step) or bound to an agent principal that already exists; a linked agent offers **Open the governed agent** instead. The `link-agent`, `accept-reach` and `withdraw-reach` commands sit folded under **Operator commands** where the deployment's console offers them. On the Agents list, a row with consequential reach or an open path and no link offers **Govern this agent**, a linked row links to its governing agent, and a synthetic directory's row offers neither ([above](#the-agents-page-as-the-to-do-list)). The way back is the agent page's own note, which links to this agent's Monitoring page.
 
 ### The Agents page
 
