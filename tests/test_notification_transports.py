@@ -3,10 +3,12 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from uuid import UUID
 
 import pytest
 
+from execbound import transports
 from execbound.transports import (
     DELIVERED,
     ApprovalMessage,
@@ -16,6 +18,7 @@ from execbound.transports import (
     decide_by,
     render_slack,
     render_teams,
+    retry_after_seconds,
     safe_label,
     webhook_body,
     window_words,
@@ -26,6 +29,31 @@ APPROVAL = UUID("00000000-0000-4000-8000-000000000002")
 EXECUTION = UUID("00000000-0000-4000-8000-000000000003")
 TARGET = UUID("00000000-0000-4000-8000-000000000004")
 DELIVERY = UUID("00000000-0000-4000-8000-00000000000d")
+# "Security" in Cyrillic and "production" in Japanese: `safe_label` keeps nothing of either.
+NON_LATIN_WORKSPACE = "Безопасность"
+NON_LATIN_SPACE = "本番"
+# What a chat target could read as italics, an emoji and a link, all inside `safe_label`'s
+# alphabet, so the label is the name as written.
+MARKUP = "_x_ :smile: example.com"
+MARKS = ("_x_", ":smile:", "example.com")
+# Each shape a chat target could format, on its own and inside `safe_label`'s alphabet:
+# italics, an emoji code, a bare domain, a path, and the two list items a Teams fact can start.
+FORMATTABLE = ("a_b", "x :smile:", "example.com", "a/b", "-x", "1) x")
+# A name with none of them, which every card shows in place.
+PLAIN = "SOC (EU) - East"
+
+
+def chosen_by_tenant(tenant: UUID) -> str:
+    """The line naming the workspace to choose when nothing of its name can be shown."""
+    return f"If you belong to more than one workspace, choose the one whose tenant id is {tenant}."
+
+
+def chosen_like(label: str, tenant: UUID) -> str:
+    """The line naming the workspace to choose when its name shows only as a reduced label."""
+    return (
+        "If you belong to more than one workspace, "
+        f"choose the one named like {label} (tenant id {tenant})."
+    )
 
 
 def message(**changes: object) -> ApprovalMessage:
@@ -65,10 +93,67 @@ def message(**changes: object) -> ApprovalMessage:
         (True, "True"),
         (3, "3"),
         ("prod/eu-1: tier.2", "prod/eu-1: tier.2"),
+        # Accents and compatibility forms fold to their letters before anything is dropped.
+        ("\u00c9quipe S\u00e9curit\u00e9", "Equipe Securite"),
+        ("Cr\u00e8me Br\u00fbl\u00e9e SOC", "Creme Brulee SOC"),
+        ("\uff21\uff23\uff2d\uff25 \uff33\uff2f\uff23", "ACME SOC"),
     ],
 )
 def test_safe_label_keeps_only_plain_label_characters(raw, expected):
     assert safe_label(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "name", [NON_LATIN_WORKSPACE, NON_LATIN_SPACE, "\U0001f512", "  ", "<>", None]
+)
+def test_ay6_a_name_safe_label_keeps_nothing_of_is_no_name(name):
+    """A message words itself without such a name rather than calling it "unknown"; a label
+    that is not a name still reads "unknown", as it always has."""
+    assert transports.name_label(name) is None
+    assert safe_label(name) == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("name", "label"),
+    [
+        ("Synthetic SOC", "Synthetic SOC"),
+        ("Acme & Co", "Acme Co"),
+        ("\u00c9quipe S\u00e9curit\u00e9", "Equipe Securite"),
+        (MARKUP, MARKUP),
+        # A workspace its administrators called "unknown" keeps that name.
+        ("unknown", "unknown"),
+    ],
+)
+def test_ay6_a_name_with_anything_left_is_its_label(name, label):
+    assert transports.name_label(name) == label == safe_label(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "shown"),
+    [
+        ("Synthetic SOC", "as written"),
+        ("  Synthetic \t SOC\n", "as written"),
+        (MARKUP, "as written"),
+        ("Acme & Co", "Acme Co"),
+        ("Acme, Inc.", "Acme Inc."),
+        ("O'Brien SOC", "OBrien SOC"),
+        ("\u00c9quipe S\u00e9curit\u00e9", "Equipe Securite"),
+        ("W" * 81, "W" * 80),
+        (NON_LATIN_WORKSPACE, None),
+    ],
+)
+def test_ay6_the_choose_line_names_a_workspace_only_as_its_owner_wrote_it(name, shown):
+    """Whitespace apart, a label that differs from the name could match another workspace's
+    name, or none the reader sees. It stays as a hint beside the tenant id, which only an
+    administrator sees in Workspace settings; the tenant id stands alone only when nothing of
+    the name survives."""
+    if shown == "as written":
+        expected = f"If you belong to more than one workspace, choose {safe_label(name)}."
+    elif shown is None:
+        expected = chosen_by_tenant(TENANT)
+    else:
+        expected = chosen_like(shown, TENANT)
+    assert transports.choose_workspace(name, TENANT) == expected
 
 
 def test_without_a_plugin_path_the_link_is_the_plain_approval_address():
@@ -164,6 +249,65 @@ def test_a_send_result_is_a_code_or_a_delivery():
         SendResult(True, "RECEIVER_UNAVAILABLE")
     with pytest.raises(ValueError):
         SendResult(False)
+
+
+class FixedClock:
+    def __init__(self, value: datetime) -> None:
+        self.value = value
+
+    def now(self) -> datetime:
+        return self.value
+
+
+# A receiver's own moment: the HTTP-dates below are read against it.
+ANSWERED = datetime(2026, 10, 21, 7, 27, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # Delta-seconds, clamped to 1..3600.
+        ("7", 7),
+        (" 120 ", 120),
+        ("3600", 3600),
+        ("0", 1),
+        ("-5", 1),
+        ("99999", 3600),
+        # An HTTP-date, measured from the clock: a minute ahead, a day ahead, a day behind, now.
+        ("Wed, 21 Oct 2026 07:28:00 GMT", 60),
+        ("Thu, 22 Oct 2026 07:27:00 GMT", 3600),
+        ("Tue, 20 Oct 2026 07:27:00 GMT", 1),
+        ("Wed, 21 Oct 2026 07:27:00 GMT", 1),
+        # `-0000` and the obsolete asctime form parse with no zone; an HTTP-date is always GMT.
+        ("Wed, 21 Oct 2026 07:29:00 -0000", 120),
+        ("Wed Oct 21 07:28:00 2026", 60),
+        ("Wednesday, 21-Oct-26 07:28:00 GMT", 60),
+        # Absent, or neither form: the default.
+        (None, 30),
+        ("", 30),
+        ("soon", 30),
+        ("Wed, 99 Oct 2026 07:28:00 GMT", 30),
+        ("Wed, 21 Foo 2026 07:28:00 GMT", 30),
+        ("7 seconds", 30),
+    ],
+)
+def test_retry_after_reads_seconds_or_an_http_date_against_the_clock(value, expected):
+    assert retry_after_seconds(value, clock=FixedClock(ANSWERED)) == expected
+
+
+@pytest.mark.parametrize("past", [250, 500, 750])
+def test_an_http_date_is_rounded_up_so_the_retry_never_lands_before_it(past):
+    """59.75, 59.5 and 59.25 s to the date all wait 60: rounding to nearest gives 59 for the
+    last, and truncating gives 59 for all three."""
+    clock = FixedClock(ANSWERED + timedelta(milliseconds=past))
+    assert retry_after_seconds("Wed, 21 Oct 2026 07:28:00 GMT", clock=clock) == 60
+
+
+def test_an_http_date_with_no_clock_is_measured_from_now():
+    ahead = format_datetime(datetime.now(UTC) + timedelta(seconds=120), usegmt=True)
+    assert 110 <= retry_after_seconds(ahead) <= 121
+    behind = format_datetime(datetime.now(UTC) - timedelta(days=1), usegmt=True)
+    assert retry_after_seconds(behind) == 1
 
 
 # Close-outs (#678): how an announced approval ended.

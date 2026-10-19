@@ -22,7 +22,7 @@ from sqlalchemy import text
 from test_browser_console import AXE, AXE_RUN, COLLECT, person_name, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
-from test_browser_surfaces import ACTION_TIMEOUT_MS
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS
 from test_browser_surfaces import chromium as chromium
 from test_console_api_settings import seed_delivery
 from test_emergency_stop import audit
@@ -58,7 +58,7 @@ def phone_navigation_fits(page):
     for control in (menu, page.get_by_role("button", name=re.compile(r"^Notifications"))):
         box = control.bounding_box()
         assert box is not None and box["width"] >= 34 and box["height"] >= 34
-    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert page.evaluate(FITS)
 
 
 @pytest.mark.parametrize("scheme", ["dark", "light"])
@@ -422,7 +422,7 @@ def announcing(runtime, world, admin_engine):
 
 
 def fits(page, what):
-    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), what
+    assert page.evaluate(FITS), what
 
 
 def test_ay15_the_messages_column_and_delivery_line(console_page, admin_engine, world, runtime):

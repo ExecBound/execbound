@@ -16,7 +16,7 @@ from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
 from test_browser_console_approvals import COLLECT, pending
 from test_browser_console_approvals import agent as agent
-from test_browser_surfaces import ACTION_TIMEOUT_MS
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import targets
@@ -359,9 +359,7 @@ def fits_and_passes(page, where: str, *, phone: bool) -> None:
     settled(page)
     assert page.evaluate(AXE_RUN) == [], where
     assert page.evaluate("window.__violations") == [], where
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (where, "horizontal scroll")
+    assert page.evaluate(FITS), (where, "horizontal scroll")
     if phone:
         assert page.evaluate(OUTSIDE_GUTTERS) == [], where
 

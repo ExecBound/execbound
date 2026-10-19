@@ -66,3 +66,24 @@ def test_every_block_declares_something():
             counts[block] += 1
     empty = [block for block, count in counts.items() if count == 0]
     assert empty == [], empty
+
+
+RULE = re.compile(r"^\s*([^{}@/\s][^{}]*?)\s*\{([^{}]*)\}\s*$")
+
+
+def declared(selector: str) -> set[str]:
+    """The declarations of every one-line rule whose selector list names `selector`."""
+    found: set[str] = set()
+    for line in STYLESHEET.read_text(encoding="utf-8").splitlines():
+        rule = RULE.match(line)
+        if rule and selector in (part.strip() for part in rule.group(1).split(",")):
+            found |= {item.strip() for item in rule.group(2).split(";") if item.strip()}
+    return found
+
+
+def test_a_box_marked_unavailable_is_dimmed_as_an_unavailable_button_is():
+    """A checkbox kept focusable while its change is out is `aria-disabled`, not `disabled`,
+    and must not look clickable: it takes the unavailable button's opacity and cursor."""
+    button = declared('.btn[aria-disabled="true"]')
+    assert button == {"opacity: 0.55", "cursor: default"}
+    assert declared('input[aria-disabled="true"]') == button

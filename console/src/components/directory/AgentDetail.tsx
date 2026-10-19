@@ -1007,7 +1007,9 @@ function ReachCard({ detail }: { detail: AgentDetail }) {
       </Table>
       <p className="note">Resource scope names configured provider accounts. Policy conditions narrow the eligible targets; target eligibility is resolved for each request.</p>
       {bundleId !== null && detail.rules_origin === "recognized-seed" && detail.policy_document ? (
-        <details>
+        // `policy-reading` wraps the documents' long lines, as it does below; without it they
+        // ran to 691 px at 390 and panned inside `main`.
+        <details className="policy-reading">
           <summary>Exact policy documents</summary>
           <h4>Authorization</h4>
           <pre>{detail.policy_document.authorization_policies || "No authorization statements."}</pre>

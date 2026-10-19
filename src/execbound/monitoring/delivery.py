@@ -4,7 +4,7 @@
 import hashlib
 import hmac
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -13,6 +13,9 @@ import httpx
 from execbound.egress import NOT_PUBLIC, refused
 from execbound.monitoring.models import MonitorError
 from execbound.transports import DELIVERED, SendResult, retry_after_seconds
+
+if TYPE_CHECKING:
+    from execbound.resolution.models import Clock
 
 # Every rule a finding can carry (`monitor_findings_rule_version_check`, migration 0093), with
 # the fixed label a finding message names it by (#31). A message carries this label and never
@@ -89,9 +92,10 @@ def post_signed(
     *,
     max_bytes: int = 4096,
     accepted: frozenset[int] = ACCEPTED,
+    clock: "Clock | None" = None,
 ) -> SendResult:
-    """One signed POST, read only for its status and `Retry-After`; never its body, and no
-    error's text, which could quote the URL."""
+    """One signed POST, read only for its status and `Retry-After`, a date in it measured from
+    `clock`; never its body, and no error's text, which could quote the URL."""
     if len(payload) > max_bytes:
         raise MonitorError("INVALID_NOTIFICATION")
     try:
@@ -118,7 +122,7 @@ def post_signed(
     if status in accepted:
         return DELIVERED
     if status == 429:
-        return SendResult(False, "RECEIVER_RATE_LIMITED", retry_after_seconds(retry))
+        return SendResult(False, "RECEIVER_RATE_LIMITED", retry_after_seconds(retry, clock))
     if 400 <= status < 500:
         return SendResult(False, "RECEIVER_REFUSED")
     return SendResult(False, "RECEIVER_UNAVAILABLE")

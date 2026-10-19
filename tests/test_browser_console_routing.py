@@ -17,6 +17,7 @@ from sqlalchemy import text
 from test_browser_console import audit, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import request
@@ -140,8 +141,5 @@ def test_ar23_routing_pages_are_accessible(console_page, db, admin_engine, world
     for path in ("/approvers", "/", "/approvals"):
         page.goto(path)
         settled(page)
-        assert page.evaluate(
-            "(() => { const main = document.querySelector('main');"
-            " return main.scrollWidth <= main.clientWidth; })()"
-        ), (path, width)
+        assert page.evaluate(FITS), (path, width)
         assert page.evaluate("window.__violations") == []

@@ -28,7 +28,7 @@ from test_browser_console import AXE, AXE_RUN, COLLECT, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
 from test_browser_console_directory import TOKEN, agent_name, nowhere
-from test_browser_surfaces import ACTION_TIMEOUT_MS, self_signed, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, self_signed, serve
 from test_browser_surfaces import chromium as chromium
 from test_execution import provision_credential
 from test_execution import registry as registry
@@ -58,9 +58,7 @@ def clean(page, label) -> None:
         page.set_viewport_size({"width": width, "height": height})
         settled(page)
         assert page.evaluate(AXE_RUN) == [], (label, scheme, width)
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), (label, scheme, width)
+        assert page.evaluate(FITS), (label, scheme, width)
     page.set_viewport_size({"width": 1280, "height": 900})
     page.emulate_media(color_scheme="light")
     assert page.evaluate("window.__violations") == [], label
@@ -299,9 +297,7 @@ def test_su14_a_passkey_steps_up_a_key_revocation_over_the_agent_page(
                 page.set_viewport_size({"width": width, "height": height})
                 settled(page)
                 assert page.evaluate(AXE_RUN) == [], (scheme, width)
-                assert page.evaluate(
-                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-                ), (scheme, width)
+                assert page.evaluate(FITS), (scheme, width)
                 expect(asking).to_be_in_viewport()
             page.set_viewport_size({"width": 1280, "height": 900})
             page.emulate_media(color_scheme="light")

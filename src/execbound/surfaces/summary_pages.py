@@ -5,8 +5,8 @@ Each summary carries `<origin>/weekly-summary/unsubscribe/ebw1.<tenant>.<message
 in its `List-Unsubscribe` header and once in its body. RFC 8058 has the mail client `POST` to
 that address, which a fragment cannot carry, so unlike the invitation link the secret is in
 the path; the request log records no path, both pages send `Referrer-Policy: no-referrer`
-and `Cache-Control: no-store`, and `ebw1` is one of the secret shapes the log and export
-guards refuse.
+and `Cache-Control: no-store`, their refusals `no-referrer` too, and `ebw1` is one of the
+secret shapes the log and export guards refuse.
 
 `GET` reads nothing and changes nothing, so a mail scanner's prefetch does nothing: it shows a
 page with one form that posts to the same address. `POST` ends the subscription only when the
@@ -32,6 +32,9 @@ from execbound.weekly_summary import parse_link, unsubscribe
 # A one-click body is one short field; anything larger is not one.
 MAX_BODY = 2048
 FORMS = frozenset({"application/x-www-form-urlencoded", "multipart/form-data"})
+# A refusal's page is answered at the same address, which holds the link's secret, and it
+# loads the stylesheet and links to sign in: it keeps the stricter policy too.
+REFUSED = {"Referrer-Policy": "no-referrer"}
 
 
 def summary_router(runtime: Runtime, config: HumanConfig) -> APIRouter:
@@ -62,12 +65,12 @@ def summary_router(runtime: Runtime, config: HumanConfig) -> APIRouter:
             or "authorization" in request.headers
             or "content-encoding" in request.headers
         ):
-            raise HTTPException(400, "Invalid request")
+            raise HTTPException(400, "Invalid request", headers=REFUSED)
         if request.method == "GET" and (
             request.headers.get("content-length", "0") != "0"
             or "transfer-encoding" in request.headers
         ):
-            raise HTTPException(400, "Invalid request")
+            raise HTTPException(400, "Invalid request", headers=REFUSED)
         if request.method == "POST":
             kind = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
             length = request.headers.get("content-length", "")
@@ -77,7 +80,7 @@ def summary_router(runtime: Runtime, config: HumanConfig) -> APIRouter:
                 or not length.isdigit()
                 or int(length) > MAX_BODY
             ):
-                raise HTTPException(400, "Invalid request")
+                raise HTTPException(400, "Invalid request", headers=REFUSED)
         parsed = parse_link(link)
         try:
             runtime.limiter.refuse("client", client_key(request))
@@ -85,7 +88,7 @@ def summary_router(runtime: Runtime, config: HumanConfig) -> APIRouter:
                 runtime.limiter.refuse("login", f"ebw1:{parsed[1]}")
         except RateLimited as exc:
             raise HTTPException(
-                429, "Too many attempts", headers={"Retry-After": str(exc.retry_after)}
+                429, "Too many attempts", headers={**REFUSED, "Retry-After": str(exc.retry_after)}
             ) from None
 
     @routes.get("/weekly-summary/unsubscribe/{link}")

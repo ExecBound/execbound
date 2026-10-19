@@ -355,17 +355,21 @@ def _send(
     rendered: bytes | EmailMessage,
     client: httpx.Client,
     outbound: Outbound,
+    clock: Clock,
 ) -> SendResult:
     """One attempt of what `_render` built, through the destination's kind. Email goes to the
     operator's relay by the mail path, with the relay's TLS context; only the webhook and chat
-    kinds go through `client`, the egress guard's, which never sees that context."""
+    kinds go through `client`, the egress guard's, which never sees that context. A receiver's
+    `Retry-After` date is measured from the drain's `clock`."""
     if isinstance(rendered, EmailMessage):
         if outbound.mail is None or destination.to is None:
             raise MonitorError("INVALID_CONFIGURATION")
         return deliver_email(outbound.mail, destination.to, rendered, context=outbound.tls_context)
     if destination.kind in CHAT_KINDS:
-        return post_chat(destination.kind, destination.url, delivery_id, rendered, client)
-    return post_signed(destination, delivery_id, rendered, client)
+        return post_chat(
+            destination.kind, destination.url, delivery_id, rendered, client, clock=clock
+        )
+    return post_signed(destination, delivery_id, rendered, client, clock=clock)
 
 
 def deliver_findings(
@@ -382,18 +386,19 @@ def deliver_findings(
     retried and finally visible (#31).
 
     A delivery is closed unsent when its destination is gone (`DESTINATION_UNKNOWN`), no longer
-    lists `findings` (`CLASS_OFF`) or its finding was acknowledged (`FINDING_ACKNOWLEDGED`). A
-    send is at most five attempts on the approval drain's backoff, a 429 waiting its
-    `Retry-After`; a fifth lease that expired unsettled ends `DELIVERY_UNCERTAIN` with no sixth
-    send. An email over the findings' share of the one daily cap, which keeps its last tenth for
-    approval announcements, waits an hour before anything is leased, spending no attempt, and
-    fails `RATE_LIMITED` once its delivery is a day old. The delivery id never changes, so a
-    receiver deduplicates on it. A chat destination gets at most one message a second within a
-    drain; `sleep` and `monotonic` are the tests'. Every body is rendered under the lease, and
-    every HTTP send goes through the egress guard inside its ten-second deadline. A settle that
-    finds the lease gone writes, counts and logs nothing: the drain that leased the row again
-    settles it. A delivery closed unsent, or given up at the cap, logs its closing as a settled
-    attempt does. Nothing here touches the finding, an approval or an execution.
+    lists `findings` (`CLASS_OFF`) or its finding was acknowledged (`FINDING_ACKNOWLEDGED`). A send
+    is at most five attempts, 5, 25, 125 and 625 s apart on the approval drain's backoff, a 429
+    waiting its `Retry-After` (a date in it read against `clock`); a fifth lease that expired
+    unsettled ends `DELIVERY_UNCERTAIN` with no sixth send. An email over the findings' share of the
+    one daily cap, which keeps its last tenth for approval announcements, waits an hour before
+    anything is leased, spending no attempt, and fails `RATE_LIMITED` once its delivery is a day
+    old. The delivery id never changes, so a receiver deduplicates on it. A chat destination gets at
+    most one message a second within a drain; `sleep` and `monotonic` are the tests'. Every body is
+    rendered under the lease, and every HTTP send goes through the egress guard inside its
+    ten-second deadline. A settle that finds the lease gone writes, counts and logs nothing: the
+    drain that leased the row again settles it. A delivery closed unsent, or given up at the cap,
+    logs its closing as a settled attempt does. Nothing here touches the finding, an approval or an
+    execution.
     """
     if type(limit) is not int or not 1 <= limit <= 50:
         raise MonitorError("INVALID_LIMIT")
@@ -479,7 +484,7 @@ def deliver_findings(
                         sleep(wait)
                     last_chat[destination.destination_id] = monotonic()
                 # A crash here leaves a lease that expires; the next drain resends the same id.
-                result = _send(destination, row["delivery_id"], rendered, client, outbound)
+                result = _send(destination, row["delivery_id"], rendered, client, outbound, clock)
                 with db.transaction(tenant) as conn:
                     _check_actor(conn, actor, clock)
                     attempts = int(row["attempts"]) + 1

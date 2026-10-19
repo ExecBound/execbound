@@ -19,6 +19,7 @@ from sqlalchemy import text
 from test_browser_console import AXE_RUN, settled
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_console_api_activity import denied
 from test_execution import registry as registry
@@ -42,9 +43,7 @@ def clean(page, where: str) -> None:
     settled(page)
     assert page.evaluate(AXE_RUN) == [], where
     assert page.evaluate("window.__violations") == [], where
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (where, "horizontal scroll")
+    assert page.evaluate(FITS), (where, "horizontal scroll")
 
 
 def end_in(admin_engine, identity, seconds: int, *, setup: bool) -> None:

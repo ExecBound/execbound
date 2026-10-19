@@ -190,6 +190,23 @@ EXPECT_TIMEOUT_MS = 15_000
 # says only that something took too long.
 ACTION_TIMEOUT_MS = EXPECT_TIMEOUT_MS
 
+# Nothing scrolls sideways: neither the document nor `main`, which scrolls on its own at phone
+# width, so content wider than it pans inside it there without widening the document (#31).
+# Every browser test asks this of a page rather than the document's width alone, which at
+# phone width sees only the top bar, the banners and the tab bar. It is defined here, not
+# beside the console's audit, because `test_browser_console` imports this module: here every
+# browser test, this one included, can import it without a cycle.
+# A page without `main`, such as one that failed before its shell rendered, is still measured
+# by its document; whether it should have a `main` is for the page's own checks to say.
+FITS = """
+() => {
+  const root = document.documentElement;
+  const main = document.querySelector('main');
+  return root.scrollWidth <= root.clientWidth
+    && (main === null || main.scrollWidth <= main.clientWidth);
+}
+"""
+
 
 @pytest.fixture(scope="module")
 def chromium():
@@ -278,9 +295,7 @@ def assert_responsive(page, controls, *, scroll=True):
     # wait_for_function evaluates its predicate inside the page and can hit
     # strict CSP. Read settled layout directly without relaxing that policy.
     page.wait_for_load_state("load")
-    assert page.evaluate(
-        "() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    )
+    assert page.evaluate(FITS)
     for control in controls:
         expect(control).to_be_visible()
         if scroll:
@@ -630,9 +645,7 @@ def test_gc18_the_pages_label_an_externally_executed_operation_as_inert_text(
     for viewport in ({"width": 1440, "height": 1000}, {"width": 390, "height": 844}):
         page.set_viewport_size(viewport)
         page.wait_for_load_state("load")
-        assert page.evaluate(
-            "() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        )
+        assert page.evaluate(FITS)
         expect(settle.first).to_be_enabled()
     page.set_viewport_size({"width": 1440, "height": 1000})
 

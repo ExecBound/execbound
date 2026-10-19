@@ -5,18 +5,22 @@
 own secret, and every `POST` answers the same status and body, a forged, unknown, used,
 malformed or other workspace's link and one naming a workspace that does not exist included.
 An old link cannot end a renewed subscription. Both pages send `no-referrer` and `no-store`,
-the request log carries no path, and both limits answer 429.
+and every 400 and 429 `no-referrer` too; the request log carries no path, a forged, unknown or
+malformed link logs nothing and the stop only its ids; both limits answer 429; and a database
+fault while stopping answers the same page and logs one error line with no ids.
 """
 
 import hashlib
+import json
 import secrets
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from console_api_fixtures import ORIGIN, console_config
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from test_execution import registry as registry  # noqa: F401
 from test_execution import world as world  # noqa: F401
 from test_migration_without_bypass import fenced
@@ -27,6 +31,7 @@ from test_structured_logging import captured as captured  # noqa: F401
 from test_structured_logging import records
 from test_teammate_invitations import workspace
 
+from execbound import weekly_summary
 from execbound.app import create_app
 from execbound.resolution.models import SystemClock
 from execbound.surfaces.limits import RequestLimiter, RequestLimits
@@ -34,6 +39,7 @@ from execbound.surfaces.limits import RequestLimiter, RequestLimits
 PAGE = "/weekly-summary/unsubscribe/"
 ONE_CLICK = {"Content-Type": "application/x-www-form-urlencoded"}
 BODY = "List-Unsubscribe=One-Click"
+BROWSER = {"Accept": "text/html"}
 
 
 def monday() -> date:
@@ -181,6 +187,47 @@ def test_hv14_an_old_link_cannot_end_a_renewed_subscription(db, admin_engine, cl
     assert state(admin_engine, one["tenant"], one["admin"])[:2] == (True, None)
 
 
+def test_hv14_the_request_log_names_no_path_and_the_stop_only_its_ids(
+    db,
+    admin_engine,
+    client,
+    captured,  # noqa: F811
+):
+    """A forged link, a link naming a workspace that does not exist and a malformed one are no
+    fault: none writes a `weekly_summary.*` line or anything at ERROR, so nobody holding a link
+    can fill the operator's error log. The real stop writes one line, with the tenant and
+    message ids alone, and no line carries a path, the secret, its digest or the link."""
+    one = subscribed(db, admin_engine)
+    forged = f"ebw1.{one['tenant']}.{one['message']}.{secrets.token_urlsafe(32)}"
+    before = len(records(captured))
+    assert client.get(PAGE + one["link"]).status_code == 200
+    assert post(client, forged).status_code == 200
+    assert post(client, f"ebw1.{uuid4()}.{one['message']}.{one['secret']}").status_code == 200
+    assert post(client, "ebw1.not-a-link").status_code == 200
+    assert post(client, one["link"]).status_code == 200
+    assert state(admin_engine, one["tenant"], one["admin"]) == (False, "LINK", 1)
+    lines = records(captured)[before:]
+    completed = [line for line in lines if line["event"] == "request.completed"]
+    assert len(completed) == 5 and all("path" not in line for line in completed)
+    assert [line for line in lines if line["level"] == "ERROR"] == []
+    assert [line for line in lines if line["event"] == "log.suppressed"] == []
+    written = json.dumps(lines)
+    digest = hashlib.sha256(one["secret"].encode()).hexdigest()
+    for value in (one["secret"], "ebw1.", "/weekly-summary/", digest):
+        assert value not in written, value
+    assert [
+        {k: v for k, v in line.items() if k not in ("ts", "level", "request_id")}
+        for line in lines
+        if line["event"].startswith("weekly_summary.")
+    ] == [
+        {
+            "event": "weekly_summary.unsubscribed",
+            "tenant_id": str(one["tenant"]),
+            "message_id": str(one["message"]),
+        }
+    ]
+
+
 def test_hv14_the_request_shape_is_held(db, admin_engine, client):
     one = subscribed(db, admin_engine)
     link = PAGE + one["link"]
@@ -210,3 +257,108 @@ def test_hv14_both_limits_answer_too_many(db, admin_engine, runtime, client):
     assert client.get(PAGE + other["link"]).status_code == 200
     assert post(client, other["link"]).status_code == 429
     assert state(admin_engine, other["tenant"], other["admin"]) == (True, None, 0)
+
+
+def test_hv14_an_error_page_sends_no_referrer(db, admin_engine, runtime, client):
+    """A refusal's page is answered at the link's own address, which holds its secret, and it
+    loads the stylesheet and links to sign in: it keeps `no-referrer` too, for every 400 the
+    request's shape can earn and for the 429 of each limit, as a page and as a plain answer."""
+    one = subscribed(db, admin_engine)
+    link = PAGE + one["link"]
+
+    def chunked():
+        yield BODY.encode()
+
+    refusals = {
+        "a query string": lambda h: client.get(link + "?x=1", headers=h),
+        "an identity header": lambda h: client.get(link, headers={**h, "X-Tenant-Id": "x"}),
+        "an Authorization header": lambda h: client.get(
+            link, headers={**h, "Authorization": "Bearer x"}
+        ),
+        "a Content-Encoding header": lambda h: client.post(
+            link, content=BODY, headers={**h, **ONE_CLICK, "Content-Encoding": "gzip"}
+        ),
+        "a GET with a body": lambda h: client.request("GET", link, content="x", headers=h),
+        "a GET with a chunked body": lambda h: client.request(
+            "GET", link, content=chunked(), headers=h
+        ),
+        "a POST that is not a form": lambda h: client.post(
+            link, content=BODY, headers={**h, "Content-Type": "application/json"}
+        ),
+        "a chunked POST": lambda h: client.post(
+            link, content=chunked(), headers={**h, **ONE_CLICK}
+        ),
+        "a POST whose length is not a number": lambda h: client.post(
+            link, content=BODY, headers={**h, **ONE_CLICK, "Content-Length": "x"}
+        ),
+        "a POST too long": lambda h: client.post(
+            link, content="x" * 4096, headers={**h, **ONE_CLICK}
+        ),
+    }
+    for what, request in refusals.items():
+        for headers in (BROWSER, {}):
+            refused = request(headers)
+            assert refused.status_code == 400, what
+            assert ("text/html" in refused.headers["content-type"]) == bool(headers), what
+            assert refused.headers["referrer-policy"] == "no-referrer", what
+    # Each limit: the per-message bound, then the per-peer one.
+    for limits in (RequestLimits(login_attempts=1), RequestLimits(client_requests=1)):
+        runtime.limiter = RequestLimiter(limits, runtime.clock)
+        assert client.get(link, headers=BROWSER).status_code == 200
+        for headers in (BROWSER, {}):
+            limited = client.post(link, content=BODY, headers={**ONE_CLICK, **headers})
+            assert limited.status_code == 429 and "retry-after" in limited.headers, limits
+            assert ("text/html" in limited.headers["content-type"]) == bool(headers), limits
+            assert limited.headers["referrer-policy"] == "no-referrer", limits
+    assert state(admin_engine, one["tenant"], one["admin"]) == (True, None, 0)
+
+
+class Behind:
+    """A clock ten minutes behind the database's, which the stop's definer refuses."""
+
+    def now(self) -> datetime:
+        return datetime.now(UTC) - timedelta(minutes=10)
+
+
+@pytest.mark.parametrize("fault", ["the audit append", "the definer"])
+def test_hv14_a_stop_the_database_refuses_is_logged_and_answered_alike(
+    db,
+    admin_engine,
+    runtime,
+    client,
+    captured,  # noqa: F811
+    monkeypatch,
+    fault,
+):
+    """A fault while ending the subscription, whether the audit chain refuses the append or the
+    definer refuses the call, changes nothing and answers the same page as every other `POST`;
+    it is one error line with a fixed code and no ids, so a probe learns nothing from the page,
+    nothing of the link reaches the log, and an operator still sees the fault."""
+    one = subscribed(db, admin_engine)
+    alike = post(client, "ebw1.not-a-link")
+
+    def refused(*args, **kwargs):
+        raise SQLAlchemyError("the audit chain cannot be written")
+
+    if fault == "the audit append":
+        monkeypatch.setattr(weekly_summary, "append_event", refused)
+    else:
+        runtime.clock = Behind()
+    before = len(records(captured))
+    answer = post(client, one["link"])
+    assert alike.status_code == 200
+    assert (answer.status_code, answer.text) == (alike.status_code, alike.text)
+    assert state(admin_engine, one["tenant"], one["admin"]) == (True, None, 0)
+    lines = records(captured)[before:]
+    assert [line["event"] for line in lines if line["level"] == "ERROR"] == [
+        "weekly_summary.refused"
+    ]
+    rest = [line for line in lines if line["event"] != "request.completed"]
+    assert [{k: v for k, v in line.items() if k not in ("ts", "request_id")} for line in rest] == [
+        {"event": "weekly_summary.refused", "level": "ERROR", "code": "UNAVAILABLE"}
+    ]
+    logged = json.dumps(lines)
+    for leaked in (one["secret"], one["link"], "cannot be written", "INVALID_CLOCK"):
+        assert leaked not in logged, leaked
+    error = json.dumps(rest)
+    assert str(one["tenant"]) not in error and str(one["message"]) not in error

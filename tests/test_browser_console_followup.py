@@ -8,6 +8,7 @@ from playwright.sync_api import expect
 from test_browser_console import AXE_RUN, audit, person_name, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import world as world
@@ -53,7 +54,5 @@ def test_empty_queue_and_own_profile_after_space_creation(console_page, admin_en
         expect(conditions.locator("pre").first).to_be_visible()
         settled(page)
         assert page.evaluate(AXE_RUN) == []
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        )
+        assert page.evaluate(FITS)
         conditions.screenshot(path=output / f"policy-conditions-{width}.png")

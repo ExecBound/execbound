@@ -33,8 +33,8 @@ from test_browser_accessibility import audit as page_audit
 from test_browser_accessibility import readable
 from test_browser_console import AXE, COLLECT, sign_in_as
 from test_browser_console import audit as console_audit
+from test_browser_surfaces import FITS, serve
 from test_browser_surfaces import chromium as chromium
-from test_browser_surfaces import serve
 from test_execution import provision_credential
 from test_execution import registry as registry
 from test_execution import world as world
@@ -151,7 +151,7 @@ def test_the_invitation_page_reads_and_is_labelled_in_both_schemes(page, scheme,
     field = page.get_by_label("Invitation code")
     expect(field).to_have_attribute("type", "password")
     expect(field).to_have_attribute("autocomplete", "off")
-    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    assert page.evaluate(FITS)
 
 
 def test_the_invitation_page_says_one_sentence_for_a_code_that_is_not_one(page):

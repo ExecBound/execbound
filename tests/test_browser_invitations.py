@@ -22,7 +22,7 @@ from test_approval_group_rules import remove_individual_scope
 from test_browser_console import AXE_RUN, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import request
@@ -130,18 +130,18 @@ def test_ti21_invite_pages_fit_a_phone(page, db, admin_engine, tmp_path):
     bare.set_viewport_size({"width": 390, "height": 844})
     bare.goto("/join")
     expect(bare.get_by_role("heading", level=1)).to_be_visible()
-    assert bare.evaluate("document.documentElement.scrollWidth") <= 390
+    assert bare.evaluate(FITS)
     bare.screenshot(path=str(tmp_path / "invite_open.png"))
     bare.close()
 
     page.goto(f"/join#{token}")
     expect(page).to_have_url(re.compile(r"/join$"))
-    assert page.evaluate("document.documentElement.scrollWidth") <= 390
+    assert page.evaluate(FITS)
     page.screenshot(path=str(tmp_path / "invite_open_token.png"))
 
     page.get_by_role("button", name="Continue").click()
     expect(page.get_by_role("heading", level=1)).to_have_text("Join the workspace.")
-    assert page.evaluate("document.documentElement.scrollWidth") <= 390
+    assert page.evaluate(FITS)
     page.screenshot(path=str(tmp_path / "invite_accept.png"))
 
 
@@ -320,9 +320,7 @@ def test_ar8_the_invite_dialog_is_accessible(
         settled(console_page)
         assert console_page.evaluate(AXE_RUN) == [], (scheme, width)
         assert console_page.evaluate("window.__violations") == [], (scheme, width)
-        assert console_page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), (scheme, width, "horizontal scroll")
+        assert console_page.evaluate(FITS), (scheme, width, "horizontal scroll")
         expect(dialog).to_be_in_viewport()
         dialog.get_by_role("button", name="Cancel").click()
         expect(dialog).to_be_hidden()

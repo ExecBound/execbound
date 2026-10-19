@@ -6,6 +6,7 @@ from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
 from test_browser_console import sign_in_as
 from test_browser_console_monitor import clean
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_console_api_monitoring import seed_tines
 from test_console_api_monitoring_setup import register
@@ -57,4 +58,4 @@ def test_existing_connection_reports_only_the_persisted_sync_and_keeps_connect_a
     expect(dialog).to_contain_text("Reporting — first sync verified")
     expect(dialog).to_contain_text("does not prove complete coverage")
     clean(console_page, "monitoring setup reporting on a phone")
-    assert console_page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    assert console_page.evaluate(FITS)

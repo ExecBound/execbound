@@ -27,7 +27,12 @@ from test_execution import request
 from test_execution import world as world
 from test_human_surface import credential
 from test_monitoring_worker import receiver as receiver
-from test_notification_transports import APPROVAL, EXECUTION
+from test_notification_transports import (
+    APPROVAL,
+    EXECUTION,
+    NON_LATIN_SPACE,
+    NON_LATIN_WORKSPACE,
+)
 from test_notification_transports import closed as closed_message
 from test_notification_transports import message as approval
 from test_protected_path import connector as connector
@@ -307,6 +312,32 @@ def test_an_unnamed_message_keeps_the_plain_subject_and_the_execution_reference(
     assert f"Request: {EXECUTION}" in body
     for absent in ("to decide when this was sent", "Space:", "Requested by:", "You receive"):
         assert absent not in body
+
+
+@pytest.mark.parametrize("kind", ["approval.pending", "approval.reminder", "approval.closed"])
+def test_ay6_a_name_nothing_of_which_survives_is_left_out_not_called_unknown(kind):
+    """A workspace or Space name in a script `safe_label` drops would read "unknown": the
+    subject's tag and the first line leave the workspace out, the Space line is not written,
+    and the last sentence still says why the address receives the message."""
+    message = (
+        closed_message(workspace=NON_LATIN_WORKSPACE)
+        if kind == "approval.closed"
+        else named(workspace=NON_LATIN_WORKSPACE, space=NON_LATIN_SPACE, kind=kind)
+    )
+    rendered = render_email(relay_mail(2525), ADDRESS, DELIVERY, message)
+    subject, body = str(rendered["Subject"]), rendered.get_content()
+    assert "unknown" not in subject + body
+    if kind == "approval.closed":
+        assert subject == "[ExecBound \u00b7 EB-20] Approved: Isolate endpoint on workstation"
+        return
+    lead = "Still waiting, decide by" if kind == "approval.reminder" else "Decide by"
+    assert subject == (
+        f"[ExecBound \u00b7 EB-20] {lead} 03:28:00 UTC: Isolate endpoint on workstation"
+    )
+    lines = body.splitlines()
+    assert lines[0].endswith("Decide by 03:28:00 UTC.")
+    assert not any(line.startswith(("Workspace:", "Space:")) for line in lines)
+    assert "You receive this because this address is a notification destination." in lines
 
 
 def test_ay6_hostile_workspace_and_space_names_never_reach_a_header():

@@ -15,7 +15,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from functools import partial
+from pathlib import Path
 from threading import Barrier, Event, Thread, get_ident
 from types import SimpleNamespace
 from typing import Any
@@ -50,6 +52,8 @@ from execbound.monitoring.delivery import FINDING_RULES
 from execbound.monitoring.models import MonitorError, ObservationEvent
 from execbound.monitoring.receiver import make_receiver
 from execbound.notifications import (
+    BACKOFF,
+    MAX_ATTEMPTS,
     Destination,
     deliver_pending,
     destination_tenants,
@@ -911,6 +915,64 @@ def test_fd3_a_429_waits_its_retry_after_and_counts_as_an_attempt(db, admin_engi
     assert row["next_attempt_at"] == clock.now() + timedelta(seconds=40)
 
 
+def dated_retry(clock):
+    """A `Retry-After` date forty-five seconds after the drain's moment, in the whole seconds an
+    HTTP-date has, with the drain ten minutes ahead of the host: read against the host's clock,
+    the wait would be over ten minutes, and a date that could not be read waits thirty."""
+    clock.value += timedelta(minutes=10)
+    answered = clock.now()
+    date = (answered + timedelta(seconds=45)).replace(microsecond=0)
+    return answered, format_datetime(date, usegmt=True)
+
+
+def test_fd3_a_429_with_an_http_date_waits_until_that_date_on_the_drains_clock(
+    db, admin_engine, raised
+):
+    admin, clock = raised
+    tenant = admin.tenant_id
+    with chat_fake() as fake:
+        out = outbound(
+            Destination("teams", tenant, fake.teams_url, "", kind="teams", classes=FINDINGS)
+        )
+        worker.route_findings(db, admin, out.destinations, clock=clock)
+        answered, date = dated_retry(clock)
+        fake.answer(429, **{"Retry-After": date})
+        worker.deliver_findings(db, admin, out, clock=clock)
+    [row] = delivery_rows(admin_engine, tenant)[1:]
+    assert (row["state"], row["attempts"], row["last_error"]) == (
+        "PENDING",
+        1,
+        "RECEIVER_RATE_LIMITED",
+    )
+    assert row["next_attempt_at"] == answered + timedelta(seconds=45)
+
+
+def test_fd3_a_signed_429_with_an_http_date_waits_until_that_date_on_the_drains_clock(
+    db, admin_engine, raised, monkeypatch
+):
+    """The webhook kind's sender is the real one, answered by a stand-in receiver: the drain
+    hands it the drain's clock as it hands the chat sender."""
+    admin, clock = raised
+    tenant = admin.tenant_id
+    real = worker.post_signed
+    out = outbound(hook(tenant))
+    worker.route_findings(db, admin, out.destinations, clock=clock)
+    answered, date = dated_retry(clock)
+
+    def limited(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, headers={"Retry-After": date})
+
+    def send(destination, delivery_id, body, client, **kwargs):
+        with httpx.Client(transport=httpx.MockTransport(limited)) as receiver:
+            return real(destination, delivery_id, body, receiver, **kwargs)
+
+    monkeypatch.setattr(worker, "post_signed", send)
+    worker.deliver_findings(db, admin, out, clock=clock)
+    [row] = delivery_rows(admin_engine, tenant)[1:]
+    assert (row["state"], row["last_error"]) == ("PENDING", "RECEIVER_RATE_LIMITED")
+    assert row["next_attempt_at"] == answered + timedelta(seconds=45)
+
+
 def test_fd4_five_failures_end_failed_with_the_transports_code_and_leave_the_finding(
     db, admin_engine, raised, monkeypatch
 ):
@@ -919,7 +981,7 @@ def test_fd4_five_failures_end_failed_with_the_transports_code_and_leave_the_fin
     before = finding_row(admin_engine, tenant)
     calls = []
 
-    def refuse(destination, delivery_id, body, client):
+    def refuse(destination, delivery_id, body, client, **kwargs):
         calls.append(delivery_id)
         return SendResult(False, "RECEIVER_REFUSED")
 
@@ -944,6 +1006,44 @@ def test_fd4_five_failures_end_failed_with_the_transports_code_and_leave_the_fin
     assert drained == {"delivered": 0, "failed": 0, "closed": 0}
     assert delivery_rows(admin_engine, tenant)[1:] == [failed]
     assert finding_row(admin_engine, tenant) == before
+
+
+DOCS = Path(__file__).resolve().parents[1] / "docs"
+# The pages that give the delivery retries' waits: both drains', and the threat model's and the
+# acceptance inventory's rows for them.
+RETRY_PAGES = (
+    "NOTIFICATIONS.md",
+    "OPERATIONS.md",
+    "TINES_MONITORING.md",
+    "THREAT_MODEL.md",
+    "ACCEPTANCE_TESTS.md",
+)
+
+
+@pytest.mark.docs
+def test_the_pages_give_the_four_waits_five_attempts_have():
+    """Five attempts have four waits, `BACKOFF[:MAX_ATTEMPTS - 1]`, and both drains take them
+    from the one table. Its last value is looked up at a fifth attempt and thrown away, since
+    nothing follows a fifth, so no page gives it; the approval drain's pages give the four waits
+    the findings drain's do."""
+    waits = BACKOFF[: MAX_ATTEMPTS - 1]
+    assert waits == (5, 25, 125, 625)
+    spoken = f"{', '.join(map(str, waits[:-1]))} and {waits[-1]} seconds apart"
+    # The rule both drains' `BACKOFF[min(attempts, MAX_ATTEMPTS) - 1]` relies on.
+    assert len(BACKOFF) == MAX_ATTEMPTS
+    unused = re.compile(r"\b3,?125\b")
+    for page in RETRY_PAGES:
+        assert unused.search((DOCS / page).read_text(encoding="utf-8")) is None, page
+    notifications = (DOCS / "NOTIFICATIONS.md").read_text(encoding="utf-8")
+    [retries] = [line for line in notifications.splitlines() if "after five attempts" in line]
+    assert spoken in retries
+    operations = (DOCS / "OPERATIONS.md").read_text(encoding="utf-8")
+    [approvals] = [
+        line for line in operations.splitlines() if line.startswith("When admission creates")
+    ]
+    assert spoken in approvals
+    [findings] = [line for line in operations.splitlines() if line.startswith("**Sending.**")]
+    assert spoken in findings
 
 
 def test_fd4_a_fifth_expired_lease_is_uncertain_with_no_sixth_send(

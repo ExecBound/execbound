@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from playwright.sync_api import expect
 from sqlalchemy import text
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import browser_gateway as browser_gateway
 from test_browser_surfaces import chromium as chromium
 from test_runtime import connector as connector
@@ -327,7 +327,7 @@ def test_the_pages_are_reachable_and_labelled_at_phone_width(page, db, addressed
     ):
         page.goto(address)
         expect(page.get_by_role("heading", level=1)).to_have_text(heading)
-        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        assert page.evaluate(FITS)
         for control in page.get_by_role("textbox").all():
             assert control.get_attribute("name")
         for button in page.get_by_role("button").all():

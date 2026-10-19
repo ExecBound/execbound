@@ -23,7 +23,7 @@ from sample_fixtures import sample_key as sample_key
 from sample_fixtures import sample_mock as sample_mock
 from sample_fixtures import sample_runtime as sample_runtime
 from test_browser_console import AXE, AXE_RUN, COLLECT, console_app, settled, sign_in_as
-from test_browser_surfaces import ACTION_TIMEOUT_MS, serve
+from test_browser_surfaces import ACTION_TIMEOUT_MS, FITS, serve
 from test_browser_surfaces import chromium as chromium
 
 from execbound import samples
@@ -65,9 +65,7 @@ def clean(page, what):
     violations = page.evaluate(AXE_RUN)
     assert violations == [], (what, violations)
     assert page.evaluate("window.__violations") == [], what
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (what, "horizontal scroll")
+    assert page.evaluate(FITS), (what, "horizontal scroll")
     assert_secret_free(page.content())
 
 

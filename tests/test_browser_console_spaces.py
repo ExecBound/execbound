@@ -25,6 +25,7 @@ from sqlalchemy import text
 from test_browser_console import AXE_RUN, audit, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import request
@@ -74,9 +75,7 @@ def audit_here(page, where):
     assert violations == [], (where, violations)
     policy = page.evaluate("window.__violations")
     assert policy == [], (where, policy)
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-    ), (where, "horizontal scroll")
+    assert page.evaluate(FITS), (where, "horizontal scroll")
 
 
 def switcher(page):

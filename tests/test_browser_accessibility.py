@@ -13,19 +13,20 @@ import secrets
 from dataclasses import dataclass
 
 import pytest
+from test_browser_surfaces import FITS, sign_in
 from test_browser_surfaces import agent_http as agent_http
 from test_browser_surfaces import browser_gateway as browser_gateway
 from test_browser_surfaces import chromium as chromium
 from test_browser_surfaces import human_page as human_page
 from test_browser_surfaces import pending as pending_over_http
-from test_browser_surfaces import sign_in
 from test_execution import registry as registry
 from test_execution import world as world
 from test_protected_path import connector as connector
 from test_protected_path import live_provider as live_provider
 from test_runtime import runtime as runtime
 
-AUDIT = """
+AUDIT = (
+    """
 () => {
   const problems = [];
   if (document.documentElement.lang !== 'en') problems.push('lang');
@@ -54,11 +55,17 @@ AUDIT = """
       if (!th.getAttribute('scope')) problems.push('th without scope');
     }
   }
-  const root = document.documentElement;
-  if (root.scrollWidth > root.clientWidth) problems.push('horizontal scroll');
+  // FITS, the browser suite's one sideways check: neither the document nor `main`.
+  if (!("""
+    + FITS
+    + """)()) problems.push('horizontal scroll');
   return problems;
 }
 """
+)
+# AUDIT calls FITS without awaiting it: an async FITS would hand back a promise, which is
+# truthy, and the audit would pass every page however wide.
+assert not FITS.lstrip().startswith("async")
 
 
 def audit(page, path):

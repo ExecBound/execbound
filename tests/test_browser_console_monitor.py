@@ -19,9 +19,10 @@ from playwright.sync_api import expect
 from secret_shapes import SLACK
 from space_fixtures import default_space, make_space, place
 from sqlalchemy import text
-from test_browser_console import AXE_RUN, FITS, settled, sign_in_as
+from test_browser_console import AXE_RUN, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_console_api_monitoring import seed_agent, seed_tines
 from test_execution import registry as registry
@@ -173,9 +174,7 @@ def test_an_agents_page_is_clean_in_dark_and_at_phone_width(console_page, admin_
         console_page.goto(path)
         expect(console_page.get_by_role("heading", level=1)).to_have_text(HOSTILE_NAME)
         clean(console_page, f"agent detail, {scheme} at {width}")
-        assert console_page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), (scheme, width)
+        assert console_page.evaluate(FITS), (scheme, width)
 
 
 def test_the_views_are_clean_in_light_at_phone_width_and_an_approver_gets_the_boundary(
@@ -193,9 +192,7 @@ def test_the_views_are_clean_in_light_at_phone_width_and_an_approver_gets_the_bo
         )
         expect(current).to_have_count(1)
         clean(console_page, f"{view} on a phone")
-        assert console_page.evaluate(
-            "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-        ), view
+        assert console_page.evaluate(FITS), view
     # A view that does not exist is Connections, and the address is left as typed.
     console_page.goto("/monitor?view=nothing")
     expect(console_page.get_by_role("heading", name="Synthetic Tines tenant")).to_be_visible()
@@ -439,9 +436,7 @@ def test_mq16_bulk_views_are_clean_in_both_schemes_at_1280_and_390(
                     ).to_contain_text("Acknowledged 1.")
                 label = f"bulk {what} in {scheme} at {width}"
                 clean(console_page, label)
-                assert console_page.evaluate(
-                    "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
-                ), label
+                assert console_page.evaluate(FITS), label
 
 
 RIVAL = "Rival Holdings"

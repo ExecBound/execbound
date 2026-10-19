@@ -20,6 +20,7 @@ from sqlalchemy import text
 from test_browser_console import AXE_RUN, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_execution import registry as registry
 from test_execution import world as world
@@ -44,9 +45,7 @@ def clean(page, where: str) -> None:
     settled(page)
     assert page.evaluate(AXE_RUN) == [], where
     assert page.evaluate("window.__violations") == [], where
-    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), (
-        f"{where} scrolls sideways"
-    )
+    assert page.evaluate(FITS), f"{where} scrolls sideways"
 
 
 def seed(db, runtime, admin_engine, world):

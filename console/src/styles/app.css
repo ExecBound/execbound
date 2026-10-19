@@ -314,6 +314,8 @@ small { color: var(--eb-muted); font-size: 12px; display: block; }
 }
 .btn:hover { background: var(--eb-surface2); }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+/* A box kept focusable while its change is out is unavailable, not disabled: dimmed the same. */
+input[aria-disabled="true"] { opacity: 0.55; cursor: default; }
 .btn-primary { background: var(--eb-accent); border-color: var(--eb-accent); color: var(--eb-on-accent); }
 .btn-primary:hover { background: var(--eb-accent); filter: brightness(1.05); }
 .btn-danger { background: var(--eb-deny-bg); border-color: var(--eb-deny-bg); color: var(--eb-deny); }
@@ -341,6 +343,14 @@ kbd { font-size: 11px; border: 1px solid var(--eb-line2); border-radius: 4px; pa
 
 /* Cards, pages, tables, empty states */
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+/* The title shares the room with the actions and may break a word, even one the actions could
+   have made room for by wrapping: a one-word title beside two buttons at 390 px would break
+   mid-word. On every page the suite renders, only the hostile fixture name at 390 px does. A
+   title is often a name someone else chose, and without this a monitored agent named
+   `<script>alert("x")</script> payroll` held its first word whole, 171 px, beside the 190 px
+   "Back to monitored agents", and pushed that button 19 px past the gutter, where it panned
+   inside `main` without widening the document. */
+.page-head > :first-child { min-width: 0; overflow-wrap: anywhere; }
 .page-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .card { background: var(--eb-surface); border: 1px solid var(--eb-line); border-radius: var(--radius-card); }
 .card + .card { margin-top: 14px; }

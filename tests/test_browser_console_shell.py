@@ -19,6 +19,7 @@ from test_browser_console import AXE_RUN, ENTRIES, settled, sign_in_as
 from test_browser_console import console_gateway as console_gateway
 from test_browser_console import console_page as console_page
 from test_browser_console_policy import rules_draft as rules_draft
+from test_browser_surfaces import FITS
 from test_browser_surfaces import chromium as chromium
 from test_console_api_activity import held, unscope
 from test_execution import registry as registry
@@ -36,7 +37,7 @@ def clean(page, where) -> None:
     violations = page.evaluate(AXE_RUN)
     assert violations == [], (where, violations)
     assert page.evaluate("window.__violations") == [], where
-    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (where, "scroll")
+    assert page.evaluate(FITS), (where, "scroll")
 
 
 def after_paint(page) -> None:

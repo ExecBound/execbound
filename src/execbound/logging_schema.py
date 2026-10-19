@@ -188,11 +188,13 @@ EVENTS = frozenset(
         "samples.refused",
         # The weekly summary (#678): delivered, skipped (an empty week, an inactive person,
         # no address), failed, and ended by its one-click link. The tenant, the message id
-        # and a code; never an address, a count or the link.
+        # and a code; never an address, a count or the link. And refused, a one-click stop's
+        # database fault, at ERROR with its code and no ids at all.
         "weekly_summary.delivered",
         "weekly_summary.skipped",
         "weekly_summary.failed",
         "weekly_summary.unsubscribed",
+        "weekly_summary.refused",
     }
 )
 FIELDS = frozenset(

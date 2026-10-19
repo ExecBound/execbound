@@ -15,7 +15,16 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
-from chat_fakes import finding_slack_shape_ok, finding_teams_shape_ok
+from chat_fakes import finding_slack_shape_ok, finding_teams_shape_ok, slack_texts, teams_texts
+from test_notification_transports import (
+    FORMATTABLE,
+    MARKUP,
+    NON_LATIN_SPACE,
+    NON_LATIN_WORKSPACE,
+    PLAIN,
+    chosen_by_tenant,
+    chosen_like,
+)
 
 from execbound.transports import (
     FINDING_DISCLAIMER,
@@ -209,6 +218,141 @@ def test_fd5_hostile_workspace_and_space_names_reach_no_body_as_markup():
     # header before any message exists.
     parsed = message_from_string(email.as_string(), policy=policy.default)
     assert parsed["Bcc"] is None and parsed["Subject"] == subject
+
+
+def card_facts(kind: str, body: dict) -> list[tuple[str, str]]:
+    """The facts a reader sees, in order, from a FactSet or from text runs."""
+    if kind == "slack":
+        [section] = [b for b in body["blocks"] if b["type"] == "section" and "fields" in b]
+        return [tuple(field["text"].split(": ", 1)) for field in section["fields"]]
+    found: list[tuple[str, str]] = []
+    for block in body["attachments"][0]["content"]["body"]:
+        if block["type"] == "FactSet":
+            found += [(fact["title"], fact["value"]) for fact in block["facts"]]
+        elif block["type"] == "RichTextBlock" and len(block["inlines"]) == 2:
+            title, value = block["inlines"]
+            found.append((title["text"].removesuffix(": "), value["text"]))
+    return found
+
+
+def test_fd5_a_name_nothing_of_which_survives_is_left_out_and_chosen_by_tenant_id():
+    """Names in a script `safe_label` drops would read "unknown", and "choose unknown" helps
+    nobody: every kind leaves them out and names the tenant id Workspace settings shows."""
+    found = message(workspace=NON_LATIN_WORKSPACE, space=NON_LATIN_SPACE)
+    by_tenant = chosen_by_tenant(found.tenant_id)
+    email = render_email(MAIL, "jane@example.com", found.delivery_id, found)
+    subject, body = str(email["Subject"]), email.get_content()
+    assert "unknown" not in subject + body
+    assert subject == "[ExecBound] Finding: Sensitive action reported"
+    lines = body.splitlines()
+    assert lines[0] == "A finding was raised at 2026-10-17 12:00:00 UTC."
+    assert not any(line.startswith(("Workspace:", "Space:")) for line in lines)
+    assert by_tenant in lines
+    assert "You receive this because this address is a findings destination." in lines
+    facts = [
+        ("Rule", "Sensitive action reported (sensitive-action.v2)"),
+        ("Raised", "2026-10-17 12:00:00 UTC"),
+    ]
+    slack = json.loads(render_slack(found.delivery_id, found))
+    assert "unknown" not in json.dumps(slack)
+    assert finding_slack_shape_ok(slack) and card_facts("slack", slack) == facts
+    assert slack["text"] == "Finding: Sensitive action reported"
+    assert by_tenant in [item["text"] for item in slack_texts(slack)]
+    teams = json.loads(render_teams(found.delivery_id, found))
+    assert "unknown" not in json.dumps(teams)
+    assert finding_teams_shape_ok(teams) and card_facts("teams", teams) == facts
+    assert by_tenant in sum(teams_texts(teams), [])
+    # The webhook body names neither, and keeps its pinned bytes.
+    assert finding_body(found) == FIXTURE.read_bytes().rstrip(b"\n")
+
+
+@pytest.mark.parametrize("kind", ["email", "slack", "teams"])
+@pytest.mark.parametrize(
+    ("name", "label"),
+    [
+        ("Acme & Co", "Acme Co"),
+        ("Acme, Inc.", "Acme Inc."),
+        ("O'Brien SOC", "OBrien SOC"),
+        ("\u00c9quipe S\u00e9curit\u00e9", "Equipe Securite"),
+    ],
+)
+def test_fd5_a_reduced_name_still_shows_but_the_reader_chooses_by_tenant_id(kind, name, label):
+    """`Acme & Co` reads `Acme Co`, which may be another workspace's name, so the reader is told
+    the tenant id with the label as a hint; an accented name folds to its letters rather than
+    losing them."""
+    found = message(workspace=name)
+    hint = chosen_like(label, found.tenant_id)
+    if kind == "email":
+        lines = render_email(MAIL, "jane@example.com", found.delivery_id, found).get_content()
+        assert {f"Workspace: {label}", hint} <= set(lines.splitlines())
+        return
+    raw = (render_slack if kind == "slack" else render_teams)(found.delivery_id, found)
+    assert ("Workspace", label) in card_facts(kind, json.loads(raw))
+    assert hint in raw.decode() and f"choose {label}." not in raw.decode()
+
+
+LONGEST = " ".join([MARKUP] * 4)
+HEADER = "Finding: Sensitive action reported"
+
+
+def named_finding(name: str) -> FindingMessage:
+    if name == LONGEST:
+        return message(workspace=name, space=name, connection_id=uuid4())
+    return message(workspace=name, space=name)
+
+
+@pytest.mark.parametrize("name", [*FORMATTABLE, LONGEST])
+def test_fd5_slack_reads_a_name_it_could_format_only_as_plain_text(name):
+    """Slack reads the notification line as mrkdwn, so a name it could format is left out of
+    it; the blocks, `plain_text` with `emoji` off, still name it."""
+    found = named_finding(name)
+    raw = render_slack(found.delivery_id, found)
+    assert len(raw) <= MAX_PAYLOAD_BYTES
+    body = json.loads(raw)
+    assert body["text"] == HEADER
+    texts = slack_texts(body)
+    assert all(item["type"] == "plain_text" and item["emoji"] is False for item in texts)
+    assert f"Workspace: {name[:80].strip()}" in [item["text"] for item in texts]
+    assert finding_slack_shape_ok(body)
+
+
+@pytest.mark.parametrize("name", [*FORMATTABLE, LONGEST])
+def test_fd5_teams_reads_a_name_it_could_format_only_as_text_runs(name):
+    """Teams reads text blocks and facts as Markdown, so the facts and the sentence naming the
+    workspace to choose travel in text runs, which Adaptive Cards show as written, and the
+    name appears nowhere else."""
+    found = named_finding(name)
+    raw = render_teams(found.delivery_id, found)
+    assert len(raw) <= MAX_PAYLOAD_BYTES
+    body = json.loads(raw)
+    parsed, literal = teams_texts(body)
+    label = name[:80].strip()
+    assert not [text for text in parsed if label in text]
+    assert label in literal
+    assert any(text.startswith("If you belong to more than one workspace") for text in literal)
+    assert finding_teams_shape_ok(body)
+
+
+def test_fd5_a_plain_name_keeps_the_fact_set_and_the_notification_line():
+    """`SOC (EU) - East` holds nothing either target formats: the card is unchanged."""
+    found = message(workspace=PLAIN, space=PLAIN)
+    assert json.loads(render_slack(found.delivery_id, found))["text"] == f"{HEADER} in {PLAIN}"
+    body = json.loads(render_teams(found.delivery_id, found))
+    types = [block["type"] for block in body["attachments"][0]["content"]["body"]]
+    assert types == ["TextBlock", "FactSet", "TextBlock", "TextBlock", "TextBlock"]
+    parsed, literal = teams_texts(body)
+    assert literal == [] and f"If you belong to more than one workspace, choose {PLAIN}." in parsed
+
+
+@pytest.mark.parametrize(("workspace", "space"), [("Synthetic SOC", "a_b"), ("a_b", "Default")])
+def test_fd5_either_name_alone_puts_the_card_in_text_runs(workspace, space):
+    """A Space name Teams could format puts the card in text runs as a workspace name does;
+    Slack's line names only the workspace, so it keeps a plain one."""
+    found = message(workspace=workspace, space=space)
+    parsed, literal = teams_texts(json.loads(render_teams(found.delivery_id, found)))
+    assert "a_b" in literal and not [text for text in parsed if "a_b" in text]
+    line = json.loads(render_slack(found.delivery_id, found))["text"]
+    assert line == (f"{HEADER} in Synthetic SOC" if workspace == "Synthetic SOC" else HEADER)
 
 
 def test_fd5_every_body_is_bounded():
