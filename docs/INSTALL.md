@@ -1,6 +1,6 @@
 # Install ExecBound on one host
 
-For somebody with the image and no checkout. You need **Docker with Compose, and nothing else** — no Python, no uv, no Node, no browser. Until a release is published there is no image to pull: build one once from a clone, as [the one substitution](#the-one-substitution) below says.
+For somebody with the image and no checkout. You need **Docker with Compose, and nothing else**: no Python, no uv, no Node, no browser. Each release publishes a signed image, `ghcr.io/execbound/execbound`, built for `linux/amd64`. Verify the release you install and pull it by its digest, as [the one substitution](#the-one-substitution) below says. Building the image yourself from a clone also works.
 
 This runs the two mock providers, which is what the first governed action is demonstrated against. It is not a production deployment: read [Deployment](DEPLOYMENT.md) for the process table, TLS and secret handling before anything real depends on it. No production deployment of the self-hosted edition has been validated yet.
 
