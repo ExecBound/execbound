@@ -214,7 +214,7 @@ def test_a_starter_over_a_ref_that_is_not_its_action_names_the_catalog_action():
 
 def test_the_starter_packs_are_apache_data_read_from_the_package():
     """The packs are data under their own Apache-2.0 `LICENSE`, read from the installed package,
-    so whoever copies them into their own policy has the licence beside them (#496). The module
+    so whoever copies them into their own policy has the license beside them (#496). The module
     that held them as Python is gone."""
     starters = resources.files("execbound.data").joinpath("starters")
     licence = starters.joinpath("LICENSE").read_text(encoding="utf-8").splitlines()

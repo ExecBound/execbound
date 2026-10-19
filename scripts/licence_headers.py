@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Every file's licence, and the one line in it that names that licence (#496).
+"""Every file's license, and the one line in it that names that license (#496).
 
     python3 scripts/licence_headers.py            # check every tracked file
     python3 scripts/licence_headers.py --write    # add or correct each missing or wrong line
 
-A file takes the licence of the longest prefix of its path in `LICENCE_MAP`, unless
+A file takes the license of the longest prefix of its path in `LICENCE_MAP`, unless
 `FILE_LICENCES` names the file itself. A file under `export/public/` is a replacement the
 export copies to the rest of its path, so it answers for that destination.
 
@@ -12,8 +12,8 @@ A file whose type has a comment syntax carries one `SPDX-License-Identifier` lin
 syntax: on its first line, or on its second after a `#!` line or an `<?xml` declaration, which
 must stay first. A Jinja template's line is always its first. Markdown, JSON, CSV, lockfiles,
 binary files and empty files take the map without a line, and so do the paths `EXEMPT`
-names. Of the exempt files, only a licence file (`LICENSE`, `LICENSE.txt`) carries a line,
-which names the licence the map gives; any other exempt file carries none. A file that takes a
+names. Of the exempt files, only a license file (`LICENSE`, `LICENSE.txt`) carries a line,
+which names the license the map gives; any other exempt file carries none. A file that takes a
 line may not open with a byte-order mark, and a symbolic link is never followed, in any part of
 a file's path: git records the link, and its target is checked under its own path.
 
@@ -40,10 +40,10 @@ PROPRIETARY = "LicenseRef-ExecBound-Proprietary"
 EXPORT_PREFIX = "export/public/"
 
 # (path prefix, SPDX identifier). The longest prefix a path starts with wins; "" is the root.
-# Each prefix with a canonical licence text holds a `LICENSE` naming the same identifier. The
-# fonts' licence file is `LICENSE.txt`, and the proprietary directories have none. The public
+# Each prefix with a canonical license text holds a `LICENSE` naming the same identifier. The
+# fonts' license file is `LICENSE.txt`, and the proprietary directories have none. The public
 # website, `site/`, is served as it is committed and never distributed, so it is proprietary
-# and takes the map without a line (`EXEMPT`); its fonts keep their own licence.
+# and takes the map without a line (`EXEMPT`); its fonts keep their own license.
 LICENCE_MAP: tuple[tuple[str, str], ...] = (
     ("", "AGPL-3.0-only"),
     ("clients/python/", "Apache-2.0"),
@@ -65,7 +65,7 @@ LICENCE_MAP: tuple[tuple[str, str], ...] = (
     ("tests/hosted/", PROPRIETARY),
 )
 
-# Exact paths whose licence is not their directory's. The Contributor Covenant is its authors'
+# Exact paths whose license is not their directory's. The Contributor Covenant is its authors'
 # text under CC BY 4.0 wherever it sits.
 FILE_LICENCES: dict[str, str] = {"CODE_OF_CONDUCT.md": "CC-BY-4.0"}
 
@@ -75,8 +75,8 @@ EXEMPT: tuple[str, ...] = (
     # revision takes its line from the Alembic template or from `--write`.
     "migrations/versions/00[0-5][0-9]_*.py",
     "migrations/versions/006[0-7]_*.py",
-    # Held byte for byte: the fixtures, the licence texts their recorded digests pin, and
-    # every licence file, which opens with its own identifier.
+    # Held byte for byte: the fixtures, the license texts their recorded digests pin, and
+    # every license file, which opens with its own identifier.
     "tests/fixtures/*",
     "scripts/licence-texts/*",
     "LICENSE",
@@ -160,12 +160,12 @@ SUFFIXES: dict[str, Syntax | None] = {
 }
 
 # A line holding the tag after nothing but blanks and comment marks, in any syntax above, or
-# bare, as a licence file writes it. A line of code that quotes the tag is not one.
+# bare, as a license file writes it. A line of code that quotes the tag is not one.
 SPDX_LINE = re.compile(r"^[\s#/*!<{-]*" + re.escape(TAG) + r"\b")
 IDENTIFIER = re.compile(re.escape(TAG) + r":\s*([A-Za-z0-9.+-]*[A-Za-z0-9+])")
 # A line written before a byte-order mark would leave the mark inside the file.
 BOM = "\ufeff"
-# The exempt files that open with their own line: every licence file names its licence.
+# The exempt files that open with their own line: every license file names its license.
 LICENCE_FILES = frozenset({"LICENSE", "LICENSE.txt"})
 
 
@@ -350,7 +350,7 @@ def problems(root: Path, paths: Iterable[str]) -> list[str]:
 
 
 def _unlined(path: str, lines: list[str]) -> list[str]:
-    """A file that takes the map. A licence file may open with a line naming its licence; any
+    """A file that takes the map. A license file may open with a line naming its license; any
     other exempt file carries no line anywhere, and a file of a type that takes the map must
     not open with one."""
     found: list[str] = []
@@ -441,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     paths: list[str] = []
     for given in args.paths:
         # A path is read at its own path, so it must resolve to itself: one through `..` or
-        # a symbolic link would take the licence of the path as written, not of what it reaches.
+        # a symbolic link would take the license of the path as written, not of what it reaches.
         relative = PurePosixPath(Path(given).as_posix())
         file = root / relative
         if relative.is_absolute() or file.resolve() != file or not file.is_file():

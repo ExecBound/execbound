@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Each `LICENSE` is a copyright line and an SPDX identifier over the canonical text, unchanged.
 
-The recorded licence map (#122; #496) is applied by directory:
+The recorded license map (#122; #496) is applied by directory:
 AGPL-3.0-only at the root, Apache-2.0 for what runs inside someone else's code or is copied
 into their configuration, and CC BY 4.0 for documentation. The texts come from the SPDX
 License List Data copies in `scripts/licence-texts/`, so a `LICENSE` cannot drift from SPDX
@@ -91,7 +91,7 @@ def test_the_package_metadata_declares_the_map():
     assert console["license"] == "AGPL-3.0-only"
     for project in (server, client):
         assert not any(c.startswith("License ::") for c in project.get("classifiers", [])), (
-            "PEP 639 forbids a licence classifier beside a licence expression"
+            "PEP 639 forbids a license classifier beside a license expression"
         )
 
 
@@ -110,7 +110,7 @@ def test_the_wheel_check_expects_every_licence_inside_the_server_package():
     """The Apache directories inside `src/execbound/` travel in the server's wheel as package
     data, beside the code that reads them, so the wheel check names each of them and no other."""
     inside = {path for path in LICENCES if path.startswith("src/execbound/")}
-    # One licence is not committed under src/: the console build copies `integrations/LICENSE`
+    # One license is not committed under src/: the console build copies `integrations/LICENSE`
     # beside the Tines stories it carries (#678), so the wheel holds it to that file.
     built = {
         "execbound/surfaces/console_dist/stories/tines/LICENSE": ROOT / "integrations" / "LICENSE"

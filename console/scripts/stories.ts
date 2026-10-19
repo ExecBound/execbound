@@ -4,7 +4,7 @@
 // byte, as unhashed assets at `stories/tines/<name>`: nothing is rendered, templated or given
 // an origin, a token or a tenant id. integrations/ is Apache-2.0 and the console build ships
 // inside the AGPL package, so the directory's LICENSE travels beside the stories, where the
-// wheel's licence check holds it. A file that is missing fails the build.
+// wheel's license check holds it. A file that is missing fails the build.
 
 import { readFileSync } from "node:fs";
 import path from "node:path";

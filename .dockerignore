@@ -7,7 +7,7 @@
 !src/
 !alembic.ini
 !migrations/
-# The licence texts each package's metadata names, so the installed dist-info carries them.
+# The license texts each package's metadata names, so the installed dist-info carries them.
 !LICENSE
 !THIRD_PARTY_NOTICES.md
 !clients/python/pyproject.toml
@@ -28,7 +28,7 @@
 !connectors/src/
 # The console's sources for the Node stage; its installed and built output never do.
 !console/
-# The two Tines stories and their licence, which the console build copies for Getting started.
+# The two Tines stories and their license, which the console build copies for Getting started.
 !integrations/LICENSE
 !integrations/tines/execbound-governed-action.json
 !integrations/tines/execbound-gate.json

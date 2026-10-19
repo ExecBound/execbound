@@ -1602,7 +1602,7 @@ def sign_ins_refused(audit_log: str) -> str:
     """What a sign-in read Graph refuses outright says, by what the audit log's probe said.
 
     Both need `AuditLog.Read.All`, and sign-ins also Microsoft Entra ID P1 or P2. So a refusal
-    while the audit log is available is the directory's licence (`unlicensed`), one while the
+    while the audit log is available is the directory's license (`unlicensed`), one while the
     audit log is refused too is the registration's (`forbidden`), and one while the audit log could
     not be told is `unknown`. The response body, which names the reason, is never read. A beta
     capability is therefore never `forbidden` unless the audit log is, and losing it never makes

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A CycloneDX SBOM for the console's npm tree, from the lockfile, and the licence allowlist.
+"""A CycloneDX SBOM for the console's npm tree, from the lockfile, and the license allowlist.
 
 The lockfile is the input the install resolved from, so a bill of materials read from it lists
 what shipped rather than what a developer's `node_modules` happens to hold, and it needs no
-tool beyond this file. `pnpm licenses list --json` supplies each package's licence; the
+tool beyond this file. `pnpm licenses list --json` supplies each package's license; the
 production list (`--prod`) says which packages the browser receives. Every production package
-must carry an allowed licence; a development package may instead be named as an exception in
+must carry an allowed license; a development package may instead be named as an exception in
 `console/DEPENDENCIES.md`, with its reason
 (#333).
 
@@ -68,13 +68,13 @@ def packages(lockfile: Path) -> list[dict[str, str]]:
             current["digest"] = base64.b64decode(integrity.group("digest")).hex()
         if current is not None and line.startswith(("    os:", "    cpu:", "    libc:")):
             # A build for one platform: the install on any other leaves it out of the tree,
-            # so the listing cannot know its licence and it took no part in the build.
+            # so the listing cannot know its license and it took no part in the build.
             current["platform"] = "true"
     return found
 
 
 def licences(listing: Path) -> dict[tuple[str, str], str]:
-    """(name, version) to licence, from `pnpm licenses list --json`."""
+    """(name, version) to license, from `pnpm licenses list --json`."""
     document = json.loads(listing.read_text(encoding="utf-8"))
     found: dict[tuple[str, str], str] = {}
     for licence, entries in document.items():
@@ -85,12 +85,12 @@ def licences(listing: Path) -> dict[tuple[str, str], str]:
 
 
 def exceptions(dependencies: Path) -> set[str]:
-    """Package names, or `name-*` patterns, the document's licence exceptions section names."""
+    """Package names, or `name-*` patterns, the document's license exceptions section names."""
     names: set[str] = set()
     inside = False
     for line in dependencies.read_text(encoding="utf-8").splitlines():
         if line.startswith("## "):
-            inside = line == "## Licence exceptions"
+            inside = line == "## License exceptions"
             continue
         if inside and line.startswith("- "):
             # Every backticked name before the colon; the rest of the line is the reason.
@@ -99,7 +99,7 @@ def exceptions(dependencies: Path) -> set[str]:
 
 
 def allowed(expression: str) -> bool:
-    """Whether a licence string is inside the allowlist.
+    """Whether a license string is inside the allowlist.
 
     An `OR` expression is allowed when any of its identifiers is; anything else needs every
     identifier allowed, so `AND` and a bare identifier read the same way.
@@ -129,7 +129,7 @@ def findings(
         licence = known.get((name, version))
         if licence is None:
             if package.get("platform") != "true":
-                problems.append(f"{name}@{version} declares no licence the listing knows")
+                problems.append(f"{name}@{version} declares no license the listing knows")
             continue
         if allowed(licence):
             continue
@@ -207,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"{len(resolved)} packages written to {args.output}")
     for problem in problems:
-        print(f"licence: {problem}", file=sys.stderr)
+        print(f"license: {problem}", file=sys.stderr)
     return 1 if problems else 0
 
 

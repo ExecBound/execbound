@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """`THIRD_PARTY_NOTICES.md` reproduces what a release ships, and nothing about the machine.
 
-`scripts/third_party_notices.py` reads the licence files of the Python distributions a
+`scripts/third_party_notices.py` reads the license files of the Python distributions a
 release installs, the Rust crates `cedarpy`'s bundled SBOM names and the console's production
 packages. The console's half needs its packages installed, so `verify` checks the whole file
 after the console build. These cases need no install: they plant each input the real tree does
@@ -80,7 +80,7 @@ def test_each_crate_the_sbom_names_becomes_a_row_and_its_licences_are_collected(
 
 
 def test_a_crate_that_records_no_licence_is_refused():
-    with pytest.raises(notices.NoticesError, match="crate bare records no licence"):
+    with pytest.raises(notices.NoticesError, match="crate bare records no license"):
         notices.rust_components({"components": [{"name": "bare", "version": "1"}]})
 
 
@@ -102,7 +102,7 @@ def test_the_console_listing_reads_each_packages_files_and_falls_back_to_the_spd
     )
     assert shipped_c.texts == [("LICENSE.md", "Copyright (c) Shipped\nMIT terms.\n")]
     assert bare_c.note == (
-        "No licence file ships with this package; its package.json declares MIT and names B Author."
+        "No license file ships with this package; its package.json declares MIT and names B Author."
     )
     assert bare_c.texts == [("MIT (SPDX text)", notices.reference("MIT"))]
     rendered = notices.render([], [], ("0", [], []), [shipped_c, bare_c])
@@ -125,7 +125,7 @@ def test_every_third_party_distribution_a_release_installs_is_reproduced():
         "ExecBound's own distributions are not third-party"
     )
     assert "cedarpy" in names and "psycopg" in names
-    assert all(c.texts for c in installed), "an installed distribution reproduced no licence"
+    assert all(c.texts for c in installed), "an installed distribution reproduced no license"
     for component in absent:
         with pytest.raises(metadata.PackageNotFoundError):
             metadata.distribution(component.name)

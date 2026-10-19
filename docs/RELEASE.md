@@ -19,10 +19,10 @@ Releases are listed on the [Releases page](https://github.com/ExecBound/execboun
 | --- | --- |
 | `sbom.cdx.json` | A CycloneDX SBOM of the Python environment the image runs from: the same locked, non-development set the image installs, synced beside it. The Rust crates compiled into `cedarpy` are listed inside its component, from the SBOM its wheel bundles. |
 | `image-distributions.json` | Every Python distribution read out of the built image itself. The build fails if this and the SBOM differ in either direction, so the SBOM describes what shipped. |
-| `provenance.json` | The source repository, commit and tag; the run that built it; the SHA-256 of `uv.lock`, `pyproject.toml`, the `Dockerfile` and the console's lockfile; the digest-pinned base images; the image's id; the registry digest; the signing identity; and a licence disposition that names every component whose licence is copyleft or undeclared, the crates inside `cedarpy` included. |
+| `provenance.json` | The source repository, commit and tag; the run that built it; the SHA-256 of `uv.lock`, `pyproject.toml`, the `Dockerfile` and the console's lockfile; the digest-pinned base images; the image's id; the registry digest; the signing identity; and a license disposition that names every component whose license is copyleft or undeclared, the crates inside `cedarpy` included. |
 | `release-record.json` | What was released and from where: the tag, commit, image and digest, and the CI run that passed on the commit. It also holds the maintainer approval the release was published on, and the SHA-256 of each of the other three files. |
 
-The licences themselves are in `THIRD_PARTY_NOTICES.md` in the repository and in the image. [Deployment](DEPLOYMENT.md#release-record-provenance-and-rollback) explains the SBOM's scope and the licence dispositions.
+The licenses themselves are in `THIRD_PARTY_NOTICES.md` in the repository and in the image. [Deployment](DEPLOYMENT.md#release-record-provenance-and-rollback) explains the SBOM's scope and the license dispositions.
 
 ## Versions
 
@@ -79,7 +79,7 @@ The checklist, in order:
    - an image name, the repository variable `RELEASE_IMAGE`, that is not on `ghcr.io` or carries a tag or a digest;
    - a commit on which `ci.yml` has not passed for a push to `main`.
 
-   It then builds and smoke-tests the image and writes the SBOM, the distributions and the provenance. It fails if the SBOM does not describe the image, if the licence disposition names a copyleft or undeclared component that `releases/licence-allowances.json` does not allow, or if an allowance there matches nothing.
+   It then builds and smoke-tests the image and writes the SBOM, the distributions and the provenance. It fails if the SBOM does not describe the image, if the license disposition names a copyleft or undeclared component that `releases/licence-allowances.json` does not allow, or if an allowance there matches nothing.
 5. **A maintainer approves the run** in the `release` environment, after reading `build`'s log. This approval is the publication gate. Nothing is pushed without it, and the release record names who gave it.
 6. **`publish` publishes.** It:
    - refuses unless the run carries that approval, even where the environment has lost its protection rule;

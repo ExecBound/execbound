@@ -1,6 +1,6 @@
 # Tines monitoring
 
-ExecBound can receive selected story events while vendor connectors and credentials stay in Tines. The implemented path is **explicit instrumentation → observation → finding → notification**, with console monitoring views, source lifecycle/health and read-only collection. Findings are sent to the email, Slack, Teams and signed webhook destinations the private configuration names for findings ([Findings delivery](#findings-delivery)); a scheduled `monitor-process` runs with `--deliver`, and the jobs service passes it wherever it has a runtime configuration that reads ([Processes and their inputs](DEPLOYMENT.md#processes-and-their-inputs)). A 13 October external HTTPS trial qualified the existing outbox worker against a dedicated Tines test tenant using local test wiring; it did not add a production destination configuration or hosted delivery drain. The reproducible demonstration is synthetic. A separate live Tines account trial on September 14, 2026 also passed using a dedicated story, synthetic action metadata and a temporary HTTPS intake.
+ExecBound can receive selected story events while vendor connectors and credentials stay in Tines. The implemented path is **explicit instrumentation → observation → finding → notification**, with console monitoring views, source lifecycle/health and read-only collection. Findings are sent to the email, Slack, Teams and signed webhook destinations the private configuration names for findings ([Findings delivery](#findings-delivery)); a scheduled `monitor-process` runs with `--deliver`, and the jobs service passes it wherever it has a runtime configuration that reads ([Processes and their inputs](DEPLOYMENT.md#processes-and-their-inputs)). A 13 October external HTTPS trial qualified the existing outbox worker against a dedicated Tines test tenant using local test wiring; it did not add a production destination configuration or hosted delivery drain. On 18 October 2026 the shipped path was qualified for the signed webhook kind: a local `process --deliver` sent findings to a Tines webhook ([Remaining work](#remaining-work) says what was shown and what was not). The reproducible demonstration is synthetic. A separate live Tines account trial on September 14, 2026 also passed using a dedicated story, synthetic action metadata and a temporary HTTPS intake.
 
 ## What runs
 
@@ -302,9 +302,37 @@ Each finding is sent once to every destination the private configuration lists f
 
 The 13 October 2026 external delivery trial
 proved signed HTTPS receipt, retries, crash recovery and bounded deduplication in
-the Tines lab from a local worker. Production delivery is built, not yet qualified
-against a real receiver: destinations, a per-destination outbox, the egress guard
-and the scheduled drain. It is still to be qualified on the hosted service, per
-kind. The trial's temporary receiver has been removed.
+the Tines lab from a local worker, through test wiring. The trial's temporary
+receiver has been removed.
+
+On 18 October 2026 the shipped path was qualified for the signed webhook kind
+(trial record). A local
+`process --config <monitor file> --deliver`, reading a runtime configuration with one
+findings webhook whose URL was a Tines webhook, sent two synthetic `sensitive-action.v2`
+findings and a `source-health.v1` finding from a fresh workspace. It showed:
+
+- **Egress guard:** the receiver's name resolved only to public addresses, and the guard
+  let each send through; none was refused `DESTINATION_NOT_PUBLIC`.
+- **Delivered:** each delivery ended `DELIVERED` after one attempt, Tines answering its
+  default 201, and `monitor.delivered` was logged for it.
+- **Received:** the body Tines captured was byte for byte the body sent, in the pinned
+  `monitor.finding` version 1 shape apart from identifiers and times. `X-ExecBound-Delivery`
+  and `X-ExecBound-Signature` arrived, and the signature, recomputed offline from the raw
+  body and the destination's secret as [Verify the signature](NOTIFICATIONS.md#verify-the-signature)
+  describes, matched. A finding raised with no detection profile carries
+  `profile_version: null`, and a source-health finding, which no observation raised, also
+  `observation_id: null`.
+- **Sent once:** a second pass sent nothing more, and the receiver held one event per
+  finding.
+- **Acknowledged:** a finding acknowledged before its pass was closed
+  `FINDING_ACKNOWLEDGED` with no attempt and never sent.
+- **Refused:** a second destination at a Tines webhook path that no action holds was
+  answered 401, recorded `RECEIVER_REFUSED` on every attempt, retried at the documented
+  backoff and failed after its fifth attempt, while the same finding reached the first
+  destination.
+
+Email through a relay, Slack, Teams and the hosted service's scheduled delivery are still
+to be qualified against a real receiver, per kind, as are a 429 and a lease that expires
+mid-send from a real receiver.
 
 Source lifecycle, health, detection profiles, delivery workers and collection are implemented. The intake trial above, the September 16 inventory probe and a later instrumented-story trial establish bounded live evidence, not continuous operation or all customer workflows. Findings are sent wherever a findings destination is configured; no shipped configuration names one. Scheduled collection reaches a connection whose operator key file is on the collecting host, a Tines connection pasted in the console where the collector holds its private key, and a Microsoft Entra directory whose administrator consented to the deployment's platform app. Sources issued from the console live up to 30 days, so ongoing instrumentation still needs a rotation at least monthly; from the command line, at most 24 hours. Audit and AI-audit collection remains fixture-tested because no plan with audit logs has been available; broader live instrumentation, hosted delivery failure exercises and Foundry/OTel remain work. [Processes and their inputs](DEPLOYMENT.md#processes-and-their-inputs) describes the scheduling. Monitoring metadata does not reveal secret credential values, prove historical completeness, validate external approvals or prevent external execution.

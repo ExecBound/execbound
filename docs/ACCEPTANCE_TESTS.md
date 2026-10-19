@@ -662,7 +662,7 @@ UX9 to UX18: `tests/test_setup_progress.py` and `tests/test_console_api_setup.py
 setup read on real PostgreSQL, with their Space boundaries mutation-checked;
 `tests/test_console_api_agents.py` for the agents' newest request; `tests/test_console_serving.py`,
 `tests/test_tines_story.py`, `tests/test_tines_gate_story.py` and `tests/test_wheel_licences.py`
-for the Tines stories and their licence; `tests/test_browser_console_setup.py` and
+for the Tines stories and their license; `tests/test_browser_console_setup.py` and
 `tests/test_browser_console_samples.py` in Chromium; and the Vitest cases in
 `console/src/components/welcome/` (`setup.test.ts`, `WelcomePage.test.tsx`, `NextStep.test.tsx`,
 `OperatorSteps.test.tsx`, `NoConnectionHint.test.tsx`, `AgentConnection.test.tsx`,

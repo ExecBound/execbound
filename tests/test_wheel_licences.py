@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""`scripts/check_wheel_licences.py` refuses a wheel that does not carry its licence.
+"""`scripts/check_wheel_licences.py` refuses a wheel that does not carry its license.
 
 The script runs in `verify` against the wheels `uv build` produces; these cases plant the
 failures a real build does not have, in wheels assembled here, so each refusal is shown to
@@ -32,7 +32,7 @@ def wheel(
     members=None,
 ):
     source = tmp_path / "LICENSE-source"
-    source.write_bytes(b"the licence text\n")
+    source.write_bytes(b"the license text\n")
     files = {"LICENSE": source.read_bytes()} if files is None else files
     path = tmp_path / f"{name}-1.0-py3-none-any.whl"
     with zipfile.ZipFile(path, "w") as archive:
@@ -91,7 +91,7 @@ def test_an_expression_in_the_description_is_not_read_as_the_field(tmp_path):
 def test_a_wheel_the_check_does_not_know_is_refused_rather_than_passed(tmp_path):
     path, _ = wheel(tmp_path, name="stranger")
     assert check.problems(path, {}) == [
-        f"{path.name}: no licence is recorded for the distribution 'stranger'"
+        f"{path.name}: no license is recorded for the distribution 'stranger'"
     ]
 
 
@@ -105,19 +105,19 @@ def test_the_command_fails_when_any_wheel_fails_and_needs_a_wheel(tmp_path, caps
     assert check.main([str(tmp_path / "not-a-wheel.tar.gz")]) == 2
     stranger, _ = wheel(tmp_path, name="stranger")
     assert check.main([str(stranger)]) == 1
-    assert "no licence is recorded" in capsys.readouterr().err
+    assert "no license is recorded" in capsys.readouterr().err
 
 
 def nested(tmp_path):
-    """A nested licence the demo wheel should carry as package data, and its repository copy."""
+    """A nested license the demo wheel should carry as package data, and its repository copy."""
     source = tmp_path / "nested-LICENSE"
-    source.write_bytes(b"the nested licence text\n")
+    source.write_bytes(b"the nested license text\n")
     return {"demo": {"demo/data/LICENSE": source}}
 
 
 def test_a_wheel_that_carries_its_nested_licence_passes(tmp_path):
     packaged = nested(tmp_path)
-    path, expected = wheel(tmp_path, members={"demo/data/LICENSE": b"the nested licence text\n"})
+    path, expected = wheel(tmp_path, members={"demo/data/LICENSE": b"the nested license text\n"})
     assert check.problems(path, expected, packaged) == []
 
 
@@ -137,7 +137,7 @@ def test_a_nested_licence_that_differs_from_the_repository_copy_is_refused(tmp_p
 
 
 def test_the_server_wheel_must_carry_the_tines_stories_licence_beside_them():
-    """The console build carries the Apache-2.0 Tines stories (#678); their licence travels
+    """The console build carries the Apache-2.0 Tines stories (#678); their license travels
     with them and is the repository's `integrations/LICENSE`, byte for byte."""
     member = "execbound/surfaces/console_dist/stories/tines/LICENSE"
     assert check.PACKAGED["execbound"][member] == ROOT / "integrations" / "LICENSE"

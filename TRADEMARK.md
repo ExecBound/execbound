@@ -2,7 +2,7 @@
 
 "ExecBound" and the ExecBound mark, the logo in [execbound-mark-light.svg](.github/assets/execbound-mark-light.svg) and [execbound-mark-dark.svg](.github/assets/execbound-mark-dark.svg), are trademarks of ExecBound LLC. Neither is registered; where ExecBound LLC marks them, it uses ™, not ®.
 
-The licences in this repository grant rights in its code and documentation, not in its name or mark; Apache-2.0 says so in its section 6, and CC BY 4.0 in its section 2(b)(2). The mark's files carry the repository's licence as files, but that licence gives no right to use the mark; this policy does. Its aim is that anyone can tell what is ExecBound, as ExecBound LLC publishes it, from what is built on it. Nothing in it limits a use the law allows without permission.
+The licenses in this repository grant rights in its code and documentation, not in its name or mark; Apache-2.0 says so in its section 6, and CC BY 4.0 in its section 2(b)(2). The mark's files carry the repository's license as files, but that license gives no right to use the mark; this policy does. Its aim is that anyone can tell what is ExecBound, as ExecBound LLC publishes it, from what is built on it. Nothing in it limits a use the law allows without permission.
 
 ## You may, without asking
 
@@ -25,7 +25,7 @@ Where you use the name or the mark, you may add: "ExecBound is a trademark of Ex
 
 ## When you distribute a modified version
 
-Use your own name and logo for it, as above, and remove the mark from its interface. Keep the licence and copyright notices the code carries. The name as it appears in the source code, in identifiers and in the commands, modules and packages the code itself uses, may stay, as long as your version is not presented to its users as ExecBound. You may describe it as based on ExecBound, and say what you changed.
+Use your own name and logo for it, as above, and remove the mark from its interface. Keep the license and copyright notices the code carries. The name as it appears in the source code, in identifiers and in the commands, modules and packages the code itself uses, may stay, as long as your version is not presented to its users as ExecBound. You may describe it as based on ExecBound, and say what you changed.
 
 ## Asking for permission
 

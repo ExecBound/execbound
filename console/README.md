@@ -26,7 +26,7 @@ The build lands inside the Python package so `uv build` and the image carry it; 
 - `scripts/editions.ts`: which edition a Vite mode builds and where it is written, the edition tag it writes into the document, and the core build's refusal of any module or emitted asset under `src/hosted/`, in its own bundle and in every worker's; `scripts/editions.test.ts` holds it, the build configuration of both editions included.
 - `scripts/budget.mjs`: the size budget over the build manifest, run by `pnpm build`; `scripts/budget.test.ts` holds it.
 - `index.html`: the plain frame (HTML and CSS only, from `public/frame.css` over `public/tokens.css`) that paints before any script, the `execbound-release` meta tag the gateway fills, and the `execbound-edition` meta tag the build fills.
-- `scripts/console_sbom.py` (repository root): the npm tree's CycloneDX SBOM from the lockfile and the licence allowlist, run in CI.
+- `scripts/console_sbom.py` (repository root): the npm tree's CycloneDX SBOM from the lockfile and the license allowlist, run in CI.
 
 ## Layout
 

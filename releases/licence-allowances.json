@@ -1,5 +1,5 @@
 {
-  "about": "The copyleft and undeclared components a release may carry, each a reviewed decision with its reason, as docs/DEPLOYMENT.md's table of dispositions gives it. scripts/release_provenance.py fails a build on any component its licence disposition names that no entry here covers, matched on the name and the exact licence text, and on any entry nothing matches.",
+  "about": "The copyleft and undeclared components a release may carry, each a reviewed decision with its reason, as docs/DEPLOYMENT.md's table of dispositions gives it. scripts/release_provenance.py fails a build on any component its license disposition names that no entry here covers, matched on the name and the exact license text, and on any entry nothing matches.",
   "allowances": [
     {
       "component": "execbound",

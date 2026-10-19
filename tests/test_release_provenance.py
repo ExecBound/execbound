@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The release provenance document and its licence disposition."""
+"""The release provenance document and its license disposition."""
 
 import argparse
 import importlib.metadata as metadata
@@ -186,7 +186,7 @@ def test_the_crates_compiled_into_cedarpy_are_listed_inside_its_component(tmp_pa
         ("anyhow", "1.0.104"),
         ("unicode-ident", "1.0.18"),
     ]
-    # Each crate keeps what the wheel's SBOM says of it: its licence, package URL and hash.
+    # Each crate keeps what the wheel's SBOM says of it: its license, package URL and hash.
     for listed, original in zip(inside, crates["components"], strict=True):
         assert {k: v for k, v in listed.items() if k != "bom-ref"} == {
             k: v for k, v in original.items() if k != "bom-ref"
@@ -652,8 +652,8 @@ def test_a_licence_finding_with_no_allowance_fails_the_build(tmp_path, monkeypat
         written(tmp_path)
     assert stopped.value.code == 1
     out = capsys.readouterr().out
-    assert "licence finding with no allowance: weak-copyleft 2: ['MPL-2.0']" in out
-    assert "licence finding with no allowance: silent 3: ['(none declared)']" in out
+    assert "license finding with no allowance: weak-copyleft 2: ['MPL-2.0']" in out
+    assert "license finding with no allowance: silent 3: ['(none declared)']" in out
     # The document is still written, so the reviewer reads exactly what failed.
     document = json.loads((tmp_path / "provenance.json").read_text(encoding="utf-8"))
     assert {item["component"] for item in document["licenses"]["unallowed"]} == {
@@ -694,7 +694,7 @@ def test_an_allowance_does_not_cover_a_component_whose_licence_changed(tmp_path,
         written(tmp_path)
     licences = json.loads((tmp_path / "provenance.json").read_text(encoding="utf-8"))["licenses"]
     assert [item["component"] for item in licences["unallowed"]] == ["weak-copyleft"]
-    # The allowance written for the old licence now matches nothing, and says so.
+    # The allowance written for the old license now matches nothing, and says so.
     assert licences["stale_allowances"] == [{"component": "weak-copyleft", "licenses": ["MPL-1.1"]}]
 
 

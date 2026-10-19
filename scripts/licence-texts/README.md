@@ -1,6 +1,6 @@
-# Licence texts
+# License texts
 
-The canonical text of every licence this repository applies or reproduces, copied unchanged
+The canonical text of every license this repository applies or reproduces, copied unchanged
 from the SPDX License List Data, release [v3.29.0](https://github.com/spdx/license-list-data/tree/v3.29.0/text),
 on 25 September 2026. One file per SPDX identifier.
 
@@ -8,7 +8,7 @@ They are the single source for two things, so neither can drift from the other o
 
 - the `LICENSE` files, each of which is a copyright line and a scope note followed by one of
   these texts unchanged (`tests/test_licence_files.py`);
-- the licence texts `scripts/third_party_notices.py` reproduces in `THIRD_PARTY_NOTICES.md`
+- the license texts `scripts/third_party_notices.py` reproduces in `THIRD_PARTY_NOTICES.md`
   for components that ship none of their own.
 
 To take a newer SPDX release, replace the files, update the table and run both tests.

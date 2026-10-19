@@ -1,17 +1,17 @@
-# Internal use licence
+# Internal use license
 
-ExecBound's server, console and tests are licensed to everyone under AGPL-3.0-only ([LICENSE](LICENSE)). Some organizations' policies do not allow AGPL software. For them, ExecBound LLC offers the same software under a second licence, the PolyForm Internal Use License 1.0.0 below, free of charge.
+ExecBound's server, console and tests are licensed to everyone under AGPL-3.0-only ([LICENSE](LICENSE)). Some organizations' policies do not allow AGPL software. For them, ExecBound LLC offers the same software under a second license, the PolyForm Internal Use License 1.0.0 below, free of charge.
 
-The parts of this repository under another licence keep it, and need no second licence: the Python client, the provider protocol, the connectors, the examples, the integrations, the deployment files and the server's install bundle, starter policy packs and MCP recipes are Apache-2.0, the documentation is CC BY 4.0 and the console's fonts are OFL-1.1, as the [README](README.md#licence) lists. Third-party components keep their own licences, as [DEPENDENCIES.md](DEPENDENCIES.md) lists.
+The parts of this repository under another license keep it, and need no second license: the Python client, the provider protocol, the connectors, the examples, the integrations, the deployment files and the server's install bundle, starter policy packs and MCP recipes are Apache-2.0, the documentation is CC BY 4.0 and the console's fonts are OFL-1.1, as the [README](README.md#license) lists. Third-party components keep their own licenses, as [DEPENDENCIES.md](DEPENDENCIES.md) lists.
 
 ## How to get it
 
 Write to justin.pitt@execbound.ai from someone who can bind the organization, naming it and saying that it agrees to the terms below. ExecBound LLC is the licensor, and may decline a request. When it agrees, it confirms it in writing, naming the organization and the date; keep that reply as your record. ExecBound LLC does not name an organization publicly as a licensee without its permission.
 
-ExecBound LLC's written confirmation, the terms in this section and the licence text below are the licence; the rest of this page explains them. From the date of the confirmation:
+ExecBound LLC's written confirmation, the terms in this section and the license text below are the license; the rest of this page explains them. From the date of the confirmation:
 
-- The organization is "you" in the licence text, and "your company" is the organization and every organization that controls it, is controlled by it, or is under common control with it, as the licence text defines control.
-- The licence covers the parts of this repository under AGPL-3.0-only, to the extent ExecBound LLC holds the rights in them, as published on that date and later, until ExecBound LLC tells the organization in writing that later versions are no longer covered. Versions already covered stay covered.
+- The organization is "you" in the license text, and "your company" is the organization and every organization that controls it, is controlled by it, or is under common control with it, as the license text defines control.
+- The license covers the parts of this repository under AGPL-3.0-only, to the extent ExecBound LLC holds the rights in them, as published on that date and later, until ExecBound LLC tells the organization in writing that later versions are no longer covered. Versions already covered stay covered.
 - The organization's staff, and contractors working on its behalf, may use and change the software for the internal business operations of your company, and passing copies among them for that purpose is not distribution.
 
 ## What it allows, in short
@@ -19,9 +19,9 @@ ExecBound LLC's written confirmation, the terms in this section and the licence 
 - **Allowed:** running, changing and building on ExecBound for the internal business operations of your company, without publishing your changes. That includes governing your own agents when they act on systems your company runs, including systems that serve your customers.
 - **Not allowed:** distributing the software or your changes outside your company and its contractors, or offering ExecBound, changed or not, as a service to anyone outside your company. Running ExecBound for clients, to govern agents acting on systems they own, as a managed service provider would, is not internal use.
 
-Anything this licence does not allow is still available under AGPL-3.0-only, on its terms.
+Anything this license does not allow is still available under AGPL-3.0-only, on its terms.
 
-## The licence
+## The license
 
 # PolyForm Internal Use License 1.0.0
 

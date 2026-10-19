@@ -30,7 +30,7 @@ Every change keeps these. The threat model states the threats against each one.
 - **Secrets in tests are minted by fixtures,** never typed into a test file, and every rendered output a test inspects passes through `assert_secret_free` before anything else is asserted about it.
 - **One complete protected action path comes before another connector.** A protocol adapter never authorizes or dispatches on its own; it goes through the kernel.
 - **The hosted service's plugin is not in this repository.** Core code reaches plugin behaviour only through the registry in `src/execbound/plugins.py`, and `tests/test_boundary.py` refuses any file that imports or names the plugin's module.
-- **Every source file names its licence** in an `SPDX-License-Identifier` line at its top. Stage a new file and run `python3 scripts/licence_headers.py --write`, or name the file after `--write`.
+- **Every source file names its license** in an `SPDX-License-Identifier` line at its top. Stage a new file and run `python3 scripts/licence_headers.py --write`, or name the file after `--write`.
 - **Documents change with the code.** A change to behaviour updates the guide under `docs/` that describes it.
 
 ## Commits and pull requests
