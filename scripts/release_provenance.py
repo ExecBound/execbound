@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Link a built image to the source, inputs, checks and licences that produced it.
+"""Link a built image to the source, inputs, checks and licenses that produced it.
 
 The provenance document answers one question a reviewer or an auditor asks: which exact
 revision, locked inputs and base images produced this artifact, and what was checked before
-it existed. It also carries a licence disposition derived from the image's own SBOM, so an
+it existed. It also carries a license disposition derived from the image's own SBOM, so an
 undeclared or copyleft component cannot enter a release without appearing here, and cannot
 enter one at all unless `releases/licence-allowances.json` allows it, matched on its name and
-its exact licence text, with the reason written beside it. An allowance nothing matches any
+its exact license text, with the reason written beside it. An allowance nothing matches any
 more fails too, so the list never outlives what it was written for.
 
 A build's document records its signature and registry digest as absent, because a CI build
@@ -16,7 +16,7 @@ Nothing here claims a deployment: that is recorded as an explicit gap.
 
 `--nest-crates` runs first, under the image environment's own interpreter. It lists the Rust
 crates compiled into `cedarpy` inside cedarpy's component of the SBOM, from the CycloneDX SBOM
-the installed wheel bundles (PEP 770), so the disposition reads their licences too.
+the installed wheel bundles (PEP 770), so the disposition reads their licenses too.
 """
 
 import argparse
@@ -33,7 +33,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-# Licences that oblige a distributor to do something beyond attribution. Their presence is
+# Licenses that oblige a distributor to do something beyond attribution. Their presence is
 # not a fault; letting one enter a release unnoticed is.
 COPYLEFT = re.compile(r"\b(?:A?GPL|LGPL|MPL|EPL|CDDL|CPL|OSL|SSPL)\b", re.IGNORECASE)
 BASE_IMAGE = re.compile(r"^FROM\s+(\S+@sha256:[0-9a-f]{64})", re.IGNORECASE | re.MULTILINE)
@@ -57,7 +57,7 @@ class NestRefused(ValueError):
 
 
 class AllowancesRefused(ValueError):
-    """A licence allowance list that cannot stand for a reviewed decision."""
+    """A license allowance list that cannot stand for a reviewed decision."""
 
 
 def digest(path: Path) -> str | None:
@@ -68,7 +68,7 @@ def digest(path: Path) -> str | None:
 
 
 def licences(component: dict[str, Any]) -> list[str]:
-    """Every licence string a CycloneDX component declares, however it declares it."""
+    """Every license string a CycloneDX component declares, however it declares it."""
     found = []
     for entry in component.get("licenses") or []:
         if not isinstance(entry, dict):
@@ -102,7 +102,7 @@ def walk(
 
 
 def disposition(sbom: Path) -> dict[str, Any]:
-    """Summarize the SBOM's licences and name the components that need a decision.
+    """Summarize the SBOM's licenses and name the components that need a decision.
 
     Every component is read, the ones listed inside another included: the crates compiled
     into cedarpy are listed inside its component, and one of them is named, with `within`,
@@ -252,7 +252,7 @@ def _allowance_key(name: object, found: object) -> tuple[str, frozenset[str]]:
 
 
 def read_allowances(path: Path) -> list[dict[str, Any]]:
-    """The allowances at `path`, each a component, its exact licence text and why.
+    """The allowances at `path`, each a component, its exact license text and why.
 
     No file is no allowance. A file that is there must be readable and every entry complete:
     an allowance without a reason is not a decision anyone made.
@@ -280,7 +280,7 @@ def read_allowances(path: Path) -> list[dict[str, Any]]:
         )
         if not complete:
             raise AllowancesRefused(
-                f"{path}: allowance {index} needs a component, its licences and why"
+                f"{path}: allowance {index} needs a component, its licenses and why"
             )
         key = _allowance_key(entry["component"], entry["licenses"])
         if key in seen:
@@ -293,7 +293,7 @@ def allow(summary: dict[str, Any], allowances: list[dict[str, Any]]) -> dict[str
     """Mark each named component with the reason it is allowed, and list what is not.
 
     A match is the component's name, compared as Python compares distribution names, and its
-    licence text exactly: a component whose licence changed is a new decision, and the
+    license text exactly: a component whose license changed is a new decision, and the
     allowance written for the old text is then stale.
     """
     used: set[int] = set()
@@ -557,7 +557,7 @@ def main(argv: list[str] | None = None) -> None:
     for item in summary["unallowed"]:
         inside = f" inside {' > '.join(item['within'])}" if item.get("within") else ""
         print(
-            f"licence finding with no allowance: {item['component']} {item['version']}{inside}:"
+            f"license finding with no allowance: {item['component']} {item['version']}{inside}:"
             f" {item['licenses']}"
         )
         failed = True
@@ -567,7 +567,7 @@ def main(argv: list[str] | None = None) -> None:
     if failed:
         print(
             f"Each copyleft or undeclared component needs an allowance in {ALLOWANCES}, with "
-            "its exact licence text and why; an allowance nothing matches is removed."
+            "its exact license text and why; an allowance nothing matches is removed."
         )
     if document["artifact"]["sbom_matches_image"] is False:
         difference = document["artifact"]["sbom_drift"]

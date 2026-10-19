@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""A CycloneDX SBOM for the Python runtime tree, from uv.lock, and the licence allowlist.
+"""A CycloneDX SBOM for the Python runtime tree, from uv.lock, and the license allowlist.
 
 The set of distributions comes from `uv.lock`, walked from the project's own dependencies
 through the extras the lock resolved, so it is what a release installs rather than what a
-developer's environment happens to hold. Each distribution's licence comes from its
+developer's environment happens to hold. Each distribution's license comes from its
 installed metadata, because that is the copy that ships: `License-Expression` (PEP 639)
 first, then a `License` field that is itself an SPDX expression. A `License` field naming a
-family rather than a licence, such as "BSD License", is not read as one.
+family rather than a license, such as "BSD License", is not read as one.
 
-Every runtime distribution must carry a licence on the allowlist that
+Every runtime distribution must carry a license on the allowlist that
 #122 names: MIT, the BSD family, the
-PSF licence, Apache-2.0 and the dedications that oblige less. A distribution whose licence
-obliges more may instead be named in `DEPENDENCIES.md` under "Licence exceptions", with the
+PSF license, Apache-2.0 and the dedications that oblige less. A distribution whose license
+obliges more may instead be named in `DEPENDENCIES.md` under "License exceptions", with the
 obligation written out. Strong copyleft is refused even there, because #122's inventory
 records that the tree has no GPL-only dependency and that is a property to keep rather than
 a default to wave through.
@@ -20,7 +20,7 @@ A distribution the environment cannot install on this platform (a Windows or Ems
 wheel) has no installed metadata to read, so it is named in its own section of the document
 rather than passed over. ExecBound's own packages, installed from the working tree, are named
 in a section of their own, "First-party distributions", and one whose installed metadata
-declares no licence must be named there.
+declares no license must be named there.
 
 The hash recorded for a component is the lockfile's own: the sdist's where the lock has one,
 and otherwise a single wheel's. A distribution the lock resolves to many wheels gets none,
@@ -39,7 +39,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-# #122's allowlist, in SPDX identifiers: MIT, the BSD family, the PSF licence, Apache-2.0,
+# #122's allowlist, in SPDX identifiers: MIT, the BSD family, the PSF license, Apache-2.0,
 # and the dedications that oblige strictly less than MIT does.
 ALLOWED = frozenset(
     {
@@ -57,7 +57,7 @@ ALLOWED = frozenset(
     }
 )
 # Never excepted. An exception is for a notice obligation a distributor can meet by shipping
-# a licence text; these ask for the source of a combined work, which is a licence decision
+# a license text; these ask for the source of a combined work, which is a license decision
 # and not a line in a dependency document.
 REFUSED = re.compile(r"\b(?:A?GPL-[0-9.]+[A-Za-z-]*|SSPL-[0-9.]+|BUSL-[0-9.]+)\b")
 # An SPDX expression: identifiers joined by AND, OR or WITH. "BSD License" is not one.
@@ -67,11 +67,11 @@ NAME = re.compile(r"`([^`]+)`")
 ROW = re.compile(r"^\| `([^`]+)` \| ([^|]+?) \| ([^|]+?) \|\s*$")
 SECTION = re.compile(r"^## (.+)$")
 TABLE = "Runtime distributions"
-# What the document's licence column says where there is no licence to record. It is not an
-# SPDX identifier, so the SBOM leaves the component's licence out rather than naming it.
+# What the document's license column says where there is no license to record. It is not an
+# SPDX identifier, so the SBOM leaves the component's license out rather than naming it.
 NONE_DECLARED = "none declared"
-EXCEPTIONS = "Licence exceptions"
-UNDECLARED = "Licences the installed metadata does not declare"
+EXCEPTIONS = "License exceptions"
+UNDECLARED = "Licenses the installed metadata does not declare"
 FIRST_PARTY = "First-party distributions"
 # The project's own root package in the lockfile, and the group a release installs beside it.
 PROJECT = "execbound"
@@ -138,7 +138,7 @@ def lock_hash(package: dict[str, Any]) -> str | None:
 
 
 def declared(name: str) -> str | None:
-    """The licence a distribution's installed metadata declares, as an SPDX expression."""
+    """The license a distribution's installed metadata declares, as an SPDX expression."""
     try:
         found = metadata.metadata(name)
     except metadata.PackageNotFoundError:
@@ -155,7 +155,7 @@ def declared(name: str) -> str | None:
 
 
 def environment(names: list[str]) -> dict[str, str]:
-    """Every name that is installed here, with the licence its metadata declares."""
+    """Every name that is installed here, with the license its metadata declares."""
     return {name: found for name in names if (found := declared(name)) is not None}
 
 
@@ -173,7 +173,7 @@ def sections(document: Path) -> dict[str, list[str]]:
 
 
 def table(lines: list[str]) -> dict[str, tuple[str, str]]:
-    """Distribution to (licence, reason), from the document's one table."""
+    """Distribution to (license, reason), from the document's one table."""
     rows: dict[str, tuple[str, str]] = {}
     for line in lines:
         row = ROW.match(line)
@@ -235,7 +235,7 @@ def findings(
                 continue
             if name not in undeclared:
                 problems.append(
-                    f"{name} declares no licence here and is not named under '{UNDECLARED}'"
+                    f"{name} declares no license here and is not named under '{UNDECLARED}'"
                 )
                 continue
         elif metadata_licence != recorded:
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"{len(resolved)} runtime distributions written to {args.output}")
     for problem in problems:
-        print(f"licence: {problem}", file=sys.stderr)
+        print(f"license: {problem}", file=sys.stderr)
     return 1 if problems else 0
 
 

@@ -1,6 +1,6 @@
 # Console dependencies
 
-Every package the console installs, why it is there and what it costs. [`DEPENDENCIES.md`](../DEPENDENCIES.md) at the root is the same document for the Python tree. `tests/test_console_dependencies.py` compares this file to `package.json` and `pnpm-workspace.yaml`, so a new package, a changed version, an install script or a licence exception is a reviewed change here and never a side effect of an install.
+Every package the console installs, why it is there and what it costs. [`DEPENDENCIES.md`](../DEPENDENCIES.md) at the root is the same document for the Python tree. `tests/test_console_dependencies.py` compares this file to `package.json` and `pnpm-workspace.yaml`, so a new package, a changed version, an install script or a license exception is a reviewed change here and never a side effect of an install.
 
 Every version is exact and was published at least seven days before it was pinned; `minimumReleaseAge` in `pnpm-workspace.yaml` then refuses anything younger at every later install. Compressed sizes are gzip, measured from the production build at the pinned version, because gzip is what a reverse proxy in front of the gateway typically serves; a development package ships nothing.
 
@@ -50,17 +50,17 @@ No package runs an install script: `strictDepBuilds` is on and `allowBuilds` is 
 
 - `js-yaml` to 4.3.2: `@hey-api/json-schema-ref-parser` (through `@hey-api/openapi-ts`, development only) pins 4.2.0, which carries three high advisories (quadratic CPU in merge keys and `!!omap`); 4.3.2 is the patched release and is older than the minimum release age.
 
-## Licence exceptions
+## License exceptions
 
-`scripts/console_sbom.py` holds every package to the allowlist: MIT, Apache-2.0, the BSD family, ISC, and the dedications that oblige less than MIT does (MIT-0, 0BSD, Unlicense, CC0-1.0). A package the browser receives has no exception. A development package may be named here instead, with its licence and the reason it is acceptable: none of these ships a byte to a browser, and each is a tool the build runs.
+`scripts/console_sbom.py` holds every package to the allowlist: MIT, Apache-2.0, the BSD family, ISC, and the dedications that oblige less than MIT does (MIT-0, 0BSD, Unlicense, CC0-1.0). A package the browser receives has no exception. A development package may be named here instead, with its license and the reason it is acceptable: none of these ships a byte to a browser, and each is a tool the build runs.
 
 - `lightningcss` and `lightningcss-*`: MPL-2.0. The CSS engine Tailwind and Vite use; file-level copyleft on its own files, which the build neither modifies nor distributes.
 - `caniuse-lite`: CC-BY-4.0. Browser support data behind `browserslist`, read at build time.
 - `lru-cache` and `minimatch`: BlueOak-1.0.0. Permissive; pulled in by the TypeScript and ESLint toolchain.
 - `axe-core`: MPL-2.0. The accessibility engine the Python browser suite injects; a test tool that never ships.
-- `argparse`: Python-2.0 (the PSF licence). Pulled in by `@hey-api/openapi-ts` through `js-yaml`; a generator that runs at development time and ships nothing.
+- `argparse`: Python-2.0 (the PSF license). Pulled in by `@hey-api/openapi-ts` through `js-yaml`; a generator that runs at development time and ships nothing.
 
-After any `pnpm add`, run the licence check CI runs, so a licence the allowlist refuses is found here and not on the pull request:
+After any `pnpm add`, run the license check CI runs, so a license the allowlist refuses is found here and not on the pull request:
 
 ```sh
 pnpm licenses list --json > ../local-data/console-licenses.json

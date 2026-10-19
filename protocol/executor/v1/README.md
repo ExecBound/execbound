@@ -10,7 +10,7 @@ The `execbound_protocol.conformance` module, in the package these schemas are ge
 
 The `execbound_protocol.checkpoint_conformance` module checks the reports an executor of chapter 2 writes. Load `vectors/checkpoint-report-v1.json` with its `load_vectors`; for each vector, hand your executor the vector's grant and scenario, capture the report body it would send, and run `check` with the vector, that body and your executor's key ring. A ring names each key's scheme and a function that verifies a signature under it (`RingKey`), because the protocol package holds no cryptographic library: build it from the vector file's public test keys or, when your executor signs with keys of its own, from their public halves, with any library that verifies Ed25519 and ES256. `settlement` is section 2.8 of the specification as a pure function, and `refused` reads a refusal vector and finds its fault at the check it names. The specification's section 2.10 lists each check, the refusal code each corresponds to, and what the module leaves out. In ExecBound's own tests, the outcome route settles the report the vectors' executor writes for each vector, for a fresh grant the gateway issued and signed with keys of the test's own, as the vector says, and refuses each refusal, written the same way, with its code. The keys must be the test's own, because ExecBound refuses the published ones, as below.
 
-## Licence
+## License
 
 Apache-2.0, under [`protocol/LICENSE`](../../LICENSE), like the package the schemas are generated from. The ExecBound server, which enforces the protocol, is AGPL-3.0-only.
 

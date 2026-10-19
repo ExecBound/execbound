@@ -495,7 +495,7 @@ INTEGRATIONS = Path(__file__).resolve().parents[1] / "integrations"
 
 @pytest.fixture
 def story_console(db, runtime, fake_build):
-    """The fake build with the two Tines stories and their licence where the console build
+    """The fake build with the two Tines stories and their license where the console build
     writes them (#678)."""
     stories = fake_build / "stories" / "tines"
     stories.mkdir(parents=True)
@@ -529,7 +529,7 @@ def test_the_story_licence_is_packaged_but_not_served(story_console):
 
 def test_the_packaged_build_carries_the_committed_tines_stories_unchanged():
     """Over the build the package carries when one is present (CI builds it before the suite):
-    each story is the committed file byte for byte, and the licence travels beside them."""
+    each story is the committed file byte for byte, and the license travels beside them."""
     build = load_build()
     if build is None:
         assert not build_root_exists(), "a console_dist directory exists but is not a build"

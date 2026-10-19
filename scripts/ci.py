@@ -360,7 +360,7 @@ def stage_lint(ci: Runner) -> None:
 
 
 def stage_licences(ci: Runner) -> None:
-    """Every Python and npm licence against its DEPENDENCIES.md, and the third-party notices
+    """Every Python and npm license against its DEPENDENCIES.md, and the third-party notices
     against what a release ships. The SBOMs this writes stay in local-data/release/."""
     revision = shlex.quote(ci.settings.revision)
     ci.mkdir("local-data/release")
@@ -435,7 +435,7 @@ def stage_suite(ci: Runner) -> None:
 
 def stage_package(ci: Runner) -> None:
     """The server's distributions, the client's, the protocol's and the connectors': each
-    carries its licence, and the server's carries the console the `console` stage built."""
+    carries its license, and the server's carries the console the `console` stage built."""
     ci.remove("dist")
     ci.run("uv build")
     ci.run("uv build clients/python --out-dir dist/client")
@@ -597,7 +597,7 @@ def stage_image(ci: Runner) -> None:
         """ "import importlib.util; assert all(importlib.util.find_spec(name) is None"""
         """ for name in ('pip', 'ensurepip'))" """
     )
-    # Every ExecBound package the image installs carries the licence texts its metadata names, in
+    # Every ExecBound package the image installs carries the license texts its metadata names, in
     # its dist-info's `licenses/`, so the image ships the terms of what it ships.
     ci.run(
         f"docker run --rm {image} python -c"

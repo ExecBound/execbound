@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Refuse a built wheel that does not carry its licence.
+"""Refuse a built wheel that does not carry its license.
 
     uv run python scripts/check_wheel_licences.py dist/*.whl dist/client/*.whl \
         dist/protocol/*.whl dist/connectors/*.whl
 
-PEP 639 puts a distribution's licence files under `<name>.dist-info/licenses/` and its SPDX
+PEP 639 puts a distribution's license files under `<name>.dist-info/licenses/` and its SPDX
 expression in the `License-Expression` field. Each wheel this repository builds must carry
 the `LICENSE` its directory holds, byte for byte, and declare the expression its
 `pyproject.toml` does. The server's wheel also carries `THIRD_PARTY_NOTICES.md`, because it
 bundles the built console and the console bundles third-party code (#122; #496). A wheel this
 file does not know is refused rather than passed, so a new distribution has to be given its
-licence here before it can ship.
+license here before it can ship.
 
 The server's wheel also carries, as package data, the `LICENSE` of each Apache-2.0 directory
 inside the AGPL package: the install bundle, the starter policy packs, the MCP recipes and the
-Tines stories. The server reads those directories from where they are, so each licence has to
+Tines stories. The server reads those directories from where they are, so each license has to
 travel beside them. The Tines stories are copied into the console build from `integrations/`,
-so their licence's repository copy is `integrations/LICENSE`.
+so their license's repository copy is `integrations/LICENSE`.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Wheel name, as the file name spells it, to (expression, {licence file: repository copy}).
+# Wheel name, as the file name spells it, to (expression, {license file: repository copy}).
 EXPECTED: dict[str, tuple[str, dict[str, Path]]] = {
     "execbound": (
         "AGPL-3.0-only",
@@ -42,7 +42,7 @@ EXPECTED: dict[str, tuple[str, dict[str, Path]]] = {
     "execbound_connectors": ("Apache-2.0", {"LICENSE": ROOT / "connectors" / "LICENSE"}),
 }
 
-# Wheel name to {archive member: repository copy}: the licences a wheel carries beside the
+# Wheel name to {archive member: repository copy}: the licenses a wheel carries beside the
 # package data they cover, rather than under `.dist-info/licenses/`.
 PACKAGED: dict[str, dict[str, Path]] = {
     "execbound": {
@@ -54,7 +54,7 @@ PACKAGED: dict[str, dict[str, Path]] = {
                 "execbound/surfaces/templates/recipes/LICENSE",
             )
         },
-        # The console build copies the committed Tines stories and this licence beside them.
+        # The console build copies the committed Tines stories and this license beside them.
         "execbound/surfaces/console_dist/stories/tines/LICENSE": ROOT / "integrations" / "LICENSE",
     },
 }
@@ -69,10 +69,10 @@ def problems(
     expected: dict[str, tuple[str, dict[str, Path]]] = EXPECTED,
     packaged: dict[str, dict[str, Path]] = PACKAGED,
 ) -> list[str]:
-    """Every way one wheel fails to carry its licences; empty when it carries them."""
+    """Every way one wheel fails to carry its licenses; empty when it carries them."""
     name = wheel.name.split("-", 1)[0]
     if name not in expected:
-        return [f"{wheel.name}: no licence is recorded for the distribution {name!r}"]
+        return [f"{wheel.name}: no license is recorded for the distribution {name!r}"]
     expression, files = expected[name]
     found: list[str] = []
     with zipfile.ZipFile(wheel) as archive:
@@ -114,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         print(failure, file=sys.stderr)
     if failures:
         return 1
-    print(f"{len(wheels)} wheel(s) carry their licence")
+    print(f"{len(wheels)} wheel(s) carry their license")
     return 0
 
 

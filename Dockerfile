@@ -15,7 +15,7 @@ COPY console/package.json console/pnpm-lock.yaml console/pnpm-workspace.yaml ./
 # Dependencies first so a source change does not invalidate this layer.
 RUN pnpm install --frozen-lockfile
 COPY console/ ./
-# The committed Tines stories and their licence, which the build copies unchanged for Getting
+# The committed Tines stories and their license, which the build copies unchanged for Getting
 # started's downloads (console/scripts/stories.ts reads ../integrations/ from here).
 COPY integrations/tines/execbound-governed-action.json integrations/tines/execbound-gate.json /integrations/tines/
 COPY integrations/LICENSE /integrations/LICENSE
@@ -57,7 +57,7 @@ COPY connectors/pyproject.toml connectors/README.md connectors/LICENSE connector
 COPY connectors/src connectors/src
 # Runtime dependencies first so source changes do not invalidate this layer.
 RUN uv sync --locked --no-dev --group showcase --no-install-project --no-editable
-# The licence texts the server's metadata names (`license-files`), so its installed dist-info
+# The license texts the server's metadata names (`license-files`), so its installed dist-info
 # carries them; a package built without them carries none.
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
 COPY src ./src

@@ -22,7 +22,7 @@ For anything larger than a small fix, open an issue first, so the approach can b
 
 ## Sign off every commit
 
-Every commit carries a `Signed-off-by:` line, which certifies the [Developer Certificate of Origin 1.1](https://developercertificate.org/): that you wrote the change, or otherwise have the right to submit it under the licence of the files it touches. `git commit -s` adds the line from your git name and address:
+Every commit carries a `Signed-off-by:` line, which certifies the [Developer Certificate of Origin 1.1](https://developercertificate.org/): that you wrote the change, or otherwise have the right to submit it under the license of the files it touches. `git commit -s` adds the line from your git name and address:
 
 ```sh
 git commit -s -m "Refuse an approval that has already expired"
@@ -32,11 +32,11 @@ To sign off commits already on your branch, `git rebase --signoff main`, then pu
 
 ## The contributor agreement
 
-Every contribution is made under the [contributor agreement](https://github.com/ExecBound/execbound/blob/main/CONTRIBUTOR_AGREEMENT.md). You keep your copyright and give ExecBound LLC a licence to use your contribution, including under other licences than this repository's, and a licence to any of your patents it needs. That is what lets ExecBound offer the code under its [internal-use licence](INTERNAL_USE_LICENSE.md), in its hosted service and in its paid editions, as well as under AGPL-3.0 and Apache-2.0. ExecBound publishes every contribution it accepts under the licence of the files it was submitted to.
+Every contribution is made under the [contributor agreement](https://github.com/ExecBound/execbound/blob/main/CONTRIBUTOR_AGREEMENT.md). You keep your copyright and give ExecBound LLC a license to use your contribution, including under other licenses than this repository's, and a license to any of your patents it needs. That is what lets ExecBound offer the code under its [internal-use license](INTERNAL_USE_LICENSE.md), in its hosted service and in its paid editions, as well as under AGPL-3.0 and Apache-2.0. ExecBound publishes every contribution it accepts under the license of the files it was submitted to.
 
 Accept it by ticking its box in the pull request template, or by saying so on the pull request. An organization that wants to accept it for the people who contribute on its behalf writes to justin.pitt@execbound.ai, as the agreement's section 8 describes, and the people it lists tick the template's other box. A pull request is applied only after the author of every commit in it has accepted the agreement, in one of those ways.
 
-A third party's work, such as code copied from another project, goes in a commit of its own, with its source and licence in the commit message and the file's header, as the agreement's section 5 describes.
+A third party's work, such as code copied from another project, goes in a commit of its own, with its source and license in the commit message and the file's header, as the agreement's section 5 describes.
 
 ## What a change has to pass
 
@@ -82,7 +82,7 @@ Build the console (`pnpm build` in `console/`) before the suite, because its bro
 
 ## Conventions
 
-- **Every source file names its licence** in an `SPDX-License-Identifier` line at its top, the licence of its directory. Stage a new file and run `python3 scripts/licence_headers.py --write`, which writes the line into every tracked file that needs it, or name the file after `--write`; `--check` names any file whose line is missing or wrong.
+- **Every source file names its license** in an `SPDX-License-Identifier` line at its top, the license of its directory. Stage a new file and run `python3 scripts/licence_headers.py --write`, which writes the line into every tracked file that needs it, or name the file after `--write`; `--check` names any file whose line is missing or wrong.
 - **A new migration** keeps old frozen bytes, operation proof and retained uncertainty, and updates forced row-level security, grants and the `check_runtime` catalog in `src/execbound/db.py` together.
 - **One complete protected action path comes before another connector.** A protocol adapter never authorizes or dispatches on its own; it goes through the kernel.
 - **Pages treat agent and provider strings as untrusted data.**

@@ -94,4 +94,4 @@ ExecBound's server is licensed under the **AGPL-3.0-only**; the Python client, t
 - **The AGPL places no restriction on whom you run ExecBound for.**
 - **Unmodified use as a service carries no source obligation; a modified version offered to those clients does.** The AGPL's network clause attaches to the modifications you serve, not to the act of serving.
 
-This is a description of the licence, not legal advice, and your counsel should read the licence text rather than this paragraph.
+This is a description of the license, not legal advice, and your counsel should read the license text rather than this paragraph.

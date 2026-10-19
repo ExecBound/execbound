@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
       ...(hosted ? [hostedStyles(normalizePath(from("src/styles/app.css")))] : []),
       tailwindcss(),
       editionMeta(edition),
-      // The committed Tines stories and their licence, unchanged, for Getting started (#678).
+      // The committed Tines stories and their license, unchanged, for Getting started (#678).
       tinesStories(ROOT),
       ...(hosted ? [] : [coreOnly(HOSTED)]),
     ],

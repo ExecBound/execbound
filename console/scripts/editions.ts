@@ -72,7 +72,7 @@ export function editionMeta(edition: EditionName): Plugin {
 }
 
 /**
- * The licence each edition's generated route tree names. Every other file carries its line from
+ * The license each edition's generated route tree names. Every other file carries its line from
  * `scripts/licence_headers.py --write`, but the router rewrites this one whole on every build, so
  * its line comes from the router's own header option, the same identifier the script's map gives
  * the tree's directory.
@@ -83,7 +83,7 @@ export const ROUTE_TREE_LICENCES: Readonly<Record<EditionName, string>> = {
 };
 
 /**
- * The lines the router writes at the top of an edition's route tree: the licence line first, then
+ * The lines the router writes at the top of an edition's route tree: the license line first, then
  * the router's three defaults, which the option replaces rather than extends.
  */
 export function routeTreeFileHeader(edition: EditionName): string[] {

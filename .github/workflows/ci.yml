@@ -46,7 +46,7 @@ jobs:
         run: python3 scripts/ci.py sync
       - name: Lint, format, type and bandit checks
         run: python3 scripts/ci.py lint
-      - name: Check every licence and the third-party notices
+      - name: Check every license and the third-party notices
         run: python3 scripts/ci.py licences
       - name: Check and build the console
         run: python3 scripts/ci.py console

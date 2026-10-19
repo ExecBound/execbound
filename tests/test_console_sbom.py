@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""The npm SBOM reads the lockfile itself, and the licence allowlist holds the tree to it."""
+"""The npm SBOM reads the lockfile itself, and the license allowlist holds the tree to it."""
 
 import json
 
@@ -52,7 +52,7 @@ def test_a_production_package_needs_an_allowed_licence_and_a_development_one_an_
     assert problems == [
         "react@19.3.0 ships to the browser under MPL-2.0",
         "other-tool@2.0.0 is MPL-2.0 and is not named in DEPENDENCIES.md's exceptions",
-        "silent@3.0.0 declares no licence the listing knows",
+        "silent@3.0.0 declares no license the listing knows",
     ]
 
 
@@ -60,7 +60,7 @@ def test_the_document_is_cyclonedx_with_hashes_and_licences(tmp_path):
     resolved = [{"name": "react", "version": "19.3.0", "algorithm": "sha512", "digest": "ab" * 64}]
     exceptions = tmp_path / "DEPENDENCIES.md"
     exceptions.write_text(
-        "## Licence exceptions\n\n- `lightningcss` and `lightningcss-*`: MPL-2.0.\n"
+        "## License exceptions\n\n- `lightningcss` and `lightningcss-*`: MPL-2.0.\n"
         "- `lru-cache`: x.\n",
         encoding="utf-8",
     )

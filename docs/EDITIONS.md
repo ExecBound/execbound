@@ -34,7 +34,7 @@ On the hosted service, an agent that governs nothing for ninety days goes to sle
 
 The optional seeded examples use synthetic data and the protected mock providers. They add no real connector and grant no permission to act on an organization's systems.
 
-## Licences and releases
+## Licenses and releases
 
 - **AGPL-3.0-only:** the server, the console and the tests, under the root `LICENSE`. The console's fonts are OFL-1.1.
 - **CC BY 4.0:** the documentation (`docs/LICENSE`).
@@ -42,7 +42,7 @@ The optional seeded examples use synthetic data and the protected mock providers
   - the Python client (`clients/python/`), the provider protocol (`protocol/`) and the connectors (`connectors/`);
   - `examples/`, `integrations/` and `deploy/`;
   - the install bundle (`src/execbound/data/community/`), the starter policy packs (`src/execbound/data/starters/`) and the MCP recipes (`src/execbound/surfaces/templates/recipes/`).
-- **The internal-use licence:** an organization whose policies do not allow AGPL software can ask ExecBound LLC for the server and console under the PolyForm Internal Use License 1.0.0, free (`INTERNAL_USE_LICENSE.md` at the repository's root).
+- **The internal-use license:** an organization whose policies do not allow AGPL software can ask ExecBound LLC for the server and console under the PolyForm Internal Use License 1.0.0, free (`INTERNAL_USE_LICENSE.md` at the repository's root).
 - **Trademarks:** "ExecBound" and its mark are trademarks of ExecBound LLC, with a policy for their use in `TRADEMARK.md`; contributions are made under `CONTRIBUTOR_AGREEMENT.md`.
 
 Each release is a signed image with its SBOM, provenance and release record. [Releases](RELEASE.md) describes what a release publishes and how to verify it.

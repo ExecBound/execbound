@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Every file names its licence as the map gives it (#496).
+"""Every file names its license as the map gives it (#496).
 
-`scripts/licence_headers.py` holds the map from directory to licence, the comment syntax of
+`scripts/licence_headers.py` holds the map from directory to license, the comment syntax of
 each file type and the files that take the map without a line. These cases run it over small
 trees they write under `tmp_path`, with `git init` where git's listing is the point. The
 script is public, so this file runs in the self-hosted export too.
@@ -230,7 +230,7 @@ def test_an_exempt_file_takes_the_map_and_write_leaves_it_alone(tmp_path, path):
 
 
 def test_only_a_licence_file_among_the_exempt_may_carry_a_line_and_only_the_right_one(tmp_path):
-    """A licence file opens with its own identifier. Every other exempt file takes no line at
+    """A license file opens with its own identifier. Every other exempt file takes no line at
     all: the website is served as committed and an applied migration is never edited, so a
     line added to either by hand is named, even the one the map would give."""
     root = tree(
@@ -600,7 +600,7 @@ def test_the_command_line_checks_writes_and_refuses(tmp_path, capsys):
     assert "src/execbound/b.py:3: a second" in capsys.readouterr().err
 
     # A path given by hand is read at its own path: one through `..` or a linked directory
-    # would take the licence of the path as written, not of the file it reaches.
+    # would take the license of the path as written, not of the file it reaches.
     hosted = tree(root, {"src/execbound/hosted/p.py": "x = 1\n"}) / "src/execbound/hosted/p.py"
     (root / "alias").symlink_to("src/execbound/hosted", target_is_directory=True)
     for usage in (

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """`DEPENDENCIES.md` is the reviewed inventory; `uv.lock` and the installed metadata match it.
 
-A third-party licence is an obligation, and #122 records the runtime set with the licence of
+A third-party license is an obligation, and #122 records the runtime set with the license of
 every distribution in it. `scripts/python_sbom.py` derives that set from the lockfile and
-reads each licence from the metadata that ships, so this file holds the document to both and
-plants the cases the real tree does not have: a distribution the document omits, a licence
-the allowlist refuses, a licence the metadata contradicts, strong copyleft, and a line left
+reads each license from the metadata that ships, so this file holds the document to both and
+plants the cases the real tree does not have: a distribution the document omits, a license
+the allowlist refuses, a license the metadata contradicts, strong copyleft, and a line left
 behind by a dependency that is gone.
 """
 
@@ -53,7 +53,7 @@ def entry(**overrides):
 def document(rows, *, exceptions=(), undeclared=(), first_party=()):
     """A document in the shape the script reads, built from names rather than prose."""
     return {
-        python_sbom.TABLE: ["| Distribution | Licence | Why |", "| --- | --- | --- |"]
+        python_sbom.TABLE: ["| Distribution | License | Why |", "| --- | --- | --- |"]
         + [f"| `{name}` | {licence} | Because. |" for name, licence in rows],
         python_sbom.EXCEPTIONS: [f"- `{name}`: the obligation." for name in exceptions],
         python_sbom.UNDECLARED: [f"- `{name}`: read by hand." for name in undeclared],
@@ -74,7 +74,7 @@ def test_the_document_lists_every_runtime_distribution_and_nothing_else(resolved
 
 @pytest.mark.docs
 def test_every_recorded_licence_is_the_one_the_installed_metadata_declares(installed, listed):
-    """Where a distribution declares a licence, the document repeats it rather than deciding."""
+    """Where a distribution declares a license, the document repeats it rather than deciding."""
     assert installed, "nothing is installed, so this proves nothing"
     differing = {
         name: (declared, listed[name][0])
@@ -87,7 +87,7 @@ def test_every_recorded_licence_is_the_one_the_installed_metadata_declares(insta
 @pytest.mark.docs
 def test_a_distribution_with_no_readable_licence_is_recorded_by_hand(resolved, installed):
     """The five the script cannot read, and the one that is ours, are each named in a section
-    of their own, so accepting a licence nobody's metadata declares is always a written act."""
+    of their own, so accepting a license nobody's metadata declares is always a written act."""
     document_sections = python_sbom.sections(DOCUMENT)
     recorded = python_sbom.named(document_sections[python_sbom.UNDECLARED])
     ours = python_sbom.named(document_sections[python_sbom.FIRST_PARTY])
@@ -136,7 +136,7 @@ def test_the_committed_tree_passes_and_writes_a_bill_of_materials(tmp_path):
     assert names == sorted(names) and len(names) == len(set(names))
     for component in bom["components"]:
         assert component["purl"] == f"pkg:pypi/{component['name']}@{component['version']}"
-    # A component with no licence to name carries none, rather than one called "none declared".
+    # A component with no license to name carries none, rather than one called "none declared".
     for component in bom["components"]:
         for declaration in component.get("licenses", []):
             value = declaration.get("expression") or declaration["license"]["id"]
@@ -154,14 +154,14 @@ def test_a_runtime_distribution_the_document_omits_is_refused():
 def test_a_licence_outside_the_allowlist_needs_a_named_exception():
     resolved, installed = {"thing": entry()}, {"thing": "MPL-2.0"}
     (problem,) = python_sbom.findings(resolved, installed, document([("thing", "MPL-2.0")]))
-    assert "not named under" in problem and "Licence exceptions" in problem
+    assert "not named under" in problem and "License exceptions" in problem
     excepted = document([("thing", "MPL-2.0")], exceptions=["thing"])
     assert python_sbom.findings(resolved, installed, excepted) == []
 
 
 def test_strong_copyleft_is_refused_even_when_the_document_excepts_it():
     """An exception covers a notice a distributor ships. It does not cover the source of a
-    combined work, which is a licence decision and never a line in a dependency document."""
+    combined work, which is a license decision and never a line in a dependency document."""
     for licence in ("GPL-3.0-only", "AGPL-3.0-only", "SSPL-1.0"):
         excepted = document([("thing", licence)], exceptions=["thing"])
         (problem,) = python_sbom.findings({"thing": entry()}, {"thing": licence}, excepted)
@@ -172,7 +172,7 @@ def test_strong_copyleft_is_refused_even_when_the_document_excepts_it():
 
 
 def test_a_recorded_licence_the_metadata_contradicts_is_refused():
-    """The document may record a licence the metadata does not carry; it may not overrule one
+    """The document may record a license the metadata does not carry; it may not overrule one
     the metadata does carry, which is how a document goes quietly stale after an upgrade."""
     (problem,) = python_sbom.findings(
         {"thing": entry()}, {"thing": "LGPL-3.0-only"}, document([("thing", "MIT")])
@@ -183,7 +183,7 @@ def test_a_recorded_licence_the_metadata_contradicts_is_refused():
 def test_a_distribution_with_no_metadata_must_be_recorded_or_named_as_ours():
     rows = [("thing", "BSD-3-Clause")]
     (problem,) = python_sbom.findings({"thing": entry()}, {}, document(rows))
-    assert "declares no licence here" in problem
+    assert "declares no license here" in problem
     assert python_sbom.findings({"thing": entry()}, {}, document(rows, undeclared=["thing"])) == []
     ours = entry(source={"editable": "clients/python"})
     (problem,) = python_sbom.findings({"thing": ours}, {}, document(rows))
@@ -200,7 +200,7 @@ def test_a_line_left_behind_by_a_dependency_that_is_gone_is_refused():
     ]
 
 
-# Reading a licence, and reading the lockfile
+# Reading a license, and reading the lockfile
 
 
 @pytest.mark.parametrize(
@@ -222,8 +222,8 @@ def test_the_allowlist_reads_an_expression_the_way_the_expression_reads(expressi
 
 
 def test_a_family_name_is_not_read_as_a_licence():
-    """`License: BSD License` says which family, not which licence, and two of the BSD
-    licences differ in what they oblige. The script refuses to guess; the document records
+    """`License: BSD License` says which family, not which license, and two of the BSD
+    licenses differ in what they oblige. The script refuses to guess; the document records
     which one the wheel's own text is."""
     assert python_sbom.EXPRESSION.match("BSD-3-Clause")
     assert not python_sbom.EXPRESSION.match("BSD License")

@@ -5,20 +5,20 @@
     uv run python scripts/third_party_notices.py --console-licenses <file> --check
 
 `<file>` is the output of `pnpm licenses list --prod --json`, run in `console/` after an
-install, because the console's licence files are only on disk once its packages are.
+install, because the console's license files are only on disk once its packages are.
 
-The notices reproduce what the licences of the software ExecBound redistributes require: the
-licence texts and copyright notices of every third-party component a release ships (#122;
+The notices reproduce what the licenses of the software ExecBound redistributes require: the
+license texts and copyright notices of every third-party component a release ships (#122;
 #496). Three sources, each read from the copy that ships rather than from a registry:
 
 - **Python:** every third-party distribution a release installs, walked from `uv.lock` by
-  `python_sbom.runtime`, with the licence files its installed metadata carries. A distribution
+  `python_sbom.runtime`, with the license files its installed metadata carries. A distribution
   a Linux release does not install, because of a platform marker, is named and not reproduced.
 - **Rust:** the crates compiled into `cedarpy`, from the CycloneDX SBOM its wheel bundles
-  (PEP 770). The SBOM records each crate's licence and author, not the texts, so the standard
-  SPDX text of each licence it names is reproduced once, from `scripts/licence-texts/`.
+  (PEP 770). The SBOM records each crate's license and author, not the texts, so the standard
+  SPDX text of each license it names is reproduced once, from `scripts/licence-texts/`.
 - **The console:** the production dependencies the build bundles into the JavaScript the wheel
-  and the image serve, with the licence files in each package, and the fonts it ships.
+  and the image serve, with the license files in each package, and the fonts it ships.
 
 The output carries no path, time or machine detail, so the same lockfiles always produce the
 same file and `--check` can hold it the way `DEPENDENCIES.md` is held.
@@ -45,7 +45,7 @@ DEPENDENCIES = ROOT / "DEPENDENCIES.md"
 FONTS = ROOT / "console" / "public" / "fonts" / "LICENSE.txt"
 SOURCE = "https://github.com/psycopg/psycopg/tree/{version}"
 
-# A file whose name says it is a licence, a notice or an author list, with any suffix.
+# A file whose name says it is a license, a notice or an author list, with any suffix.
 LICENCE_FILE = re.compile(r"^(licen[cs]e|copying|notice|authors)([-_. ].*)?$", re.IGNORECASE)
 # SPDX expression operators and parentheses; everything else in an expression is an identifier.
 OPERATORS = re.compile(r"\(|\)|\s+(?:AND|OR|WITH)\s+")
@@ -84,7 +84,7 @@ def fence(text: str) -> str:
     """A `text` block whose fence is longer than any run of backticks the text contains.
 
     Labelled `text` so Ruff, which formats unlabelled and `python` blocks in Markdown, leaves
-    a licence alone.
+    a license alone.
     """
     longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
     ticks = "`" * max(3, longest + 1)
@@ -92,7 +92,7 @@ def fence(text: str) -> str:
 
 
 def identifiers(expression: str) -> list[str]:
-    """The licence and exception identifiers an SPDX expression names, in order, once each."""
+    """The license and exception identifiers an SPDX expression names, in order, once each."""
     found: list[str] = []
     for token in OPERATORS.split(expression):
         token = token.strip()
@@ -117,7 +117,7 @@ def first_party() -> set[str]:
 
 
 def recorded_licences() -> dict[str, str]:
-    """Each distribution's licence as `DEPENDENCIES.md` records it, for one not installed."""
+    """Each distribution's license as `DEPENDENCIES.md` records it, for one not installed."""
     document = python_sbom.sections(DEPENDENCIES)
     table = python_sbom.table(document.get(python_sbom.TABLE, []))
     return {name: licence for name, (licence, _why) in table.items()}
@@ -152,7 +152,7 @@ def python_components(lock: dict[str, Any]) -> tuple[list[Component], list[Compo
                 )
                 component.texts.append(("/".join(parts[1:]), normalize(text)))
         if not component.texts:
-            raise NoticesError(f"{name} {distribution.version} ships no licence file")
+            raise NoticesError(f"{name} {distribution.version} ships no license file")
         installed.append(component)
     return installed, absent
 
@@ -168,7 +168,7 @@ def cedarpy_sbom() -> tuple[str, dict[str, Any]]:
 
 
 def rust_components(sbom: dict[str, Any]) -> tuple[list[Component], list[str]]:
-    """(crates, identifiers): every crate the SBOM names and every licence they use."""
+    """(crates, identifiers): every crate the SBOM names and every license they use."""
     crates: list[Component] = []
     used: list[str] = []
     for item in sbom.get("components", []):
@@ -179,7 +179,7 @@ def rust_components(sbom: dict[str, Any]) -> tuple[list[Component], list[str]]:
             elif "license" in entry:
                 expressions.append(str(entry["license"].get("id") or entry["license"].get("name")))
         if not expressions:
-            raise NoticesError(f"crate {item.get('name')} records no licence")
+            raise NoticesError(f"crate {item.get('name')} records no license")
         expression = " AND ".join(f"({e})" if len(expressions) > 1 else e for e in expressions)
         for identifier in identifiers(expression):
             if identifier not in used:
@@ -193,7 +193,7 @@ def rust_components(sbom: dict[str, Any]) -> tuple[list[Component], list[str]]:
 
 
 def console_components(listing: dict[str, Any]) -> list[Component]:
-    """Each production package and version, with the licence files found in its directory."""
+    """Each production package and version, with the license files found in its directory."""
     components: list[Component] = []
     for licence, packages in listing.items():
         for package in packages:
@@ -210,7 +210,7 @@ def console_components(listing: dict[str, Any]) -> list[Component]:
                 if not component.texts:
                     author = str(package.get("author") or "").strip()
                     component.note = (
-                        f"No licence file ships with this package; its package.json declares "
+                        f"No license file ships with this package; its package.json declares "
                         f"{licence}" + (f" and names {author}" if author else "") + "."
                     )
                     for identifier in identifiers(str(licence)):
@@ -256,7 +256,7 @@ def psycopg_section(installed: list[Component]) -> str:
         listed = ", ".join(f"`{name}`" for name in native)
         lines.append(
             f"`psycopg-binary` also bundles {len(native)} native libraries: {listed}. Its wheel "
-            "ships only its own licence, not theirs, so their texts are not reproduced here. "
+            "ships only its own license, not theirs, so their texts are not reproduced here. "
             "They come from the PostgreSQL client library's own build; building `psycopg` "
             "against a system `libpq` instead would carry the operating system's copies.\n"
         )
@@ -273,9 +273,9 @@ def render(
     cedarpy_version, crates, used = cedarpy
     parts = [
         "# Third-party notices\n",
-        "The licence texts and copyright notices of the third-party software an ExecBound "
+        "The license texts and copyright notices of the third-party software an ExecBound "
         "release ships. Generated by `scripts/third_party_notices.py`; do not edit by hand. "
-        "ExecBound's own licences are in `LICENSE` and in the `LICENSE` file of each directory "
+        "ExecBound's own licenses are in `LICENSE` and in the `LICENSE` file of each directory "
         "licensed differently, and `DEPENDENCIES.md` explains why each Python distribution is "
         "here.\n",
     ]
@@ -284,11 +284,11 @@ def render(
         parts.append(note)
     parts.append("## Python distributions\n")
     parts.append(
-        "Every third-party distribution a release installs, with the licence files its "
+        "Every third-party distribution a release installs, with the license files its "
         "installed metadata carries.\n"
     )
     for c in installed:
-        parts.append(f"### {c.name} {c.version}\n\nLicence: {c.licence}\n")
+        parts.append(f"### {c.name} {c.version}\n\nLicense: {c.licence}\n")
         parts.extend(_texts(c, seen, c.name))
     if absent:
         parts.append("### Not installed by a Linux release\n")
@@ -300,10 +300,10 @@ def render(
     parts.append(f"## Rust crates compiled into cedarpy {cedarpy_version}\n")
     parts.append(
         "From the CycloneDX SBOM that `cedarpy`'s wheel bundles. The SBOM records each crate's "
-        "licence and author, and the author stands for its copyright holder here; the standard "
-        "SPDX text of each licence it names follows the table.\n"
+        "license and author, and the author stands for its copyright holder here; the standard "
+        "SPDX text of each license it names follows the table.\n"
     )
-    rows = ["| Crate | Version | Licence | Author |", "| --- | --- | --- | --- |"]
+    rows = ["| Crate | Version | License | Author |", "| --- | --- | --- | --- |"]
     for c in crates:
         author = c.note.replace("|", "\\|") or "not recorded"
         rows.append(f"| {c.name} | {c.version} | {c.licence} | {author} |")
@@ -314,10 +314,10 @@ def render(
     parts.append("## Console production dependencies\n")
     parts.append(
         "The packages the console's build bundles into the JavaScript the gateway serves, with "
-        "the licence files found in each.\n"
+        "the license files found in each.\n"
     )
     for c in console:
-        parts.append(f"### {c.name} {c.version}\n\nLicence: {c.licence}\n")
+        parts.append(f"### {c.name} {c.version}\n\nLicense: {c.licence}\n")
         if c.note:
             parts.append(c.note + "\n")
         parts.extend(_texts(c, seen, f"{c.name} {c.version}"))

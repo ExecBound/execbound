@@ -91,7 +91,7 @@ Five things, none of which reading would have found:
   clean directory cannot fake.
 - **Not a published artifact.** The image was built locally. Nothing is pushed to a
   registry and nothing is signed, so the runbook's step 1 was a local tag rather than a
-  `docker load` of a released archive, and the licence decision still
+  `docker load` of a released archive, and the license decision still
   gates distribution itself. *Note, 2 October 2026: settled on 25 September 2026; the server
   is licensed AGPL-3.0-only.*
 - **Not a real provider.** Both providers are mocks. `ENFORCED_BY_PROVIDER` is true of them

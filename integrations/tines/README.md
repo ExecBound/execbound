@@ -476,9 +476,12 @@ Tines flow, which matters on Community Edition's three flows.
   like any other.
 - **Source tokens last at most 24 hours when issued from the command line,** so ongoing
   instrumentation needs a daily `rotate-source` and a credential update inside the grace window.
-- **Findings delivery is built, not yet qualified against a real receiver.** Email, Slack,
-  Teams and signed HTTPS webhook destinations receive findings from `monitor-process
-  --deliver`; findings are always visible in the console.
+- **Findings delivery is qualified for signed webhooks only.** Email, Slack, Teams and signed
+  HTTPS webhook destinations receive findings from `monitor-process --deliver`. On 18 October
+  2026 a local `monitor-process --deliver` sent findings to a Tines webhook, which received the
+  signed `monitor.finding` body with a signature that checked against the destination's
+  secret. Email, Slack, Teams and the hosted service's delivery are built, not yet qualified
+  against a real receiver. Findings are always visible in the console.
 
 ### Tested against
 

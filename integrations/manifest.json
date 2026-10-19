@@ -251,7 +251,7 @@
       "recipe": "integrations/tines/README.md",
       "limits": [
         "Recorded trial: success, error and unknown results, a duplicate retry, a heartbeat stopped until stale and resumed, an unreachable intake, rotation past the grace window, coverage and revocation, all from a real Tines story",
-        "Findings delivery to email, Slack, Teams and signed webhook destinations, from the scheduled monitor-process job with --deliver, is built, not yet qualified against a real receiver; a 13 October 2026 trial sent findings to Tines",
+        "Findings delivery: signed webhooks were qualified against a Tines webhook on 18 October 2026, sent by a local monitor-process --deliver; email, Slack, Teams and hosted delivery are built, not yet qualified against a real receiver",
         "Sources are issued from the command line for at most 24 hours, so ongoing instrumentation needs a daily rotation; the trial ran for about forty minutes against a local intake behind a quick tunnel",
         "Telemetry only: observations and findings never authorize, settle or consume limits; a reported result is the story's account of an effect, not evidence of it, and the trial's vendor was a loopback stub"
       ],

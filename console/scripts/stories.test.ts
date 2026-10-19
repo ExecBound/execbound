@@ -29,7 +29,7 @@ function run(root: string): Emitted[] {
 }
 
 describe("the Tines stories in the console build (UX14, #678)", () => {
-  it("emits both committed stories and the directory's licence, byte for byte", () => {
+  it("emits both committed stories and the directory's license, byte for byte", () => {
     const emitted = run(CONSOLE);
     expect(emitted.map((file) => file.fileName)).toEqual([
       "stories/tines/execbound-governed-action.json",
@@ -47,7 +47,7 @@ describe("the Tines stories in the console build (UX14, #678)", () => {
     expect(tinesStories(CONSOLE).apply).toBe("build");
   });
 
-  it("fails the build naming the path of a missing file, the licence included", () => {
+  it("fails the build naming the path of a missing file, the license included", () => {
     const root = mkdtempSync(path.join(tmpdir(), "stories-"));
     const consoleRoot = path.join(root, "console");
     mkdirSync(path.join(root, "integrations", "tines"), { recursive: true });

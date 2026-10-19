@@ -157,7 +157,7 @@ A row is marked gone when its condition ends, and cleared when it holds again, d
 
 **Two limits.** An actor with no identity in the directory, such as a script calling a model provider with an API key, is invisible to it; and a platform that publishes no stable egress, or a customer whose automation runs behind its own network, gives no network evidence. Both read as unattributed.
 
-**Not yet established.** No real directory's sign-ins have been read: the filter, `$select`, the casing of Graph's next links, and the status of the licence and permission refusals are fixture-verified until a read-only probe of a directory with P1 or P2 and `AuditLog.Read.All`. Whether a shared-cloud Tines tenant's egress addresses are its own is not documented.
+**Not yet established.** No real directory's sign-ins have been read: the filter, `$select`, the casing of Graph's next links, and the status of the license and permission refusals are fixture-verified until a read-only probe of a directory with P1 or P2 and `AuditLog.Read.All`. Whether a shared-cloud Tines tenant's egress addresses are its own is not documented.
 
 ## Commands
 
@@ -220,7 +220,7 @@ Every refusal ends the attempt, creates nothing and logs only a code. An attempt
 
 ## What a live tenant corrected, 18 September 2026
 
-A read-only probe, and then a full collection, ran against a test tenant created that day (Entra ID Free, no premium licence). It answered the open questions and found two defects in shipped code and one overstated assumption. The tenant holds one agent identity, one blueprint, one sponsor and twenty-six of Microsoft's own first-party service principals.
+A read-only probe, and then a full collection, ran against a test tenant created that day (Entra ID Free, no premium license). It answered the open questions and found two defects in shipped code and one overstated assumption. The tenant holds one agent identity, one blueprint, one sponsor and twenty-six of Microsoft's own first-party service principals.
 
 **Agent ID is served on the free tier.** All five capabilities classify `available`: agent identities, service principals, applications, grants and directory roles. Both Agent ID cast collections answer `200` in a tenant with no P1, P2 or Agent 365. The `Agent ID Administrator` and `Agent ID Developer` role templates exist. This was the largest unknown and the answer is the permissive one.
 

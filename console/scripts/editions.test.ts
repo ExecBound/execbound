@@ -413,8 +413,8 @@ describe("the document's edition tag", () => {
   });
 });
 
-describe("the route trees' licence line (#496)", () => {
-  it("opens each edition's route tree with its licence, then the router's own three lines", () => {
+describe("the route trees' license line (#496)", () => {
+  it("opens each edition's route tree with its license, then the router's own three lines", () => {
     const defaults = ["/* eslint-disable */", "// @ts-nocheck", "// noinspection JSUnusedGlobalSymbols"];
     expect(routeTreeFileHeader("core")).toEqual(["// SPDX-License-Identifier: AGPL-3.0-only", ...defaults]);
     expect(routeTreeFileHeader("hosted")).toEqual([
