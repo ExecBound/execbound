@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
+  recordMonitorEgressMutation,
   replaceMonitorConnectionKeyMutation,
   revokeMonitorConnectionMutation,
   scheduleMonitorConnectionMutation,
@@ -104,13 +105,18 @@ export function RevokeDialog({
       setProblem(connectCopy(error));
     },
   });
+  const synthetic = connection.kind === "fixture";
   return (
     <FormDialog
       open
       onClose={onClose}
-      title="Revoke this connection?"
-      description="Revoking stops collection from this connection. What it collected is kept, and a revoked connection cannot be turned back on; connect again to collect again."
-      confirm="Revoke connection"
+      title={synthetic ? "Remove the synthetic directory?" : "Revoke this connection?"}
+      description={
+        synthetic
+          ? "Its actors leave the lists, and what it raised stays, labelled. Once it is removed, Microsoft Entra can be connected here."
+          : "Revoking stops collection from this connection. What it collected is kept, and a revoked connection cannot be turned back on; connect again to collect again."
+      }
+      confirm={synthetic ? "Remove synthetic directory" : "Revoke connection"}
       variant="danger"
       pending={revoking.isPending}
       error={problem}
@@ -129,6 +135,65 @@ export function RevokeDialog({
           </a>
         </p>
       ) : null}
+    </FormDialog>
+  );
+}
+
+/** The addresses a Tines tenant's HTTP requests leave from, as Tines shows them at `/info`
+ * (#355): recorded by an administrator, at most eight, and cleared with an empty list. The server
+ * refuses a private address, a repeat and another platform's catalogued range by field. */
+export function EgressDialog({ connection, onClose }: { connection: MonitorConnection; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [text, setText] = useState(connection.egress_addresses.join("\n"));
+  const [problem, setProblem] = useState<string | undefined>(undefined);
+  const recording = useServerMutation({
+    ...recordMonitorEgressMutation(),
+    onSuccess: (fresh) => {
+      answered(queryClient, fresh);
+      onClose();
+    },
+    onError: (error) => {
+      setProblem(
+        connectCopy(error, {
+          addresses:
+            "Give at most eight single public addresses, one to a line, none repeated and none in another platform's published range.",
+        }),
+      );
+    },
+  });
+  const addresses = text
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter((value) => value !== "");
+  return (
+    <FormDialog
+      open
+      onClose={onClose}
+      title="Record this Tines tenant's egress"
+      description="The addresses your Tines tenant's HTTP requests leave from, as Tines shows them at /info on your tenant. A directory actor that signs in from one is attributed to this Tines tenant; the address may be shared with other Tines tenants. Recording them reads the last 30 days of this Space's directory sign-ins again."
+      confirm={addresses.length === 0 ? "Clear the addresses" : "Record addresses"}
+      pending={recording.isPending}
+      error={problem}
+      onSubmit={() => {
+        setProblem(undefined);
+        if (addresses.length > 8) {
+          setProblem("Give at most eight addresses.");
+          return;
+        }
+        recording.mutate({ path: { connection_id: connection.connection_id }, body: { addresses } });
+      }}
+    >
+      <Field id="egress-addresses" label="Egress addresses" hint="One to a line, at most eight. Leave it empty to clear them.">
+        <textarea
+          id="egress-addresses"
+          rows={4}
+          spellCheck={false}
+          value={text}
+          onChange={(event) => {
+            setText(event.target.value);
+          }}
+        />
+      </Field>
     </FormDialog>
   );
 }

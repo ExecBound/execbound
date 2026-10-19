@@ -341,7 +341,8 @@ def seeded(admin_engine):
                 # which a directory sign-in row points at, and before `principals`.
                 "execbound.federated_sign_ins, execbound.identity_invitations, "
                 "execbound.identity_links, execbound.identity_providers, "
-                "execbound.monitor_actor_drivers, execbound.monitor_reach_exceptions, "
+                "execbound.monitor_actor_drivers, execbound.monitor_reach_acceptances, "
+                "execbound.monitor_reach_exceptions, "
                 "execbound.monitor_agent_reach, "
                 "execbound.monitor_agent_grants, execbound.monitor_agents, "
                 # Entra consent (0088): attempts before the connections they update, and the

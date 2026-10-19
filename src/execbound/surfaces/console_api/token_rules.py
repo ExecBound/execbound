@@ -6,7 +6,8 @@ after the fact, what these refusals prevent: deciding an approval or settling an
 execution, loosening enforcement, changing people, access or sign-in, reading or switching a
 browser session or a person's workspace, managing tokens or the owner's own account, and
 changing a monitoring credential (connecting, re-keying or revoking a connection; minting,
-rotating or revoking a reporting source), recording a Tines tenant's egress, or acknowledging
+rotating or revoking a reporting source), recording a Tines tenant's egress, accepting an
+ungoverned path or withdrawing the acceptance, adding the synthetic directory, or acknowledging
 several findings at once. Two routes
 add a rule on their body (`/tenant/mode`, `/credentials/issue`), checked in the route.
 
@@ -113,6 +114,12 @@ TOKEN_REFUSED: frozenset[tuple[str, str]] = frozenset(
         # Recording a Tines tenant's egress changes what a directory's actors are attributed
         # to, behind a verified factor too (#355).
         (P + "/monitor/connections/{connection_id}/egress", "POST"),
+        # Accepting an ungoverned path is a decision to live with it, and withdrawing one
+        # reopens it, both behind a verified factor (#355, step 4); adding the synthetic
+        # directory blocks connecting Microsoft Entra until a session removes it.
+        (P + "/monitor/agents/{agent_id}/accept", "POST"),
+        (P + "/monitor/agents/{agent_id}/withdraw", "POST"),
+        (P + "/monitor/connections/synthetic", "POST"),
         # Minting or rotating a reporting source issues an intake credential behind a verified
         # factor, and revoking one silences its story (#678). Reading one is allowed below.
         (P + "/monitor/sources", "POST"),

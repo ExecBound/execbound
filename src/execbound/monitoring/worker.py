@@ -114,9 +114,17 @@ _CLOSE_STALE = text("""
        AND d.destination_id IS NULL AND d.state = 'PENDING'
        AND f.tenant_id = d.tenant_id AND f.finding_id = d.finding_id
 """)
+# `synthetic`: the synthetic directory raised the finding, by its connection or its actor's
+# (#355, step 4), so nothing outside the console is told.
 _INTENTS = text("""
     SELECT d.delivery_id, d.finding_id, d.created_at, f.rule_version, f.space_id,
-           f.acknowledged_at IS NOT NULL AS acknowledged
+           f.acknowledged_at IS NOT NULL AS acknowledged,
+           EXISTS (SELECT 1 FROM execbound.monitor_connections c
+                   WHERE c.tenant_id = f.tenant_id AND c.kind = 'fixture'
+                     AND c.connection_id = coalesce(f.connection_id, (
+                         SELECT a.connection_id FROM execbound.monitor_agents a
+                         WHERE a.tenant_id = f.tenant_id AND a.agent_id = f.agent_id)))
+               AS synthetic
       FROM execbound.monitor_deliveries d
       JOIN execbound.monitor_findings f
         ON f.tenant_id = d.tenant_id AND f.finding_id = d.finding_id
@@ -166,10 +174,12 @@ def route_findings(
     destination that admits its finding, and the intent marked `ROUTED` even where none does, so
     a destination added later receives none of it (no backfill, #31). An intent whose finding was
     acknowledged first is closed `FINDING_ACKNOWLEDGED`, and one first routed more than a day
-    after the intent was written `TOO_OLD_TO_SEND`; neither gets a delivery. Before the batch is
-    taken, up to `STALE_BATCH` intents more than a day old are closed in one statement, so a
-    backlog larger than the batch never holds a fresh finding back. `SKIP LOCKED` and the unique
-    keys make two routers at once write each delivery once.
+    after the intent was written `TOO_OLD_TO_SEND`; neither gets a delivery. Nor does one the
+    synthetic directory raised, closed `SYNTHETIC_DIRECTORY` (#355, step 4): its findings are
+    seen in the console alone, and the database refuses a destination's delivery of one. Before
+    the batch is taken, up to `STALE_BATCH` intents more than a day old are closed in one
+    statement, so a backlog larger than the batch never holds a fresh finding back. `SKIP LOCKED`
+    and the unique keys make two routers at once write each delivery once.
     """
     if type(limit) is not int or not 1 <= limit <= 50:
         raise MonitorError("INVALID_LIMIT")
@@ -188,7 +198,9 @@ def route_findings(
             for row in conn.execute(_INTENTS, {"t": tenant, "n": limit}).mappings().all():
                 params = {"t": tenant, "d": row["delivery_id"]}
                 code = (
-                    "FINDING_ACKNOWLEDGED"
+                    "SYNTHETIC_DIRECTORY"
+                    if row["synthetic"]
+                    else "FINDING_ACKNOWLEDGED"
                     if row["acknowledged"]
                     else "TOO_OLD_TO_SEND"
                     if row["created_at"] < now - TOO_OLD

@@ -194,7 +194,7 @@ services:
       # The monitoring collector's private key, which opens every monitoring key the console
       # sealed. Mounted here and nowhere else: the gateway seals keys with the public half in
       # its runtime configuration and must never hold anything that opens one. While the
-      # directory holds no key, collection of sealed connections is not scheduled.
+      # directory holds no key, each sealed connection's collection records that it has none.
       - ${EXECBOUND_COLLECTOR:-./collector}:/srv/collector:ro
 
 volumes:

@@ -45,3 +45,5 @@
 @media (max-width: 767px) {
   .monitor-actions > .btn { flex: 1 1 auto; }
 }
+/* The to-do list's row actions (#355): one under another in the row's last cell. */
+.monitor-row-actions { display: grid; gap: 4px; justify-items: start; }

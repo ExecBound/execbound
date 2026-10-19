@@ -87,6 +87,8 @@ export const PURPOSES: Readonly<Record<string, Phrase>> = {
   [`POST ${V}/tenant/sign-in/{provider_id}/state`]: () => "Turn a sign-in provider on or off",
   // Monitoring connections and reporting sources (#678). A connection or a source is never
   // named by its label: a provider string never reaches this line.
+  [`POST ${V}/monitor/agents/{agent_id}/accept`]: () => "Accept an actor's ungoverned paths",
+  [`POST ${V}/monitor/agents/{agent_id}/withdraw`]: () => "Withdraw an acceptance of a path",
   [`POST ${V}/monitor/connections/tines`]: () => "Connect Tines",
   [`POST ${V}/monitor/connections/{connection_id}/key`]: () => "Replace a monitoring connection's key",
   [`POST ${V}/monitor/connections/{connection_id}/revoke`]: () => "Revoke a monitoring connection",

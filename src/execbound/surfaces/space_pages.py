@@ -56,7 +56,14 @@ SELECT s.space_id, s.name, s.detail, s.created_at, s.archived_at,
            AND a.state = 'PENDING') AS pending,
        (SELECT count(*) FROM execbound.monitor_findings f
          WHERE f.tenant_id = s.tenant_id AND f.space_id = s.space_id
-           AND f.acknowledged_at IS NULL) AS findings
+           AND f.acknowledged_at IS NULL
+           -- Not the synthetic directory's, shown labelled on Monitoring alone (#355).
+           AND NOT EXISTS (
+               SELECT 1 FROM execbound.monitor_connections k
+               WHERE k.tenant_id = f.tenant_id AND k.kind = 'fixture'
+                 AND k.connection_id = coalesce(f.connection_id, (
+                     SELECT ka.connection_id FROM execbound.monitor_agents ka
+                     WHERE ka.tenant_id = f.tenant_id AND ka.agent_id = f.agent_id)))) AS findings
   FROM execbound.spaces s
  WHERE s.tenant_id = :t
    AND (CAST(:only AS uuid) IS NULL OR s.space_id = :only)

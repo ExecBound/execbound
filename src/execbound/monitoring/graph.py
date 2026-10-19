@@ -176,6 +176,11 @@ NO_PAGE_SIZE = frozenset({ROLES_PATH})
 AGENT_TYPE = "#microsoft.graph.agentIdentity"
 # "Set to ServiceIdentity for all agent identities", and present where @odata.type is not.
 AGENT_PRINCIPAL_TYPE = "ServiceIdentity"
+# The type the directory states for a managed identity's principal (#355, step 4).
+MANAGED_PRINCIPAL_TYPE = "ManagedIdentity"
+# The classes a classic principal moves among as its stated type and its consents change; an
+# agent identity is never one of them, and never becomes one.
+CLASSIC = frozenset({"service_principal", "managed_identity", "consented_app"})
 DIRECTORY_ROLE_TYPE = "#microsoft.graph.directoryRole"
 CAPABILITIES = (
     "agent_identities",
@@ -354,6 +359,9 @@ class AgentRecord:
     # neither is a partial representation that does not say, and its class above is only the
     # default (#355).
     class_stated: bool = True
+    # The principal's application id, kept so that the page can say what to filter the admin
+    # center's enterprise applications by (#355, step 4). It authenticates nothing.
+    app_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -407,6 +415,11 @@ def parse_agent(
     A tag is still only evidence: it is kept and shown, and never promotes a service
     principal to an agent. The difference is that these three are the platform stating a
     type, where a tag is a label anyone can write.
+
+    A classic principal whose `servicePrincipalType` is `ManagedIdentity` is a managed identity
+    (#355, step 4). Whether another organization's application holds a consent here, which makes
+    it a consented app, is the store's to decide once its grants are read
+    (`store.apply_agent_detail`).
     """
     if not isinstance(record, dict):
         return None
@@ -423,6 +436,7 @@ def parse_agent(
         or record.get("@odata.type") == AGENT_TYPE
         or type(record.get("servicePrincipalType")) is str
     )
+    managed = not agent and record.get("servicePrincipalType") == MANAGED_PRINCIPAL_TYPE
     name, truncated = _label(record.get("displayName"))
     kept = (tag for tag in record.get("tags", []) if type(tag) is str and TAG.fullmatch(tag))
     tags = tuple(kept)[:32]
@@ -430,7 +444,9 @@ def parse_agent(
     owner = _guid(record.get("appOwnerOrganizationId"))
     return AgentRecord(
         platform_ref=platform_ref,
-        identity_class="agent_identity" if agent else "service_principal",
+        identity_class=(
+            "agent_identity" if agent else "managed_identity" if managed else "service_principal"
+        ),
         display_name=name,
         display_name_truncated=truncated,
         enabled=_flag(record.get("accountEnabled")),
@@ -445,6 +461,7 @@ def parse_agent(
             publisher_ref=_verified_publisher(record.get("verifiedPublisher")),
         ),
         class_stated=stated,
+        app_ref=_guid(record.get("appId")),
     )
 
 
@@ -1938,19 +1955,37 @@ def _principals(reader: Reader, capabilities: dict[str, dict[str, Any]]) -> tupl
 
 
 def _as_held(record: AgentRecord, held: tuple[str, str | None] | None) -> AgentRecord:
-    """A full collection's record of a principal the store holds, in the class the store holds.
+    """A full collection's record of a principal the store holds, in the class it is now.
 
-    An object's type does not change in a directory, and the store's class came from a record
-    that stated it. Should the directory ever contradict it, the stored class stands rather than
-    the run failing the blueprint check, which only an agent identity may carry, on every
-    collection after (#355). A blueprint is read only for an agent identity.
+    Across the line between an agent identity and a classic principal the store's class stands:
+    an object's type does not change in a directory, and should the directory ever contradict
+    the class it once stated, the run does not fail the blueprint check, which only an agent
+    identity may carry, on every collection after (#355). A blueprint is read only for an agent
+    identity.
+
+    Within the classic family (#355, step 4) a stated type decides whether the principal is a
+    managed identity; a record that states no type keeps the stored class; and between a
+    classic service principal and a consented app the store's own rule decides once the
+    principal's grants are written (`store.apply_agent_detail`), so a record never moves one
+    that rule made a consented app.
     """
     if held is None or held[0] == record.identity_class:
         return record
+    if held[0] in CLASSIC and record.identity_class in CLASSIC:
+        if not record.class_stated or record.identity_class == "managed_identity":
+            return replace(
+                record,
+                identity_class=held[0] if not record.class_stated else record.identity_class,
+            )
+        return replace(
+            record, identity_class=held[0] if held[0] == "consented_app" else record.identity_class
+        )
+    # An agent identity a record calls classic keeps the blueprint the store holds, since the
+    # record names none: its blueprint's object and credentials are still the store's.
     return replace(
         record,
         identity_class=held[0],
-        blueprint_ref=record.blueprint_ref if held[0] == "agent_identity" else None,
+        blueprint_ref=(record.blueprint_ref or held[1]) if held[0] == "agent_identity" else None,
     )
 
 
@@ -1976,7 +2011,14 @@ def _reader(
     clock: Clock,
 ) -> Reader:
     """The reader for one connection's credential, refused before anything reaches Graph when
-    the credential is not the one the connection registered."""
+    the credential is not the one the connection registered. A synthetic directory's is the
+    in-process directory's constant, which authenticates nothing anywhere (#355, step 4)."""
+    if row["credential_mode"] == "synthetic":
+        from execbound.monitoring import synthetic
+
+        if client_secret != synthetic.SECRET or app is not None:
+            raise GraphError("KEY_MISMATCH")
+        return Reader(row["directory_ref"], row["client_ref"], client_secret, client)
     if row["credential_mode"] == "platform_app":
         if app is None:
             raise GraphError("COLLECTOR_KEY_UNAVAILABLE")
@@ -2012,11 +2054,36 @@ def run(
     drives each actor (`drivers.derive_declared`), then reads its audit log (`collect_audit`) and
     its service principal sign-ins (`collect_sign_ins`), neither of whose refusals changes the
     run's outcome.
+
+    A synthetic directory (#355, step 4) is read by this same run through `synthetic.client`, an
+    in-process transport over its fixed dataset, whatever `client` the caller gave: no socket is
+    opened for it, and no real connection is ever read through that transport. It takes no delta
+    link, because it gets no delta pass.
     """
     run_id = uuid4()
     row = store.load_connection(db, actor, connection_id, lease=lease)
-    if row["kind"] != "entra_agent_id":
+    if row["kind"] not in store.DIRECTORY_KINDS:
         raise GraphError("INVALID_STATE")
+    if row["kind"] == store.SYNTHETIC_KIND:
+        from execbound.monitoring import synthetic
+
+        with synthetic.client(clock.now(), row["baseline_at"]) as local:
+            return _run(db, actor, row, run_id, local, synthetic.SECRET, None, clock, lease)
+    return _run(db, actor, row, run_id, client, client_secret, app, clock, lease)
+
+
+def _run(
+    db: Database,
+    actor: Identity | ScheduledActor,
+    row: dict[str, Any],
+    run_id: UUID,
+    client: httpx.Client,
+    client_secret: str | None,
+    app: PlatformApp | None,
+    clock: Clock,
+    lease: UUID | None,
+) -> dict[str, Any]:
+    connection_id = row["connection_id"]
     reader = _reader(row, client, client_secret, app, clock)
     now = clock.now()
     result: dict[str, Any] = {
@@ -2065,7 +2132,7 @@ def run(
         # baseline a link needs. Any other takes none and leaves the stored link where the delta
         # passes left it: a link taken now would skip what changed in what it did not read.
         read = coverage(capabilities)
-        link = take_link(reader) if read == "whole" else None
+        link = take_link(reader) if read == "whole" and row["kind"] == "entra_agent_id" else None
         records, dropped = _principals(reader, capabilities)
         result["dropped"] = dropped
         # A class is written once, from a record that states it, and is the store's after that,

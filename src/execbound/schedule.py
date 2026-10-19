@@ -2,17 +2,19 @@
 """The jobs service: the scheduled work of a one-host installation, run once each.
 
 `execbound jobs` is one container running `recover` every fifteen minutes, `notify` every
-fifteen seconds, `monitor-process` every five minutes and `audit-verify` every hour, and
-`collect-due` every five minutes where this host holds something to collect with. Until it
-existed the runbook left the first three to the operator, which means that on a Community
-installation they were not run at all: nothing settles a committed operation, nobody is told an
-approval is waiting, and no monitoring observation ever becomes a finding. `notify` is
-scheduled only where the runtime configuration names an approval destination, `invitations-run`
-only where it names a mail relay, `monitor-process` runs with `--deliver` wherever the runtime
-configuration reads, and `collect-due` only where the state directory holds a key-files
-directory (for operator key-file connections) or the collector's directory holds its key or the
-key a rotation is retiring (for sealed ones) or the platform app's credential (for consented
-directories); each is decided once, when the service starts (`jobs_for`). Neither the
+fifteen seconds, `monitor-process` every five minutes, `audit-verify` every hour and
+`collect-due` every five minutes. Until it existed the runbook left the first three to the
+operator, which means that on a Community installation they were not run at all: nothing
+settles a committed operation, nobody is told an approval is waiting, and no monitoring
+observation ever becomes a finding. `notify` is scheduled only where the runtime configuration
+names an approval destination, `invitations-run` only where it names a mail relay, and
+`monitor-process` runs with `--deliver` wherever the runtime configuration reads; each is
+decided once, when the service starts (`jobs_for`). `collect-due` is scheduled everywhere,
+because the synthetic directory (#355) is read in process with no credential and an
+administrator may add it at any time. It is given the collector's key and the key a rotation is
+retiring (for sealed connections) and the platform app's credential (for consented
+directories) where the collector's directory holds them, and opens an operator key-file
+connection where the state directory's key-files directory holds its file. Neither the
 collector's key nor the platform app's credential is ever in the state directory: the gateway
 mounts that, and the gateway must never hold a key that opens a sealed monitoring key or signs
 for the app that reads every consented directory, so the collector's directory is the jobs
@@ -119,10 +121,9 @@ INVITATIONS = Job("invitations-run", 9_004, 120, JOBS_FILE)
 # retried. Only where there is a relay and the `mail` block turns the summary on; lock 9_006.
 WEEKLY_SUMMARY = Job("weekly-summary-run", 9_006, 3600, JOBS_FILE)
 # Scheduled monitoring collection (#678): every five minutes, each due connection this host
-# can open (an operator key file, a sealed key, a consented directory), in every active
-# workspace with no credential; lock 9_005. Only where the state directory holds operator key
-# files or the collector's directory holds its key, the key a rotation is retiring or the
-# platform app's credential (`collect_configured`).
+# can open (an operator key file, a sealed key, a consented directory, the synthetic directory),
+# in every active workspace with no credential; lock 9_005. On every installation (#355): the
+# synthetic directory needs nothing to open, so there is always something to collect.
 COLLECT = Job("collect-due", 9_005, 300, JOBS_FILE)
 KEY_FILES = "key-files"
 COLLECTOR_KEY = "collector-private.json"
@@ -148,8 +149,8 @@ def jobs_for(
 ) -> tuple[Job, ...]:
     """The jobs this deployment runs: the approval drain only where something can be
     announced, the invitations drain only where mail can be sent, the weekly summary only
-    where mail can be sent and the summary is on, monitoring collection only where this
-    host holds something to collect with, and `monitor-process` routes and sends findings
+    where mail can be sent and the summary is on, monitoring collection where the caller asks
+    for it (the jobs service always does), and `monitor-process` routes and sends findings
     wherever the runtime configuration reads."""
     jobs = tuple(
         MONITOR_DELIVER if deliver and job is MONITOR else job
@@ -159,15 +160,6 @@ def jobs_for(
     found = (*jobs, INVITATIONS) if mail else jobs
     found = (*found, WEEKLY_SUMMARY) if mail and weekly_summary else found
     return (*found, COLLECT) if collect else found
-
-
-def collect_configured(state: Path, collector: Path = DEFAULT_COLLECTOR) -> bool:
-    """Whether the state directory holds operator key files or the collector's directory holds
-    its key, the key a rotation is retiring, or the platform app's credential. Without any
-    there is nothing `collect-due` could open, so it is not scheduled at all."""
-    return (state / KEY_FILES).is_dir() or any(
-        (collector / name).is_file() for name in (*COLLECTOR_KEYS, SCOUT_APP)
-    )
 
 
 def mail_configured(path: Path | None) -> bool:

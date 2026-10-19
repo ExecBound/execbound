@@ -28,6 +28,8 @@ CODES = frozenset(
         "INVALID_AGENT",
         "INVALID_STATE",
         "INVALID_REASON",
+        # The synthetic directory's actor exists nowhere, so it is never bound (0099's trigger).
+        "SYNTHETIC_ACTOR",
     }
 )
 

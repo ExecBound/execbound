@@ -105,7 +105,7 @@ describe("the monitoring page", () => {
     renderMonitor("/monitor?view=agents");
     expect(await screen.findByText('<script>alert("x")</script> payroll')).toBeInTheDocument();
     expect(document.querySelector("script")).toBeNull();
-    expect(screen.getByText(/counts agents this connection could enumerate, not the agents that exist/)).toBeInTheDocument();
+    expect(screen.getByText(/counts actors the connections could enumerate, not the actors that exist/)).toBeInTheDocument();
     expect(screen.getByText("Agent identity")).toBeInTheDocument();
     expect(screen.getByText("Could not read")).toBeInTheDocument();
     expect(screen.getByText("1 grant we cannot explain")).toBeInTheDocument();
@@ -115,15 +115,15 @@ describe("the monitoring page", () => {
     expect(accountable({ sponsor_state: "present", sponsor_count: 1, identity_class: "agent_identity", owner_count: null })).toBe("1 sponsor");
   });
 
-  it("offers Govern on an unlinked agent with reach, and links a linked one to its agent (MQ9)", async () => {
+  it("offers Govern this agent on an unlinked agent with reach, and links a linked one to its agent (MQ9)", async () => {
     const [first] = agents.agents;
     if (first === undefined) throw new Error("fixture");
     const linked = { ...first, agent_id: "aaaaaaaa-0000-4000-8000-000000000002", display_name: "Linked one", linked_principal_id: PRINCIPAL };
-    const quiet = { ...first, agent_id: "aaaaaaaa-0000-4000-8000-000000000003", display_name: "No reach", consequential: 0 };
+    const quiet = { ...first, agent_id: "aaaaaaaa-0000-4000-8000-000000000003", display_name: "No reach", consequential: 0, open_paths: 0 };
     answerWith({ "GET /api/console/v1/monitor/agents": { body: { ...agents, agents: [first, linked, quiet] } } });
     renderMonitor("/monitor?view=agents");
-    expect(await screen.findByRole("link", { name: "Govern" })).toHaveAttribute("href", `/agents/${AGENT}`);
-    expect(screen.getByRole("link", { name: "Linked" })).toHaveAttribute("href", `/agents/${PRINCIPAL}`);
+    expect(await screen.findByRole("link", { name: "Govern this agent" })).toHaveAttribute("href", `/agents/${AGENT}`);
+    expect(screen.getByRole("link", { name: "Open the governed agent" })).toHaveAttribute("href", `/agents/${PRINCIPAL}`);
     const row = screen.getByText("No reach").closest("tr");
     if (row === null) throw new Error("No row");
     expect(within(row).getByText("No principal linked")).toBeInTheDocument();
@@ -352,7 +352,7 @@ describe("cross-links between Monitoring's rows (MQ10, MQ11)", () => {
 });
 
 describe("monitoring setup by address (UX18, #678)", () => {
-  const EMPTY = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], profile: null, open_findings: 0 };
+  const EMPTY = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], profile: null, open_findings: 0, synthetic_directory: { present: false, addable: true } };
 
   it.each([
     ["tines", "tines"],

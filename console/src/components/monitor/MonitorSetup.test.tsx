@@ -15,7 +15,7 @@ import { setupInstructions, type MonitorProvider } from "./setup";
 const CONNECTION = "cccccccc-0000-4000-8000-000000000001";
 const SPACE = "aaaaaaaa-0000-4000-8000-000000000002";
 const session: SessionSummary = { ...PLACEHOLDER, role: "ADMIN", spaces: 2, space: { id: SPACE, name: "Customer A", archived: false } };
-const empty: MonitorSnapshot = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], destinations: [], profile: null, open_findings: 0 };
+const empty: MonitorSnapshot = { connections: [], sources: [], stories: [], credentials: [], observations: [], findings: [], deliveries: [], destinations: [], profile: null, open_findings: 0, synthetic_directory: { present: false, addable: true } };
 
 function evidence(changes: Partial<MonitorSetupVerification> = {}): MonitorSetupVerification {
   return {

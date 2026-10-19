@@ -952,6 +952,7 @@ Explicit Tines monitoring and local validation tools.
 | `unlink-agent` | Withdraw that binding, as a current ADMIN |
 | `record-egress` | Record the addresses a Tines tenant's HTTP requests leave from, as a current ADMIN |
 | `accept-reach` | Record that an ADMIN accepts one ungoverned path |
+| `withdraw-reach` | Withdraw an ADMIN's acceptance of one ungoverned path |
 | `set-profile` | Activate the next detection profile version as a current ADMIN |
 | `show-profile` | Show the active detection profile |
 | `deliveries` | List finding deliveries and their state as a current ADMIN |
@@ -1134,6 +1135,19 @@ Record that an ADMIN accepts one ungoverned path.
 | `--path PATH` | yes |  |
 | `--reason REASON` | yes | A stable reason code, A to Z and _. |
 | `--days DAYS` | no | 0 leaves the acceptance open. Default `0`. |
+
+### `python -m execbound.monitoring.commands withdraw-reach`
+
+Withdraw an ADMIN's acceptance of one ungoverned path.
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `--credential-file CREDENTIAL_FILE` | yes | A private file holding a current administrator's API key, which is never passed on the command line. |
+| `--connection CONNECTION` | yes | The connection that lists the agent. |
+| `--agent AGENT` | yes | The directory object identifier. |
+| `--action ACTION` | yes | The catalog action of the accepted path. |
+| `--path-kind {grant,role,inherited,observation}` | yes | The accepted path's kind. One of `grant`, `role`, `inherited`, `observation`. |
+| `--path PATH` | yes | The accepted path's reference. |
 
 ### `python -m execbound.monitoring.commands set-profile`
 

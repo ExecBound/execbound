@@ -54,6 +54,7 @@ const COPY: Record<string, string> = {
   MAPPINGS_CONFLICT: "Two mappings for an action in this file cannot share one policy. Ask your operator to choose one with ruleset-compile --ref, then paste the bundle it prints.",
   LAST_ADMIN: "Assign another active workspace Administrator before removing this access.",
   PLAN_LIMIT: PLAN_LIMIT_SENTENCE,
+  SYNTHETIC_ACTOR: "A synthetic directory's actor exists only in ExecBound, so it cannot be governed or bound.",
   SAMPLES_NOT_OFFERED: "Sample targets are offered only to a workspace with no policy and no connections.",
   SAMPLES_BUSY: "A sample request is waiting for approval or provider evidence. Settle it before removing the samples.",
   SAMPLES_UNAVAILABLE: "Sample targets are not available on this deployment.",

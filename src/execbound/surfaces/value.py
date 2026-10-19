@@ -86,9 +86,16 @@ _QUIET = (
     "SELECT count(*) FROM execbound.monitor_sources e WHERE e.tenant_id=:t "
     "AND e.active AND e.revoked_at IS NULL AND e.health_state='STALE'/*space*/"
 )
+# The synthetic directory's findings are not counted: shown labelled on Monitoring alone, they
+# would otherwise reach the summary email as open findings of the workspace's own (#355, step 4).
 _FINDINGS = (
     "SELECT count(*) FROM execbound.monitor_findings e "
-    "WHERE e.tenant_id=:t AND e.acknowledged_at IS NULL/*space*/"
+    "WHERE e.tenant_id=:t AND e.acknowledged_at IS NULL "
+    "AND NOT EXISTS (SELECT 1 FROM execbound.monitor_connections k "
+    "WHERE k.tenant_id = e.tenant_id AND k.kind = 'fixture' "
+    "AND k.connection_id = coalesce(e.connection_id, (SELECT ka.connection_id "
+    "FROM execbound.monitor_agents ka WHERE ka.tenant_id = e.tenant_id "
+    "AND ka.agent_id = e.agent_id)))/*space*/"
 )
 
 

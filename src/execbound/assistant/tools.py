@@ -488,6 +488,8 @@ def tool_list_findings(context: ToolContext, arguments: Mapping[str, Any]) -> To
                 "target": untrusted(row.get("target_ref")),
                 "outcome": untrusted(row.get("outcome")),
                 "actor": untrusted(row.get("actor_ref")),
+                # Raised by the synthetic directory (#355): about no real actor or directory.
+                "synthetic": bool(row.get("synthetic")),
             }
         )
         if len(rows) >= limit:
@@ -672,7 +674,9 @@ TOOLS: tuple[tuple[ToolSpec, Handler], ...] = (
     (
         ToolSpec(
             "list_findings",
-            "Monitoring findings with their rule and state, newest first, at most 50.",
+            "Monitoring findings with their rule and state, newest first, at most 50. One with "
+            "`synthetic` true was raised by the synthetic directory, which exists only in "
+            "ExecBound: it describes no real actor and no real directory.",
             {
                 "state": {"type": "string", "enum": ["open", "acknowledged", "all"]},
                 "limit": {"type": "integer", "minimum": 1, "maximum": MAX_ROWS},

@@ -1,24 +1,39 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { lazy, Suspense, useState } from "react";
 
 import { readMonitorAgentOptions } from "../../api/@tanstack/react-query.gen";
-import type { MonitorAgentDetail } from "../../api/types.gen";
+import type { MonitorAgentDetail, MonitorDriver, MonitorReach } from "../../api/types.gen";
 import { useEdition } from "../../edition/context";
 import { count, when } from "../../lib/when";
 import { PrincipalName } from "../PrincipalName";
 import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Definition, Definitions } from "../ui/Definitions";
 import { PageHeading } from "../ui/PageHeading";
 import { Table, Td, Th } from "../ui/Table";
-import { classWord } from "./Agents";
+import { Time } from "../ui/Time";
+import { ACCEPTED_ELSEWHERE, reasonWords, sourceWords, TINES_RECIPE } from "./accept";
+import { classWord, Removal } from "./Agents";
+
+// Loaded the first time one opens, so the page does not carry the forms.
+const AcceptDialog = lazy(async () => ({ default: (await import("./AcceptDialog")).AcceptDialog }));
+const WithdrawDialog = lazy(async () => ({ default: (await import("./AcceptDialog")).WithdrawDialog }));
 
 function capital(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-/** One agent: its identity, every path it reaches, its grants, its findings and observations. */
+const LEVELS: Record<MonitorDriver["evidence"], string> = {
+  declared: "Declared by the directory",
+  network: "Seen in its sign-ins",
+  joined: "Joined to a Tines tenant",
+};
+
+/** One agent: its identity, who drives it, every path it reaches, its grants, its findings and
+ * observations. */
 export function AgentDetailPage({ agentId }: { agentId: string }) {
   const query = useQuery({
     ...readMonitorAgentOptions({ path: { agent_id: agentId } }),
@@ -41,6 +56,9 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
 function Detail({ data }: { data: MonitorAgentDetail }) {
   const agent = data.agent;
   const warning = agent.sponsor_state !== "present" && agent.identity_class === "agent_identity";
+  const [accepting, setAccepting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<MonitorReach | null>(null);
+  const open = data.reach.filter((row) => row.open).length;
   return (
     <>
       <PageHeading
@@ -52,11 +70,23 @@ function Detail({ data }: { data: MonitorAgentDetail }) {
           </Link>
         }
       />
+      {agent.synthetic ? (
+        <p className="monitor-note" role="note">
+          <Badge tone="accent">Synthetic directory</Badge> This actor comes from the synthetic directory, which exists only in
+          ExecBound. It is not real, what it raised is never sent anywhere, and it cannot be governed.
+        </p>
+      ) : null}
       <Card title="Identity" aside={<Badge tone={warning ? "hold" : "stale"}>{classWord(agent.identity_class)}</Badge>}>
         <Definitions aria-label="Identity">
+          <Definition term="Source">{sourceWords(agent.source)}</Definition>
           <Definition term="Directory object" mono>
             {agent.platform_ref}
           </Definition>
+          {agent.app_ref !== null ? (
+            <Definition term="Application ID" mono>
+              {agent.app_ref}
+            </Definition>
+          ) : null}
           <Definition term="Enabled">{agent.enabled === null ? "Not recorded" : agent.enabled ? "Yes" : "No"}</Definition>
           <Definition term="Accountable">
             {agent.sponsor_state === "present"
@@ -90,11 +120,26 @@ function Detail({ data }: { data: MonitorAgentDetail }) {
         {agent.tags.length > 0 ? (
           <p className="muted">
             The directory tags this principal {agent.tags.join(", ")}. A tag is evidence and is shown; the class above
-            comes from the directory's own object type, never from a tag.
+            comes from the directory&apos;s own object type and its consents, never from a tag.
           </p>
         ) : null}
+        <Removal agent={agent} />
       </Card>
-      <Card title="Reach">
+      <Drivers data={data} />
+      <Card
+        title="Reach"
+        aside={
+          open > 0 && agent.administered ? (
+            <Button
+              onClick={() => {
+                setAccepting(true);
+              }}
+            >
+              Accept the open paths
+            </Button>
+          ) : null
+        }
+      >
         <Table caption="Every path this agent has to a catalog action." density="compact">
           <thead>
             <tr>
@@ -103,12 +148,13 @@ function Detail({ data }: { data: MonitorAgentDetail }) {
               <Th>Certainty</Th>
               <Th>Enforcement</Th>
               <Th>Freshness</Th>
+              <Th>Acceptance</Th>
             </tr>
           </thead>
           <tbody>
             {data.reach.length === 0 ? (
               <tr>
-                <Td colSpan={5}>No reach established. This does not establish that the agent reaches nothing.</Td>
+                <Td colSpan={6}>No reach established. This does not establish that the agent reaches nothing.</Td>
               </tr>
             ) : (
               data.reach.map((row) => (
@@ -122,17 +168,19 @@ function Detail({ data }: { data: MonitorAgentDetail }) {
                     {capital(row.effective)}
                     {row.effective !== row.certainty ? <small>Was {row.certainty} until the proof lapsed</small> : null}
                   </Td>
-                  <Td>
-                    {capital(row.enforcement_mode)}
-                    {row.reason_code !== null ? (
-                      <small>
-                        Accepted {row.accepted_at === null ? "" : when(row.accepted_at)}: {row.reason_code}
-                      </small>
-                    ) : null}
-                  </Td>
+                  <Td>{capital(row.enforcement_mode)}</Td>
                   <Td>
                     {row.gone_at !== null ? `Gone since ${when(row.gone_at)}` : `Valid until ${when(row.valid_until)}`}
                     <small className="mono">Catalog {row.catalog_version}</small>
+                  </Td>
+                  <Td>
+                    <Acceptance
+                      row={row}
+                      administered={agent.administered}
+                      onWithdraw={() => {
+                        setWithdrawing(row);
+                      }}
+                    />
                   </Td>
                 </tr>
               ))
@@ -142,9 +190,14 @@ function Detail({ data }: { data: MonitorAgentDetail }) {
         <p className="muted">
           A grant path can never claim an enforced mode: nothing ExecBound operates stands between this agent and its
           own credential. Registering a mapping, a policy and an executor adds a governed path beside the ones above; it
-          does not remove them, and the finding stays open until the grant is gone or an administrator accepts it.
+          does not remove them, and the finding stays open until the grant is gone or an administrator accepts it. An open
+          path is a live grant, role or inherited path to a consequential action that nothing governs and no acceptance
+          covers.
+          {data.assessed ? "" : " No detection profile names a consequential action, so no path is counted as open."}
+          {agent.administered ? "" : ` ${ACCEPTED_ELSEWHERE}`}
         </p>
       </Card>
+      <History data={data} />
       <Card title="Grants">
         <Table caption="Directory grants this agent holds, and what each reaches." density="compact">
           <thead>
@@ -258,8 +311,186 @@ function Detail({ data }: { data: MonitorAgentDetail }) {
           </tbody>
         </Table>
       </Card>
-      <Govern data={data} />
+      {agent.synthetic ? null : <Govern data={data} />}
+      <Suspense fallback={null}>
+        {accepting ? (
+          <AcceptDialog
+            agentId={agent.agent_id}
+            name={agent.display_name}
+            onClose={() => {
+              setAccepting(false);
+            }}
+          />
+        ) : null}
+        {withdrawing !== null ? (
+          <WithdrawDialog
+            agentId={agent.agent_id}
+            row={withdrawing}
+            onClose={() => {
+              setWithdrawing(null);
+            }}
+          />
+        ) : null}
+      </Suspense>
     </>
+  );
+}
+
+/** A path's acceptance: in force with its reason and expiry, expired, or none; and Withdraw for
+ * one that stands, where the reader may withdraw it. */
+function Acceptance({
+  row,
+  administered,
+  onWithdraw,
+}: {
+  row: MonitorReach;
+  administered: boolean;
+  onWithdraw: () => void;
+}) {
+  if (row.reason_code === null) return <>{row.open ? "Open" : "None"}</>;
+  return (
+    <>
+      {row.accepted ? "Accepted" : "Acceptance expired"}
+      <small>{reasonWords(row.reason_code)}</small>
+      {row.expires_at !== null ? (
+        <small>
+          {row.accepted ? "Until" : "Expired"} <Time at={row.expires_at} />
+        </small>
+      ) : (
+        <small>No expiry</small>
+      )}
+      {row.accepted_by_ref !== null ? (
+        <small>
+          By <PrincipalName principal={row.accepted_by_ref} kind="ADMIN" />
+        </small>
+      ) : null}
+      {administered ? <Button onClick={onWithdraw}>Withdraw</Button> : null}
+    </>
+  );
+}
+
+/** Who drives the actor and how that is known (#355), kept apart from what it can reach. */
+function Drivers({ data }: { data: MonitorAgentDetail }) {
+  const agent = data.agent;
+  const live = data.drivers.filter((row) => row.gone_at === null);
+  const tines = data.drivers.some((row) => row.platform_kind === "tines" && row.gone_at === null);
+  return (
+    <Card title="Driver">
+      {live.length === 0 ? (
+        <p>
+          Unattributed: nothing in the directory, its sign-ins or a Tines tenant names what drives this actor. This is not
+          the same as nothing driving it.
+        </p>
+      ) : null}
+      {data.drivers.length > 0 ? (
+        <Table caption="Evidence of what drives this actor, strongest first." density="compact">
+          <thead>
+            <tr>
+              <Th>Driver</Th>
+              <Th>Evidence</Th>
+              <Th>Seen</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.drivers.map((row) => (
+              <tr key={`${row.evidence} ${row.platform_ref}`}>
+                <Td>
+                  {row.label}
+                  {row.source !== null ? (
+                    <small>
+                      From the catalog
+                      {row.retrieved !== null ? `, read ${row.retrieved}` : ""}
+                    </small>
+                  ) : null}
+                  {row.story_ids.length > 0 ? (
+                    <small>
+                      Stories in your Tines tenant that use a credential allowed to call Microsoft Graph or Microsoft sign-in:{" "}
+                      <span className="mono">{row.story_ids.join(", ")}</span>
+                      {row.stories_capped ? " (at least)" : ""}
+                    </small>
+                  ) : null}
+                  {row.unrestricted_credentials !== null && row.unrestricted_credentials > 0 ? (
+                    <small>{count(row.unrestricted_credentials, "credential")} with no host restriction, never joined</small>
+                  ) : null}
+                </Td>
+                <Td>{LEVELS[row.evidence]}</Td>
+                <Td>
+                  {row.gone_at !== null ? (
+                    <>
+                      Gone since <Time at={row.gone_at} />
+                    </>
+                  ) : (
+                    <>
+                      <Time at={row.first_seen_at} /> to <Time at={row.last_seen_at} />
+                    </>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      ) : null}
+      {agent.user_agent_hint !== null ? (
+        <p className="muted">
+          Its newest sign-in said its client was <span className="mono">{agent.user_agent_hint}</span>. A client chooses
+          what it says, so this is a hint and not evidence.
+        </p>
+      ) : null}
+      {tines ? <p className="muted">{TINES_RECIPE} The egress address may be shared with other Tines tenants.</p> : null}
+      <p className="muted">
+        {data.driver_gaps.unattributable.length > 0
+          ? `${data.driver_gaps.unattributable.join(" and ")} publish no stable egress, so their actors cannot be attributed by network. `
+          : ""}
+        {data.driver_gaps.pending.length > 0
+          ? `${data.driver_gaps.pending.join(" and ")} are not in the egress catalog yet (version ${data.driver_gaps.catalog_version}).`
+          : ""}
+      </p>
+    </Card>
+  );
+}
+
+/** Every acceptance of this actor's paths and its withdrawal, newest first. */
+function History({ data }: { data: MonitorAgentDetail }) {
+  if (data.acceptances.length === 0) return null;
+  return (
+    <Card title="Acceptance history">
+      <Table caption="Every acceptance of this actor's paths and every withdrawal, newest first." density="compact">
+        <thead>
+          <tr>
+            <Th>When</Th>
+            <Th>Change</Th>
+            <Th>Path</Th>
+            <Th>Reason</Th>
+            <Th>By</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.acceptances.map((row, index) => (
+            <tr key={`${row.recorded_at} ${String(index)}`}>
+              <Td>
+                <Time at={row.recorded_at} />
+              </Td>
+              <Td>
+                {row.change === "accepted" ? "Accepted" : "Withdrawn"}
+                {row.expires_at !== null ? (
+                  <small>
+                    Until <Time at={row.expires_at} />
+                  </small>
+                ) : null}
+              </Td>
+              <Td>
+                <span className="mono">{row.action}</span>
+                <small>
+                  {row.path_kind} <span className="mono">{row.path_ref}</span>
+                </small>
+              </Td>
+              <Td>{row.reason_code !== null ? reasonWords(row.reason_code) : "Not applicable"}</Td>
+              <Td>{row.recorded_by_ref !== null ? <PrincipalName principal={row.recorded_by_ref} kind="ADMIN" /> : "An administrator"}</Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </Card>
   );
 }
 
@@ -288,6 +519,7 @@ function Govern({ data }: { data: MonitorAgentDetail }) {
             <Link to="/agents/$agentId" params={{ agentId: agent.agent_id }}>
               Bind to an existing agent
             </Link>
+            <Link to="/policy">Govern this action</Link>
           </div>
         </>
       ) : (
@@ -295,11 +527,13 @@ function Govern({ data }: { data: MonitorAgentDetail }) {
           <Link to="/agents/$agentId" params={{ agentId: linked }} className="btn">
             Open the governed agent
           </Link>
+          <Link to="/policy">Govern this action</Link>
         </div>
       )}
       <p className="muted">
         Adding a governed path does not close an ungoverned one. Until the directory grant is gone, this agent can
-        still reach the action without asking ExecBound anything.
+        still reach the action without asking ExecBound anything. Accepting a path, above, records that the organization
+        lives with it.
       </p>
       {operatorCommands ? (
         <details>
@@ -317,6 +551,12 @@ function Govern({ data }: { data: MonitorAgentDetail }) {
                 &lt;action&gt; --path-kind &lt;kind&gt; --path &lt;path&gt; --reason &lt;CODE&gt;
               </code>
             </Definition>
+            <Definition term="Withdraw an acceptance">
+              <code>
+                monitor withdraw-reach --connection {agent.connection_id} --agent {agent.platform_ref} --action
+                &lt;action&gt; --path-kind &lt;kind&gt; --path &lt;path&gt;
+              </code>
+            </Definition>
           </Definitions>
           <p className="muted">
             Governing an action for this agent also takes an operation mapping in the active policy bundle (
@@ -324,9 +564,7 @@ function Govern({ data }: { data: MonitorAgentDetail }) {
             external executor.
           </p>
         </details>
-      ) : (
-        <p className="muted">Accepting an ungoverned path is not available in the console yet.</p>
-      )}
+      ) : null}
     </Card>
   );
 }

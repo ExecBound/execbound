@@ -1,6 +1,85 @@
 {
   "components": {
     "schemas": {
+      "AcceptReach": {
+        "additionalProperties": false,
+        "description": "Accept one to 50 of an actor's paths for one reason and a period of days (#355, step 4).\nAccepting one already accepted renews it.",
+        "properties": {
+          "days": {
+            "default": 90,
+            "enum": [
+              30,
+              90,
+              180,
+              365
+            ],
+            "title": "Days",
+            "type": "integer"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/ReachPath"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Paths",
+            "type": "array"
+          },
+          "reason_code": {
+            "enum": [
+              "COMPENSATING_CONTROL",
+              "VENDOR_MANAGED",
+              "BUSINESS_REQUIRED",
+              "GOVERNANCE_PLANNED",
+              "BREAK_GLASS"
+            ],
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "paths",
+          "reason_code"
+        ],
+        "title": "AcceptReach",
+        "type": "object"
+      },
+      "AcceptedPath": {
+        "additionalProperties": false,
+        "description": "One path whose acceptance stands, to withdraw: any kind an acceptance is recorded for,\nsince `accept-reach` also accepts an observed path (#355, step 4).",
+        "properties": {
+          "action": {
+            "maxLength": 65,
+            "minLength": 3,
+            "title": "Action",
+            "type": "string"
+          },
+          "path_kind": {
+            "enum": [
+              "grant",
+              "role",
+              "inherited",
+              "execbound",
+              "observation"
+            ],
+            "title": "Path Kind",
+            "type": "string"
+          },
+          "path_ref": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Path Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "path_kind",
+          "path_ref"
+        ],
+        "title": "AcceptedPath",
+        "type": "object"
+      },
       "AccessChanged": {
         "properties": {
           "changed": {
@@ -5069,6 +5148,10 @@
             },
             "title": "Sponsors",
             "type": "array"
+          },
+          "synthetic": {
+            "title": "Synthetic",
+            "type": "boolean"
           }
         },
         "required": [
@@ -5085,7 +5168,8 @@
           "sponsor_state",
           "first_seen_at",
           "observed_at",
-          "gone_at"
+          "gone_at",
+          "synthetic"
         ],
         "title": "DiscoveredFacts",
         "type": "object"
@@ -6776,6 +6860,81 @@
         "title": "ModeChange",
         "type": "object"
       },
+      "MonitorAcceptance": {
+        "description": "One acceptance of a path, or its withdrawal, as `monitor_reach_acceptances` keeps it.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "change": {
+            "enum": [
+              "accepted",
+              "withdrawn"
+            ],
+            "title": "Change",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "path_kind": {
+            "title": "Path Kind",
+            "type": "string"
+          },
+          "path_ref": {
+            "title": "Path Ref",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "recorded_by_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrincipalRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "change",
+          "action",
+          "path_kind",
+          "path_ref",
+          "reason_code",
+          "expires_at",
+          "recorded_by_ref",
+          "recorded_at"
+        ],
+        "title": "MonitorAcceptance",
+        "type": "object"
+      },
       "MonitorAcknowledgement": {
         "properties": {
           "finding_id": {
@@ -6819,8 +6978,19 @@
       },
       "MonitorAgentDetail": {
         "properties": {
+          "acceptances": {
+            "items": {
+              "$ref": "#/components/schemas/MonitorAcceptance"
+            },
+            "title": "Acceptances",
+            "type": "array"
+          },
           "agent": {
             "$ref": "#/components/schemas/MonitorAgentIdentity"
+          },
+          "assessed": {
+            "title": "Assessed",
+            "type": "boolean"
           },
           "driver_gaps": {
             "$ref": "#/components/schemas/MonitorDriverGaps"
@@ -6873,7 +7043,9 @@
           "observations",
           "unresolved",
           "drivers",
-          "driver_gaps"
+          "driver_gaps",
+          "acceptances",
+          "assessed"
         ],
         "title": "MonitorAgentDetail",
         "type": "object"
@@ -6923,10 +7095,25 @@
       },
       "MonitorAgentIdentity": {
         "properties": {
+          "administered": {
+            "title": "Administered",
+            "type": "boolean"
+          },
           "agent_id": {
             "format": "uuid",
             "title": "Agent Id",
             "type": "string"
+          },
+          "app_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Ref"
           },
           "blueprint_ref": {
             "anyOf": [
@@ -7017,6 +7204,31 @@
             "title": "Platform Ref",
             "type": "string"
           },
+          "removal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "entra",
+                  "azure_resource",
+                  "blueprint"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removal"
+          },
+          "source": {
+            "enum": [
+              "entra_agent_id",
+              "tines",
+              "fixture"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
           "sponsor_state": {
             "title": "Sponsor State",
             "type": "string"
@@ -7027,6 +7239,10 @@
             },
             "title": "Sponsors",
             "type": "array"
+          },
+          "synthetic": {
+            "title": "Synthetic",
+            "type": "boolean"
           },
           "tags": {
             "items": {
@@ -7077,7 +7293,12 @@
           "first_seen_at",
           "observed_at",
           "user_agent_hint",
-          "user_agent_seen_at"
+          "user_agent_seen_at",
+          "source",
+          "synthetic",
+          "app_ref",
+          "removal",
+          "administered"
         ],
         "title": "MonitorAgentIdentity",
         "type": "object"
@@ -7139,18 +7360,71 @@
       },
       "MonitorAgentRow": {
         "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "accepted_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Until"
+          },
+          "administered": {
+            "title": "Administered",
+            "type": "boolean"
+          },
           "agent_id": {
             "format": "uuid",
             "title": "Agent Id",
             "type": "string"
           },
+          "app_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Ref"
+          },
           "consequential": {
             "title": "Consequential",
             "type": "integer"
           },
+          "did": {
+            "title": "Did",
+            "type": "integer"
+          },
+          "did_at_least": {
+            "title": "Did At Least",
+            "type": "boolean"
+          },
           "display_name": {
             "title": "Display Name",
             "type": "string"
+          },
+          "driver": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonitorDriverSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "drivers_more": {
+            "title": "Drivers More",
+            "type": "integer"
           },
           "enabled": {
             "anyOf": [
@@ -7201,6 +7475,10 @@
             "title": "Open Findings",
             "type": "integer"
           },
+          "open_paths": {
+            "title": "Open Paths",
+            "type": "integer"
+          },
           "owner_count": {
             "anyOf": [
               {
@@ -7216,6 +7494,31 @@
             "title": "Platform Ref",
             "type": "string"
           },
+          "removal": {
+            "anyOf": [
+              {
+                "enum": [
+                  "entra",
+                  "azure_resource",
+                  "blueprint"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removal"
+          },
+          "source": {
+            "enum": [
+              "entra_agent_id",
+              "tines",
+              "fixture"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
           "sponsor_state": {
             "title": "Sponsor State",
             "type": "string"
@@ -7227,12 +7530,20 @@
             "title": "Sponsors",
             "type": "array"
           },
+          "synthetic": {
+            "title": "Synthetic",
+            "type": "boolean"
+          },
           "tags": {
             "items": {
               "type": "string"
             },
             "title": "Tags",
             "type": "array"
+          },
+          "tines_driven": {
+            "title": "Tines Driven",
+            "type": "boolean"
           },
           "unresolved": {
             "title": "Unresolved",
@@ -7255,9 +7566,45 @@
           "governed",
           "lapsed",
           "unresolved",
-          "open_findings"
+          "open_findings",
+          "did",
+          "did_at_least",
+          "open_paths",
+          "accepted",
+          "accepted_until",
+          "driver",
+          "drivers_more",
+          "tines_driven",
+          "source",
+          "synthetic",
+          "app_ref",
+          "removal",
+          "administered"
         ],
         "title": "MonitorAgentRow",
+        "type": "object"
+      },
+      "MonitorAgentSources": {
+        "properties": {
+          "entra": {
+            "title": "Entra",
+            "type": "integer"
+          },
+          "synthetic": {
+            "title": "Synthetic",
+            "type": "integer"
+          },
+          "tines": {
+            "title": "Tines",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entra",
+          "tines",
+          "synthetic"
+        ],
+        "title": "MonitorAgentSources",
         "type": "object"
       },
       "MonitorAgents": {
@@ -7290,6 +7637,14 @@
       },
       "MonitorAgentsTenant": {
         "properties": {
+          "assessed": {
+            "title": "Assessed",
+            "type": "boolean"
+          },
+          "built_in": {
+            "title": "Built In",
+            "type": "boolean"
+          },
           "enumerated": {
             "title": "Enumerated",
             "type": "integer"
@@ -7298,8 +7653,15 @@
             "title": "Governed",
             "type": "integer"
           },
+          "per_source": {
+            "$ref": "#/components/schemas/MonitorAgentSources"
+          },
           "shown": {
             "title": "Shown",
+            "type": "integer"
+          },
+          "unattributed": {
+            "title": "Unattributed",
             "type": "integer"
           },
           "unestablished": {
@@ -7316,7 +7678,11 @@
           "shown",
           "with_reach",
           "governed",
-          "unestablished"
+          "unestablished",
+          "assessed",
+          "built_in",
+          "per_source",
+          "unattributed"
         ],
         "title": "MonitorAgentsTenant",
         "type": "object"
@@ -7570,7 +7936,8 @@
             "enum": [
               "key_file",
               "sealed",
-              "platform_app"
+              "platform_app",
+              "synthetic"
             ],
             "title": "Credential Mode",
             "type": "string"
@@ -7623,7 +7990,8 @@
           "kind": {
             "enum": [
               "tines",
-              "entra_agent_id"
+              "entra_agent_id",
+              "fixture"
             ],
             "title": "Kind",
             "type": "string"
@@ -8157,6 +8525,41 @@
         "title": "MonitorDriverGaps",
         "type": "object"
       },
+      "MonitorDriverSummary": {
+        "description": "An actor's strongest current driver row the reader may see (#355, step 4): its level, what\nkind of platform it names, and the platform's name, which renders as text.",
+        "properties": {
+          "evidence": {
+            "enum": [
+              "declared",
+              "network",
+              "joined"
+            ],
+            "title": "Evidence",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "publisher",
+              "blueprint",
+              "egress",
+              "tines"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence",
+          "kind",
+          "label"
+        ],
+        "title": "MonitorDriverSummary",
+        "type": "object"
+      },
       "MonitorFinding": {
         "properties": {
           "acknowledged_at": {
@@ -8330,6 +8733,10 @@
             ],
             "title": "Story Id"
           },
+          "synthetic": {
+            "title": "Synthetic",
+            "type": "boolean"
+          },
           "target_ref": {
             "anyOf": [
               {
@@ -8365,7 +8772,8 @@
           "acknowledgement_note",
           "agent",
           "connection_label",
-          "source_label"
+          "source_label",
+          "synthetic"
         ],
         "title": "MonitorFinding",
         "type": "object"
@@ -8760,6 +9168,10 @@
       },
       "MonitorReach": {
         "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
           "accepted_at": {
             "anyOf": [
               {
@@ -8771,6 +9183,16 @@
               }
             ],
             "title": "Accepted At"
+          },
+          "accepted_by_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrincipalRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "action": {
             "title": "Action",
@@ -8792,6 +9214,18 @@
             "title": "Enforcement Mode",
             "type": "string"
           },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
           "gone_at": {
             "anyOf": [
               {
@@ -8803,6 +9237,10 @@
               }
             ],
             "title": "Gone At"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
           },
           "path_kind": {
             "title": "Path Kind",
@@ -8840,7 +9278,11 @@
           "valid_until",
           "gone_at",
           "reason_code",
-          "accepted_at"
+          "accepted_at",
+          "expires_at",
+          "accepted_by_ref",
+          "accepted",
+          "open"
         ],
         "title": "MonitorReach",
         "type": "object"
@@ -9042,6 +9484,9 @@
             },
             "title": "Stories",
             "type": "array"
+          },
+          "synthetic_directory": {
+            "$ref": "#/components/schemas/MonitorSyntheticDirectory"
           }
         },
         "required": [
@@ -9054,7 +9499,8 @@
           "deliveries",
           "destinations",
           "profile",
-          "open_findings"
+          "open_findings",
+          "synthetic_directory"
         ],
         "title": "MonitorSnapshot",
         "type": "object"
@@ -9309,6 +9755,25 @@
           "disabled"
         ],
         "title": "MonitorStory",
+        "type": "object"
+      },
+      "MonitorSyntheticDirectory": {
+        "description": "The workspace's synthetic directory, which holds for every Space (#355, step 4), read for\nthe workspace rather than for the Space the session looks at. `present`: one is active, so\nno Space connects Microsoft Entra. `addable`: none is active and no Space ever connected\nMicrosoft Entra, said only to a reader of every Space and false to anyone else.",
+        "properties": {
+          "addable": {
+            "title": "Addable",
+            "type": "boolean"
+          },
+          "present": {
+            "title": "Present",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "present",
+          "addable"
+        ],
+        "title": "MonitorSyntheticDirectory",
         "type": "object"
       },
       "MonitoringHealth": {
@@ -11034,6 +11499,40 @@
           "rule"
         ],
         "title": "QuorumRow",
+        "type": "object"
+      },
+      "ReachPath": {
+        "additionalProperties": false,
+        "description": "One path of an actor's, as its reach rows name it: one Accept offers, a live grant, role\nor inherited path.",
+        "properties": {
+          "action": {
+            "maxLength": 65,
+            "minLength": 3,
+            "title": "Action",
+            "type": "string"
+          },
+          "path_kind": {
+            "enum": [
+              "grant",
+              "role",
+              "inherited"
+            ],
+            "title": "Path Kind",
+            "type": "string"
+          },
+          "path_ref": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Path Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "path_kind",
+          "path_ref"
+        ],
+        "title": "ReachPath",
         "type": "object"
       },
       "ReachRow": {
@@ -17851,6 +18350,88 @@
         "x-execbound-token": "allowed"
       }
     },
+    "/api/console/v1/monitor/agents/{agent_id}/accept": {
+      "post": {
+        "description": "Personal access tokens: refused; sign in to the console.",
+        "operationId": "acceptMonitorReach",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptReach"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorAgentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Accept Monitor Reach",
+        "x-execbound-token": "refused"
+      }
+    },
+    "/api/console/v1/monitor/agents/{agent_id}/withdraw": {
+      "post": {
+        "description": "Personal access tokens: refused; sign in to the console.",
+        "operationId": "withdrawMonitorReach",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptedPath"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorAgentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Withdraw Monitor Reach",
+        "x-execbound-token": "refused"
+      }
+    },
     "/api/console/v1/monitor/connect": {
       "get": {
         "description": "Personal access tokens: allowed.",
@@ -17898,6 +18479,36 @@
           }
         },
         "summary": "Start Entra Connect",
+        "x-execbound-token": "refused"
+      }
+    },
+    "/api/console/v1/monitor/connections/synthetic": {
+      "post": {
+        "description": "Personal access tokens: refused; sign in to the console.",
+        "operationId": "addSyntheticDirectory",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorConnection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Add Synthetic Directory",
         "x-execbound-token": "refused"
       }
     },

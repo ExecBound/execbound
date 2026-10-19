@@ -39,6 +39,7 @@ from execbound.monitoring import ai_publishers, egress
 from execbound.monitoring.models import MonitorError
 from execbound.monitoring.store import (
     DEPENDENCY_ERRORS,
+    DIRECTORY_KINDS,
     SYSTEM_CLOCK,
     _administers,
     _check_actor,
@@ -111,7 +112,7 @@ _SPACE_EGRESS = text("""
     FROM execbound.monitor_connections t
     JOIN execbound.monitor_connections e
       ON e.tenant_id = t.tenant_id AND e.space_id = t.space_id
-    WHERE e.tenant_id = :t AND e.connection_id = :c
+    WHERE e.tenant_id = :t AND e.connection_id = :c AND e.kind = 'entra_agent_id'
       AND t.kind = 'tines' AND t.active AND t.egress_addresses IS NOT NULL
     ORDER BY t.connection_id
 """)
@@ -402,6 +403,12 @@ def end_tines(conn: Connection, tenant: UUID, tines_connection: UUID, now: datet
     )
 
 
+def end_connection(conn: Connection, tenant: UUID, connection_id: UUID, now: datetime) -> int:
+    """Mark gone every row a directory connection's own reads gave its actors, in the transaction
+    that removes the synthetic directory (#355, step 4)."""
+    return _gone(conn, tenant, "d.source_connection_id = :c", {"c": connection_id, "now": now})
+
+
 def apply_sign_ins(
     db: Database,
     actor: Identity | ScheduledActor,
@@ -434,7 +441,7 @@ def apply_sign_ins(
         with db.transaction(tenant) as conn:
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
             row = _locked_connection(conn, tenant, connection_id, lease=lease, guarded=True)
-            if row["kind"] != "entra_agent_id":
+            if row["kind"] not in DIRECTORY_KINDS:
                 raise MonitorError("INVALID_STATE")
             stale = _recorded(conn, tenant, connection_id).version != recorded.version or (
                 row["sign_in_cursor"] is None and recorded.cursor is not None
@@ -499,7 +506,10 @@ def apply_sign_ins(
                     raise _unleased(conn, tenant, connection_id)
             else:
                 _leased(row, lease)
-            counts["joined"], _ = _join(conn, tenant, connection_id, now)
+            # The synthetic directory is matched against the egress catalog alone and joins no
+            # Tines tenant (#355, step 4): `_recorded` holds no address for it.
+            if row["kind"] == "entra_agent_id":
+                counts["joined"], _ = _join(conn, tenant, connection_id, now)
             _check_actor(conn, actor, clock, collecting=True, lease=lease)
     except DEPENDENCY_ERRORS:
         raise MonitorError() from None
@@ -743,3 +753,55 @@ def agent_drivers(
             else None
         )
     return rows
+
+
+# The order the agent detail lists driver rows in, which the Agents page's one row follows: the
+# join names stories, the directory's own declaration a template or a publisher, and a network
+# match a platform alone.
+_PRECEDENCE = "CASE d.evidence WHEN 'joined' THEN 0 WHEN 'declared' THEN 1 ELSE 2 END"
+
+
+def agents_summary(
+    conn: Connection, tenant: UUID, agent_ids: Sequence[UUID], visibility: Visibility
+) -> dict[UUID, dict[str, Any]]:
+    """Each actor's strongest current driver row the session may see, as the Agents page shows it
+    (#355, step 4), with how many more current rows it may see: `driver` holds its level, kind
+    and label, and `tines` whether any of those rows is a Tines tenant's, strongest or not, for
+    the Tines Gate recipe's pointer the agent detail gives on the same rows. A `tines:` row is
+    seen only when its connection is in the Spaces `visibility` holds, as on the agent detail.
+    An actor with none is absent: unattributed."""
+    if not agent_ids:
+        return {}
+    space = space_clause(visibility, "c")
+    rows = conn.execute(
+        text(
+            "SELECT d.agent_id, d.evidence, d.platform_ref, c.label AS tines_label "
+            "FROM execbound.monitor_actor_drivers d "
+            "LEFT JOIN execbound.monitor_connections c "
+            "  ON c.tenant_id = d.tenant_id AND c.kind = 'tines' "
+            " AND d.platform_ref = 'tines:' || c.connection_id::text "
+            "WHERE d.tenant_id = :t AND d.agent_id = ANY(:ids) AND d.gone_at IS NULL "
+            "AND (d.platform_ref NOT LIKE 'tines:%' OR (c.connection_id IS NOT NULL"
+            + space.sql  # nosec B608 - the one helper's predicate; values bound
+            + ")) ORDER BY d.agent_id, "
+            + _PRECEDENCE
+            + ", d.platform_ref"
+        ),
+        {"t": tenant, "ids": list(agent_ids), **space.params},
+    ).mappings()
+    found: dict[UUID, dict[str, Any]] = {}
+    for row in rows:
+        from_tines = row["platform_ref"].startswith("tines:")
+        held = found.get(row["agent_id"])
+        if held is not None:
+            held["more"] += 1
+            held["tines"] = held["tines"] or from_tines
+            continue
+        tines = {row["platform_ref"].removeprefix("tines:"): row["tines_label"] or "Tines"}
+        named = _label(row["platform_ref"], tines)
+        found[row["agent_id"]] = {
+            "driver": {"evidence": row["evidence"], "kind": named["kind"], "label": named["label"]},
+            "more": 0,
+            "tines": from_tines,
+        }
+    return found

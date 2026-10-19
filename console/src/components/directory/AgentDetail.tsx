@@ -554,6 +554,11 @@ function BindingCard({ detail }: { detail: AgentDetail }) {
     body =
       facts.gone_at !== null ? (
         <p>This agent is gone from its source, so it cannot be bound or governed.</p>
+      ) : facts.synthetic ? (
+        <p>
+          This actor comes from the synthetic directory, which exists only in ExecBound, so it cannot be bound or
+          governed. Its paths can still be accepted on its Monitoring page.
+        </p>
       ) : (
         <>
           <form

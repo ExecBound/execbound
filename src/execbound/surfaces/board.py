@@ -136,6 +136,9 @@ _OBSERVATIONS_SQL = (
     "LEFT JOIN execbound.monitor_findings f "
     "ON f.tenant_id=o.tenant_id AND f.observation_id=o.observation_id "
     "WHERE o.tenant_id=:t AND o.occurred_at > :since "
+    # The synthetic directory's are not the workspace's own activity (#355, step 4).
+    "AND NOT EXISTS (SELECT 1 FROM execbound.monitor_connections k "
+    "WHERE k.tenant_id=o.tenant_id AND k.connection_id=o.connection_id AND k.kind='fixture') "
     "AND (o.kind <> 'entra_audit' OR (o.outcome = 'success' AND NOT EXISTS "
     "(SELECT 1 FROM settled s WHERE s.observation_id = o.observation_id))) "
     "AND (NOT :scoped OR o.space_id=ANY(CAST(:read_spaces AS uuid[])))/*space*/ "
@@ -148,7 +151,7 @@ _WATCHING = (
     "WHERE e.tenant_id=:t AND e.active "
     "AND (NOT :scoped OR e.space_id=ANY(CAST(:read_spaces AS uuid[])))/*space*/) "
     "OR EXISTS (SELECT 1 FROM execbound.monitor_connections e "
-    "WHERE e.tenant_id=:t AND e.active "
+    "WHERE e.tenant_id=:t AND e.active AND e.kind <> 'fixture' "
     "AND (NOT :scoped OR e.space_id=ANY(CAST(:read_spaces AS uuid[])))/*space*/) "
     "AS watching"
 )

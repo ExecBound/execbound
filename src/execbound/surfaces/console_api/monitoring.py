@@ -48,12 +48,15 @@ class MonitorCapability(BaseModel):
 
 class MonitorConnection(BaseModel):
     connection_id: UUID
-    kind: Literal["tines", "entra_agent_id"]
+    # `fixture` is the synthetic directory (#355, step 4): read like a Microsoft Entra directory
+    # from a fixed dataset in process, labelled "Synthetic directory" wherever it is shown.
+    kind: Literal["tines", "entra_agent_id", "fixture"]
     # How the connection authenticates: `key_file` is an operator's key file on the host that
     # collects, with only its fingerprint in the database; `sealed` is a key pasted in the
     # console and sealed for the collector, which this answer never carries in any form;
-    # `platform_app` is a directory whose administrator consented to the deployment's app.
-    credential_mode: Literal["key_file", "sealed", "platform_app"]
+    # `platform_app` is a directory whose administrator consented to the deployment's app;
+    # `synthetic` holds no credential, because the synthetic directory exists only in process.
+    credential_mode: Literal["key_file", "sealed", "platform_app", "synthetic"]
     label: str
     base_url: str
     team_id: str | None
@@ -202,6 +205,8 @@ class MonitorFinding(BaseModel):
     agent: MonitorFindingAgent | None
     connection_label: str | None
     source_label: str | None
+    # The synthetic directory raised it (#355, step 4): seen here alone, never sent anywhere.
+    synthetic: bool
 
 
 class MonitorFindingCounts(BaseModel):
@@ -249,6 +254,16 @@ class MonitorDestination(BaseModel):
     unknown_spaces: int
 
 
+class MonitorSyntheticDirectory(BaseModel):
+    """The workspace's synthetic directory, which holds for every Space (#355, step 4), read for
+    the workspace rather than for the Space the session looks at. `present`: one is active, so
+    no Space connects Microsoft Entra. `addable`: none is active and no Space ever connected
+    Microsoft Entra, said only to a reader of every Space and false to anyone else."""
+
+    present: bool
+    addable: bool
+
+
 class MonitorSnapshot(BaseModel):
     connections: list[MonitorConnection]
     sources: list[MonitorSource]
@@ -261,6 +276,7 @@ class MonitorSnapshot(BaseModel):
     destinations: list[MonitorDestination]
     profile: MonitorProfile | None
     open_findings: int
+    synthetic_directory: MonitorSyntheticDirectory
 
 
 class MonitorFindings(BaseModel):
@@ -276,6 +292,36 @@ class MonitorFindings(BaseModel):
 class MonitorSponsor(BaseModel):
     kind: str
     ref: str
+
+
+Source = Literal["entra_agent_id", "tines", "fixture"]
+# How an actor's access is taken away at its source, which Scout never does itself: `entra`
+# through the admin center's enterprise applications, `azure_resource` on the Azure resource a
+# managed identity belongs to, `blueprint` through an agent identity's blueprint (#355, step 4).
+Removal = Literal["entra", "azure_resource", "blueprint"]
+
+
+def removal(identity_class: str, source: str) -> Removal | None:
+    """Where a Microsoft Entra directory's actor's access is removed; nothing for a Tines story
+    or the synthetic directory's actor, which exist in no Entra directory."""
+    if source != "entra_agent_id":
+        return None
+    removals: dict[str, Removal] = {
+        "service_principal": "entra",
+        "consented_app": "entra",
+        "managed_identity": "azure_resource",
+        "agent_identity": "blueprint",
+    }
+    return removals.get(identity_class)
+
+
+class MonitorDriverSummary(BaseModel):
+    """An actor's strongest current driver row the reader may see (#355, step 4): its level, what
+    kind of platform it names, and the platform's name, which renders as text."""
+
+    evidence: Literal["declared", "network", "joined"]
+    kind: Literal["publisher", "blueprint", "egress", "tines"]
+    label: str
 
 
 class MonitorAgentRow(BaseModel):
@@ -295,6 +341,37 @@ class MonitorAgentRow(BaseModel):
     lapsed: int
     unresolved: int
     open_findings: int
+    # The to-do list (#355, step 4). `did`: successful consequential observations of the last
+    # thirty days outside ExecBound's own settled executions, "at least" where `did_at_least`.
+    # `open_paths`: live, ungoverned paths to a consequential action with no acceptance in force;
+    # `accepted`: those an acceptance covers, the earliest of whose expiries is `accepted_until`.
+    did: int
+    did_at_least: bool
+    open_paths: int
+    accepted: int
+    accepted_until: datetime | None
+    # The strongest current driver row and how many more; none is unattributed. `tines_driven`:
+    # whether any current row the reader may see is a Tines tenant's, strongest or not, for the
+    # Tines Gate recipe's pointer.
+    driver: MonitorDriverSummary | None
+    drivers_more: int
+    tines_driven: bool
+    source: Source
+    synthetic: bool
+    # The application id to filter the admin center's enterprise applications by, and where the
+    # actor's access is removed; never an address built from a value.
+    app_ref: str | None
+    removal: Removal | None
+    # Whether this session may accept or withdraw the actor's paths: its connection is in a Space
+    # the session shows and this administrator administers. The list is the workspace's, an
+    # acceptance its connection's Space's, so Accept is offered only where this is true.
+    administered: bool
+
+
+class MonitorAgentSources(BaseModel):
+    entra: int
+    tines: int
+    synthetic: int
 
 
 class MonitorAgentsTenant(BaseModel):
@@ -303,6 +380,15 @@ class MonitorAgentsTenant(BaseModel):
     with_reach: int
     governed: int
     unestablished: int
+    # Whether a detection profile names consequential actions; without one nothing is done or
+    # open, and the page says so. The actors each source lists, and the directory actors no
+    # current driver row attributes, each over everything the connections could enumerate.
+    assessed: bool
+    # Whether, with no profile set, the synthetic directory is assessed against the built-in
+    # sensitive action set, which `consequential` then lists (#355, step 4).
+    built_in: bool
+    per_source: MonitorAgentSources
+    unattributed: int
 
 
 class MonitorAgents(BaseModel):
@@ -332,6 +418,14 @@ class MonitorAgentIdentity(BaseModel):
     # (#355). A client chooses its own user agent: a hint, never evidence of a driver.
     user_agent_hint: str | None
     user_agent_seen_at: datetime | None
+    # Where it was listed, whether that is the synthetic directory, its application id and where
+    # its access is removed (#355, step 4).
+    source: Source
+    synthetic: bool
+    app_ref: str | None
+    removal: Removal | None
+    # Whether this session may accept or withdraw its paths, as on the Agents page's row.
+    administered: bool
 
 
 class MonitorDriver(BaseModel):
@@ -398,6 +492,25 @@ class MonitorReach(BaseModel):
     gone_at: datetime | None
     reason_code: str | None
     accepted_at: datetime | None
+    # The standing acceptance's expiry and author (#355, step 4); `accepted` while it is in force,
+    # and `open` for a live, ungoverned path to a consequential action that none covers.
+    expires_at: datetime | None
+    accepted_by_ref: PrincipalRef | None
+    accepted: bool
+    open: bool
+
+
+class MonitorAcceptance(BaseModel):
+    """One acceptance of a path, or its withdrawal, as `monitor_reach_acceptances` keeps it."""
+
+    change: Literal["accepted", "withdrawn"]
+    action: str
+    path_kind: str
+    path_ref: str
+    reason_code: str | None
+    expires_at: datetime | None
+    recorded_by_ref: PrincipalRef | None
+    recorded_at: datetime
 
 
 class MonitorAgentFinding(BaseModel):
@@ -426,6 +539,49 @@ class MonitorAgentDetail(BaseModel):
     # Who drives it, and how that is known; none is unattributed, not "nobody" (#355).
     drivers: list[MonitorDriver]
     driver_gaps: MonitorDriverGaps
+    # Every acceptance of its paths and withdrawal, newest first, at most 50, and whether a
+    # detection profile names consequential actions, without which no path is open.
+    acceptances: list[MonitorAcceptance]
+    assessed: bool
+
+
+class ReachPath(BaseModel):
+    """One path of an actor's, as its reach rows name it: one Accept offers, a live grant, role
+    or inherited path."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: str = Field(min_length=3, max_length=65)
+    path_kind: Literal["grant", "role", "inherited"]
+    path_ref: str = Field(min_length=1, max_length=128)
+
+
+class AcceptedPath(BaseModel):
+    """One path whose acceptance stands, to withdraw: any kind an acceptance is recorded for,
+    since `accept-reach` also accepts an observed path (#355, step 4)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: str = Field(min_length=3, max_length=65)
+    path_kind: Literal["grant", "role", "inherited", "execbound", "observation"]
+    path_ref: str = Field(min_length=1, max_length=128)
+
+
+class AcceptReach(BaseModel):
+    """Accept one to 50 of an actor's paths for one reason and a period of days (#355, step 4).
+    Accepting one already accepted renews it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    paths: list[ReachPath] = Field(min_length=1, max_length=monitor_store.MAX_ACCEPT_PATHS)
+    reason_code: Literal[
+        "COMPENSATING_CONTROL",
+        "VENDOR_MANAGED",
+        "BUSINESS_REQUIRED",
+        "GOVERNANCE_PLANNED",
+        "BREAK_GLASS",
+    ]
+    days: Literal[30, 90, 180, 365] = 90
 
 
 class AcknowledgeFinding(BaseModel):
@@ -659,6 +815,7 @@ def read_snapshot(runtime: Runtime, session: Session) -> MonitorSnapshot:
         profile=_profile(rows["profile"]),
         # Counted in SQL under the same predicate, so it is right beyond the 200 shown.
         open_findings=int(rows["counts"]["open"]),
+        synthetic_directory=MonitorSyntheticDirectory(**rows["synthetic_directory"]),
     )
 
 
@@ -692,53 +849,78 @@ def _tags(value: Any) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
+_ROW_COMPUTED = frozenset({"sponsors", "tags", "linked_principal_ref", "driver", "removal"})
+
+
 def read_agents(runtime: Runtime, session: Session) -> MonitorAgents:
     rows = monitor_store.agents_snapshot(runtime.db, session, clock=runtime.clock)
     facts = _facts(rows.get("principals"))
+    tenant = rows["tenant"]
     return MonitorAgents(
         agents=[
             MonitorAgentRow(
                 **{
                     key: row[key]
                     for key in MonitorAgentRow.model_fields
-                    if key not in {"sponsors", "tags", "linked_principal_ref"}
+                    if key not in _ROW_COMPUTED
                 },
                 sponsors=_sponsors(row["sponsors"]),
                 tags=_tags(row["tags"]),
                 linked_principal_ref=principal_ref(row["linked_principal_id"], facts),
+                driver=MonitorDriverSummary(**row["driver"]) if row["driver"] else None,
+                removal=removal(row["identity_class"], row["source"]),
             )
             for row in rows["agents"]
         ],
         consequential=list(rows["consequential"]),
-        tenant=MonitorAgentsTenant(**rows["tenant"]),
+        tenant=MonitorAgentsTenant(
+            **{key: value for key, value in tenant.items() if key != "per_source"},
+            per_source=MonitorAgentSources(**tenant["per_source"]),
+        ),
     )
 
 
 def read_agent(runtime: Runtime, session: Session, agent_id: UUID) -> MonitorAgentDetail:
     detail = monitor_store.agent_detail(runtime.db, session, agent_id, clock=runtime.clock)
     agent = detail["agent"]
+    facts = _facts(detail.get("principals"))
     return MonitorAgentDetail(
         agent=MonitorAgentIdentity(
             **{
                 key: agent[key]
                 for key in MonitorAgentIdentity.model_fields
-                if key not in {"sponsors", "tags", "credential_kinds", "linked_principal_ref"}
+                if key
+                not in {"sponsors", "tags", "credential_kinds", "linked_principal_ref", "removal"}
             },
             sponsors=_sponsors(agent["sponsors"]),
             tags=_tags(agent["tags"]),
             credential_kinds=_tags(agent["credential_kinds"]),
-            linked_principal_ref=principal_ref(
-                agent["linked_principal_id"], _facts(detail.get("principals"))
-            ),
+            linked_principal_ref=principal_ref(agent["linked_principal_id"], facts),
+            removal=removal(agent["identity_class"], agent["source"]),
         ),
         grants=[
             MonitorGrant(**{key: row[key] for key in MonitorGrant.model_fields})
             for row in detail["grants"]
         ],
         reach=[
-            MonitorReach(**{key: row[key] for key in MonitorReach.model_fields})
+            MonitorReach(
+                **{key: row[key] for key in MonitorReach.model_fields if key != "accepted_by_ref"},
+                accepted_by_ref=principal_ref(row["accepted_by"], facts),
+            )
             for row in detail["reach"]
         ],
+        acceptances=[
+            MonitorAcceptance(
+                **{
+                    key: row[key]
+                    for key in MonitorAcceptance.model_fields
+                    if key != "recorded_by_ref"
+                },
+                recorded_by_ref=principal_ref(row["recorded_by"], facts),
+            )
+            for row in detail["acceptances"]
+        ],
+        assessed=bool(detail["assessed"]),
         findings=[
             MonitorAgentFinding(**{key: row[key] for key in MonitorAgentFinding.model_fields})
             for row in detail["findings"]
@@ -806,7 +988,7 @@ def _finding_ids(raw: list[str]) -> list[UUID]:
     return parsed
 
 
-def _read(read: Any) -> Any:
+def _read(read: Any, *, body: str = "finding_ids") -> Any:
     try:
         return read()
     except MonitorError as exc:
@@ -818,7 +1000,10 @@ def _read(read: Any) -> Any:
         if exc.code == "INVALID_NOTE":
             raise ApiError("INVALID_BODY", fields=["note"]) from None
         if exc.code == "INVALID_INPUT":
-            raise ApiError("INVALID_BODY", fields=["finding_ids"]) from None
+            raise ApiError("INVALID_BODY", fields=[body]) from None
+        # A withdrawal of a path no acceptance stands for: someone withdrew it first.
+        if exc.code == "NOT_ACCEPTED":
+            raise ApiError("CONFLICT") from None
         # A note for a finding someone acknowledged first: it was not saved.
         if exc.code == "ACKNOWLEDGED":
             raise ApiError("CONFLICT") from None
@@ -847,6 +1032,52 @@ def monitoring_routes(
         current, _ = await guards.session(request, kind="ADMIN")
         identifier = _identifier(agent_id)
         return await run_in_threadpool(_read, lambda: read_agent(runtime, current, identifier))
+
+    @routes.post(
+        "/monitor/agents/{agent_id}/accept",
+        response_model=MonitorAgentDetail,
+        operation_id="acceptMonitorReach",
+        openapi_extra=body(AcceptReach),
+    )
+    async def accept_monitor_reach(request: Request, agent_id: str) -> MonitorAgentDetail:
+        current, values = await guards.mutation(request, AcceptReach, kind="ADMIN")
+        identifier = _identifier(agent_id)
+
+        def apply() -> MonitorAgentDetail:
+            monitor_store.accept_paths(
+                runtime.db,
+                current,
+                identifier,
+                [(path.action, path.path_kind, path.path_ref) for path in values.paths],
+                reason_code=values.reason_code,
+                days=values.days,
+                clock=runtime.clock,
+            )
+            return read_agent(runtime, current, identifier)
+
+        return await run_in_threadpool(_read, apply, body="paths")
+
+    @routes.post(
+        "/monitor/agents/{agent_id}/withdraw",
+        response_model=MonitorAgentDetail,
+        operation_id="withdrawMonitorReach",
+        openapi_extra=body(AcceptedPath),
+    )
+    async def withdraw_monitor_reach(request: Request, agent_id: str) -> MonitorAgentDetail:
+        current, values = await guards.mutation(request, AcceptedPath, kind="ADMIN")
+        identifier = _identifier(agent_id)
+
+        def apply() -> MonitorAgentDetail:
+            monitor_store.withdraw_path(
+                runtime.db,
+                current,
+                identifier,
+                (values.action, values.path_kind, values.path_ref),
+                clock=runtime.clock,
+            )
+            return read_agent(runtime, current, identifier)
+
+        return await run_in_threadpool(_read, apply, body="path_ref")
 
     @routes.get(
         "/monitor/findings", response_model=MonitorFindings, operation_id="readMonitorFindings"

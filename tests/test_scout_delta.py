@@ -1073,7 +1073,9 @@ def test_sr17_a_principal_listed_again_keeps_what_its_earlier_entry_said(db, adm
             "tags",
         )
     } == {
-        "identity_class": "service_principal",
+        # Another organization's application holding an application permission here (#355,
+        # step 4).
+        "identity_class": "consented_app",
         "display_name": consented["displayName"],
         "enabled": True,
         "owner_org_ref": VENDOR,
