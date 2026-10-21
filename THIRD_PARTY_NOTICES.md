@@ -398,7 +398,7 @@ License: Apache-2.0
    limitations under the License.
 ```
 
-### certifi 2026.7.22
+### certifi 2026.10.19
 
 License: MPL-2.0
 
