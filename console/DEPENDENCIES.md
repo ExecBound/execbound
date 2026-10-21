@@ -20,7 +20,7 @@ Every version is exact and was published at least seven days before it was pinne
 | Package | Version | Reason |
 | --- | --- | --- |
 | `typescript` | 6.0.3 | Strict typing. 6.0 rather than 7 because typescript-eslint 8.71 accepts `>=4.8.4 <6.1.0`, so the lint toolchain cannot run 7. |
-| `vite` | 8.3.2 | The build: hashed assets, the manifest the budget reads, no inline script or style. |
+| `vite` | 8.3.3 | The build: hashed assets, the manifest the budget reads, no inline script or style. |
 | `@vitejs/plugin-react` | 6.1.1 | React fast refresh and the JSX transform. |
 | `tailwindcss` | 4.3.3 | Utilities over the tokens as CSS variables. |
 | `@tailwindcss/vite` | 4.3.3 | Runs Tailwind inside the Vite build. |
