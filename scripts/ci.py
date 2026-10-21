@@ -64,6 +64,9 @@ from typing import IO, Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BANDIT = "bandit==1.9.4"
+# The runtime package and the four packages shipped beside it (the Python client, the protocol,
+# the connectors and the MDE producer). scripts/ is not yet read: its findings want a review.
+BANDIT_PATHS = "src clients/python protocol connectors integrations/mde-producer"
 POSTGRES_IMAGE = "postgres:17.11"
 # What the image smoke test gives the gateway: port 1 on loopback, where nothing listens, so
 # liveness answers and readiness refuses. The password is the word "smoke" and opens nothing.
@@ -356,7 +359,7 @@ def stage_lint(ci: Runner) -> None:
     ci.run("uv run ruff check .")
     ci.run("uv run ruff format --check .")
     ci.run("uv run mypy")
-    ci.run(f"uvx {BANDIT} -c pyproject.toml -q -r src")
+    ci.run(f"uvx {BANDIT} -c pyproject.toml -q -r {BANDIT_PATHS}")
 
 
 def stage_licences(ci: Runner) -> None:
@@ -731,6 +734,28 @@ def scheduled_jobs(log: str) -> list[str]:
     return problems
 
 
+def scheduled_jobs_settled(log: str) -> bool:
+    """Whether two replicas' log is complete enough to judge: each scheduled job has completed
+    and the second replica has found each one's interval held. Counting every completion
+    instead stopped the wait on October 21, 2026 with `monitor-process` still to run, because
+    `collect`, which is not checked, had completed beside `recover` and `audit-verify`."""
+    completed: set[str] = set()
+    held: set[str] = set()
+    for line in log.splitlines():
+        start = line.find('{"')
+        if start < 0:
+            continue
+        try:
+            row = json.loads(line[start:])
+        except ValueError:
+            continue
+        if row.get("event") == "job.completed":
+            completed.add(str(row.get("command")))
+        elif row.get("event") == "job.held_elsewhere":
+            held.add(str(row.get("command")))
+    return all(name in completed and name in held for name in SCHEDULED_JOBS)
+
+
 def stage_fresh_machine(ci: Runner) -> None:
     """docs/INSTALL.md's three commands, from an empty directory to a first governed decision
     and timed; then a second replica of the jobs service, which must find every interval the
@@ -787,9 +812,7 @@ def stage_fresh_machine(ci: Runner) -> None:
                     text=True,
                     check=False,
                 ).stdout
-                done = log.count('"event":"job.completed"')
-                held = log.count('"event":"job.held_elsewhere"')
-                if done >= len(SCHEDULED_JOBS) and held >= len(SCHEDULED_JOBS):
+                if scheduled_jobs_settled(log):
                     break
                 time.sleep(2)
             (ROOT / JOBS_LOG).write_text(log, encoding="utf-8")
