@@ -9,7 +9,9 @@ calls, with the session's identity, so a change made here and one made with `exe
 (#253,
 #333). Every route wraps the function
 its page calls today: `personal_overview`, `revoke_other_sessions`, `tenant_overview`,
-`set_enforcement_mode`, `set_approval_deadline`, `activate_stop` and `release_stop`. The
+`set_enforcement_mode`, `set_approval_deadline`, `activate_stop` and `release_stop`; the
+personal page's trusted browsers (#859) wrap `trusted_browsers.listed`, `remove` and
+`remove_all`, and removing one asks for no step-up, since removing only tightens. The
 deadline travels as the text the person typed, `off` or seconds, and is read by the page's own
 parser, so `119`, `3601` and a word are refused before any store function sees them.
 Destinations are id, kind, host and how many approvers, never the URL or the secret.
@@ -20,13 +22,16 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
+from execbound import trusted_browsers
 from execbound.execution.models import ExecutionError
 from execbound.execution.modes import set_approval_deadline, set_enforcement_mode
 from execbound.execution.stops import activate_stop, release_stop
+from execbound.mfa import MfaError
 from execbound.operations import CatalogError
 from execbound.passwords import (
     MAX_PASSWORD,
@@ -37,6 +42,7 @@ from execbound.passwords import (
 from execbound.personal_tokens import TokenSession
 from execbound.runtime import Runtime
 from execbound.surfaces.console_api.bodies import body
+from execbound.surfaces.console_api.directory import UUID_PATTERN
 from execbound.surfaces.console_api.errors import ApiError
 from execbound.surfaces.console_api.guards import ApiGuards
 from execbound.surfaces.console_api.principals import PrincipalRef, principal_ref
@@ -45,6 +51,10 @@ from execbound.surfaces.names import PrincipalFacts
 from execbound.surfaces.sessions import Session, SessionError, revoke_other_sessions
 from execbound.surfaces.settings_pages import parse_deadline, personal_overview, tenant_overview
 from execbound.weekly_summary import SummaryError, offered, subscribe
+
+# What removing a trust refuses, as the code the client maps to copy (#859): a session with
+# no account sign-in holds no trusts to remove.
+_TRUST_REFUSALS = {"ACCOUNT_SIGN_IN_REQUIRED": "FORBIDDEN", "INVALID_ACCOUNT": "FORBIDDEN"}
 
 Kind = Literal["ADMIN", "HUMAN_APPROVER"]
 Mode = Literal["ENFORCE", "OBSERVE"]
@@ -147,6 +157,33 @@ class WeeklySummaryChange(BaseModel):
     subscribed: bool
 
 
+class TrustedBrowserView(BaseModel):
+    """One live trust of the person's account (#859): when it was added, last used and
+    expires, and whether it is this browser's. Never the cookie, its secret or its hash."""
+
+    browser_id: UUID
+    # The fixed device label sign-in derived, such as "Chrome on Windows"; null where none.
+    label: str | None
+    created_at: datetime
+    last_used_at: datetime | None
+    expires_at: datetime
+    this_browser: bool
+
+
+class RemoveTrustedBrowser(BaseModel):
+    """Remove one of the account's own trusts. Removing only tightens, so no step-up."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    browser_id: str = Field(pattern=UUID_PATTERN)
+
+
+class RemoveAllTrustedBrowsers(BaseModel):
+    """The confirmation carries nothing but the session's token, as the form does."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class SettingsSecurity(BaseModel):
     """The person's own second factor (#678): counts and flags only, never a secret."""
 
@@ -158,6 +195,11 @@ class SettingsSecurity(BaseModel):
     requirement: Literal["optional", "admins", "all"]
     # Whether this deployment has account security at all.
     available: bool
+    # The account's live trusted browsers, newest first (#859); empty without account
+    # security. Defaults, so a client written before them reads as "none" rather than failing.
+    trusted: list[TrustedBrowserView] = Field(default_factory=list)
+    # Whether this workspace allows trusted browsers at all; its administrator may forbid it.
+    trust_allowed: bool = True
 
 
 class PersonalSettingsView(BaseModel):
@@ -186,6 +228,7 @@ class PersonalSettingsView(BaseModel):
             recovery_remaining=0,
             requirement="optional",
             available=False,
+            trust_allowed=False,
         )
     )
 
@@ -353,14 +396,49 @@ def _change(row: dict[str, Any] | None, principals: Mapping[UUID, PrincipalFacts
     return Change(at=row["at"], by=row["by"], by_ref=principal_ref(row["by"], principals))
 
 
+def _trust(
+    runtime: Runtime, session: Session, cookie: str | None
+) -> tuple[list[TrustedBrowserView], bool]:
+    """The account's live trusts, with the one this browser's cookie names marked, and
+    whether this workspace allows trust. The cookie is only parsed for its browser id: its
+    secret is never compared here, since marking a row grants nothing."""
+    this = trusted_browsers.browser_of(cookie)
+    try:
+        listed = trusted_browsers.listed(runtime.db, session, clock=runtime.clock)
+        with runtime.db.transaction(session.identity.tenant_id) as conn:
+            allowed = trusted_browsers.allowed(conn, session.identity.tenant_id)
+    except MfaError:
+        raise ApiError("UNAVAILABLE") from None
+    except SQLAlchemyError:
+        raise ApiError("UNAVAILABLE") from None
+    return [
+        TrustedBrowserView(
+            browser_id=trust.browser_id,
+            label=trust.label,
+            created_at=trust.created_at,
+            last_used_at=trust.last_used_at,
+            expires_at=trust.expires_at,
+            this_browser=trust.browser_id == this,
+        )
+        for trust in listed
+    ], allowed
+
+
 def personal_view(
-    runtime: Runtime, session: Session, *, linkable: bool, secured: bool = False
+    runtime: Runtime,
+    session: Session,
+    *,
+    linkable: bool,
+    secured: bool = False,
+    trust: str | None = None,
 ) -> PersonalSettingsView:
-    """`linkable` is whether this deployment serves the directory routes at all, and
-    `secured` whether it has account security (`HumanConfig.mfa`)."""
+    """`linkable` is whether this deployment serves the directory routes at all, `secured`
+    whether it has account security (`HumanConfig.mfa`), and `trust` the browser's trust
+    cookie, which marks the trust this browser holds."""
     identity = session.identity
     data = personal_overview(runtime, session)
     directory = data["directory"]
+    trusted, trust_allowed = _trust(runtime, session, trust) if secured else ([], False)
     return PersonalSettingsView(
         identity=SettingsIdentity(
             principal_id=identity.principal_id,
@@ -390,7 +468,12 @@ def personal_view(
             subscribed=bool(data["weekly_summary"]["subscribed"]),
             address=data["weekly_summary"]["address"],
         ),
-        security=SettingsSecurity(**data["security"], available=secured),
+        security=SettingsSecurity(
+            **data["security"],
+            available=secured,
+            trusted=trusted,
+            trust_allowed=trust_allowed,
+        ),
     )
 
 
@@ -466,11 +549,25 @@ def settings_routes(
     linkable = config.directory is not None
     secured = config.mfa is not None
 
+    def trust_of(request: Request) -> str | None:
+        return request.cookies.get(config.cookie("trust"))
+
+    def forget_trust(response: Response, removed: bool) -> None:
+        """Clear this browser's trust cookie once the trust it names is gone: it can never
+        apply again, and a cookie left behind would only be sent for nothing."""
+        if removed:
+            response.delete_cookie(
+                config.cookie("trust"), secure=config.secure, httponly=True, samesite="lax"
+            )
+
     @routes.get("/settings", response_model=PersonalSettingsView, operation_id="readSettings")
     async def read_settings(request: Request) -> PersonalSettingsView:
         current, _ = await guards.session(request)
         return await run_in_threadpool(
-            _read, lambda: personal_view(runtime, current, linkable=linkable, secured=secured)
+            _read,
+            lambda: personal_view(
+                runtime, current, linkable=linkable, secured=secured, trust=trust_of(request)
+            ),
         )
 
     @routes.post(
@@ -484,9 +581,80 @@ def settings_routes(
 
         def apply() -> PersonalSettingsView:
             revoke_other_sessions(runtime.db, current, clock=runtime.clock)
-            return personal_view(runtime, current, linkable=linkable, secured=secured)
+            return personal_view(
+                runtime, current, linkable=linkable, secured=secured, trust=trust_of(request)
+            )
 
         return await run_in_threadpool(_read, apply)
+
+    @routes.post(
+        "/settings/trusted-browsers/remove",
+        response_model=PersonalSettingsView,
+        operation_id="removeTrustedBrowser",
+        openapi_extra=body(RemoveTrustedBrowser),
+    )
+    async def remove_trusted_browser(request: Request, response: Response) -> PersonalSettingsView:
+        """Remove one of the person's own trusted browsers (#859).
+
+        Removing only tightens, so it asks for no step-up; one that is gone, or was never this
+        account's, changes nothing. The next sign-in on that browser asks for the code."""
+        current, body_values = await guards.mutation(request, RemoveTrustedBrowser)
+        target = UUID(body_values.browser_id)
+        held = False
+
+        def apply() -> PersonalSettingsView:
+            nonlocal held
+            try:
+                # Whether the trust removed is this browser's and this account's own, so a
+                # cookie another account on the same browser holds is left alone.
+                held = trusted_browsers.browser_of(trust_of(request)) == target and any(
+                    trust.browser_id == target
+                    for trust in trusted_browsers.listed(runtime.db, current, clock=runtime.clock)
+                )
+                trusted_browsers.remove(runtime.db, current, target, clock=runtime.clock)
+            except MfaError as exc:
+                raise ApiError(_TRUST_REFUSALS.get(exc.code, "UNAVAILABLE")) from None
+            return personal_view(
+                runtime, current, linkable=linkable, secured=secured, trust=trust_of(request)
+            )
+
+        answer: PersonalSettingsView = await run_in_threadpool(_read, apply)
+        forget_trust(response, held)
+        return answer
+
+    @routes.post(
+        "/settings/trusted-browsers/remove-all",
+        response_model=PersonalSettingsView,
+        operation_id="removeAllTrustedBrowsers",
+        openapi_extra=body(RemoveAllTrustedBrowsers),
+    )
+    async def remove_all_trusted_browsers(
+        request: Request, response: Response
+    ) -> PersonalSettingsView:
+        """Remove every trusted browser of the person's account (#859), with no step-up."""
+        current, _ = await guards.mutation(request, RemoveAllTrustedBrowsers)
+        this = trusted_browsers.browser_of(trust_of(request))
+        held = False
+
+        def apply() -> PersonalSettingsView:
+            nonlocal held
+            try:
+                # Whether this browser's cookie names one of this account's own trusts, so a
+                # cookie another account on the same browser holds is left alone.
+                held = this is not None and any(
+                    trust.browser_id == this
+                    for trust in trusted_browsers.listed(runtime.db, current, clock=runtime.clock)
+                )
+                trusted_browsers.remove_all(runtime.db, current, clock=runtime.clock)
+            except MfaError as exc:
+                raise ApiError(_TRUST_REFUSALS.get(exc.code, "UNAVAILABLE")) from None
+            return personal_view(
+                runtime, current, linkable=linkable, secured=secured, trust=trust_of(request)
+            )
+
+        answer: PersonalSettingsView = await run_in_threadpool(_read, apply)
+        forget_trust(response, held)
+        return answer
 
     @routes.post(
         "/settings/weekly-summary",
@@ -510,7 +678,9 @@ def settings_routes(
                 subscribe(runtime, current, body_values.subscribed)
             except SummaryError:
                 raise ApiError("CONFLICT") from None
-            return personal_view(runtime, current, linkable=linkable, secured=secured)
+            return personal_view(
+                runtime, current, linkable=linkable, secured=secured, trust=trust_of(request)
+            )
 
         return await run_in_threadpool(_read, apply)
 
@@ -543,7 +713,9 @@ def settings_routes(
             except PasswordError as exc:
                 code, fields = _PASSWORD_REFUSALS.get(exc.code, ("UNAVAILABLE", []))
                 raise ApiError(code, fields=fields) from None
-            return personal_view(runtime, current, linkable=linkable, secured=secured)
+            return personal_view(
+                runtime, current, linkable=linkable, secured=secured, trust=trust_of(request)
+            )
 
         return await run_in_threadpool(_read, apply)
 

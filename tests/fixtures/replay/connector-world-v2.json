@@ -1,0 +1,397 @@
+{
+ "candidates": [],
+ "expected": {
+  "baseline": {
+   "complete": false,
+   "decisions": [
+    {
+     "action": "identity.disable",
+     "counts": [
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "principal-autonomous-identity-disable",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "principal-autonomous-identity-enable",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "principal-autonomous-identity-revoke_sessions",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "tenant-total-identity-disable",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "tenant-total-identity-enable",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "tenant-total-identity-revoke_sessions",
+       "unresolved_targets": 0
+      }
+     ],
+     "dependencies": [],
+     "effect": "UNRESOLVED",
+     "execution_id": "00000000-0000-4000-8000-000000000008",
+     "mode": "ENFORCE",
+     "obligation_ids": [],
+     "outcome": "UNRESOLVED",
+     "provenance": "UNKNOWN",
+     "reasons": [
+      "INCOMPLETE_PRIOR_HISTORY",
+      "INVALID_DECISION_SEQUENCE",
+      "INVALID_TRANSITION_SEQUENCE"
+     ],
+     "recorded_effect": "ELIGIBLE",
+     "sequence": 1,
+     "settlement_tier": null,
+     "stage": "ADMISSION"
+    }
+   ],
+   "issues": [
+    "INCOMPLETE_HISTORY",
+    "INVALID_DECISION_SEQUENCE",
+    "INVALID_TRANSITION_SEQUENCE"
+   ]
+  },
+  "candidates": []
+ },
+ "export": {
+  "bundles": [
+   {
+    "approval_policies": "\npermit(principal, action == ExecBound::Action::\"identity.enable\", resource);\npermit(principal, action == ExecBound::Action::\"identity.disable\", resource)\nwhen { resource.is_production };\npermit(principal, action == ExecBound::Action::\"identity.revoke_sessions\", resource)\nwhen { resource.is_production };\n",
+    "authorization_policies": "\npermit(principal, action == ExecBound::Action::\"identity.disable\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.privilege_class == \"standard\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"identity.disable\", resource)\nwhen { resource.privilege_class == \"privileged\" || resource.privilege_class == \"tier0\" ||\n        resource.criticality == 4 };\n\n\npermit(principal, action == ExecBound::Action::\"identity.enable\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.privilege_class == \"standard\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"identity.enable\", resource)\nwhen { resource.privilege_class == \"privileged\" || resource.privilege_class == \"tier0\" ||\n        resource.criticality == 4 };\n\n\npermit(principal, action == ExecBound::Action::\"identity.revoke_sessions\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.privilege_class == \"standard\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"identity.revoke_sessions\", resource)\nwhen { resource.privilege_class == \"privileged\" || resource.privilege_class == \"tier0\" ||\n        resource.criticality == 4 };\n",
+    "bundle_id": "00000000-0000-4000-8000-00000000000b",
+    "cedar_schema": "{\"ExecBound\":{\"actions\":{\"identity.disable\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Identity\"]}},\"identity.enable\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Identity\"]}},\"identity.revoke_sessions\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Identity\"]}}},\"entityTypes\":{\"Agent\":{\"shape\":{\"attributes\":{\"tenant\":{\"type\":\"String\"}},\"type\":\"Record\"}},\"Identity\":{\"shape\":{\"attributes\":{\"account\":{\"type\":\"String\"},\"criticality\":{\"type\":\"Long\"},\"environment\":{\"type\":\"String\"},\"incident_severity\":{\"type\":\"String\"},\"incident_status\":{\"type\":\"String\"},\"is_production\":{\"type\":\"Boolean\"},\"privilege_class\":{\"type\":\"String\"},\"tenant\":{\"type\":\"String\"}},\"type\":\"Record\"}}}}}",
+    "limits": [
+     {
+      "action": "identity.disable",
+      "budget": "autonomous",
+      "max_targets": 10,
+      "on_exceed": "REQUIRE_APPROVAL",
+      "rule_id": "principal-autonomous-identity-disable",
+      "scope": "principal",
+      "window_seconds": 3600
+     },
+     {
+      "action": "identity.enable",
+      "budget": "autonomous",
+      "max_targets": 10,
+      "on_exceed": "REQUIRE_APPROVAL",
+      "rule_id": "principal-autonomous-identity-enable",
+      "scope": "principal",
+      "window_seconds": 3600
+     },
+     {
+      "action": "identity.revoke_sessions",
+      "budget": "autonomous",
+      "max_targets": 10,
+      "on_exceed": "REQUIRE_APPROVAL",
+      "rule_id": "principal-autonomous-identity-revoke_sessions",
+      "scope": "principal",
+      "window_seconds": 3600
+     },
+     {
+      "action": "identity.disable",
+      "budget": "total",
+      "max_targets": 20,
+      "on_exceed": "DENY",
+      "rule_id": "tenant-total-identity-disable",
+      "scope": "tenant",
+      "window_seconds": 900
+     },
+     {
+      "action": "identity.enable",
+      "budget": "total",
+      "max_targets": 20,
+      "on_exceed": "DENY",
+      "rule_id": "tenant-total-identity-enable",
+      "scope": "tenant",
+      "window_seconds": 900
+     },
+     {
+      "action": "identity.revoke_sessions",
+      "budget": "total",
+      "max_targets": 20,
+      "on_exceed": "DENY",
+      "rule_id": "tenant-total-identity-revoke_sessions",
+      "scope": "tenant",
+      "window_seconds": 900
+     }
+    ],
+    "mappings": [
+     {
+      "account_id": "00000000-0000-4000-8000-000000000004",
+      "context_contract_version": "identity-control.v1",
+      "mapping_version": "version-000002",
+      "operation_ref": "identity.disable",
+      "schema_version": "action.v1"
+     },
+     {
+      "account_id": "00000000-0000-4000-8000-000000000004",
+      "context_contract_version": "identity-control.v1",
+      "mapping_version": "version-000002",
+      "operation_ref": "identity.enable",
+      "schema_version": "action.v1"
+     },
+     {
+      "account_id": "00000000-0000-4000-8000-000000000004",
+      "context_contract_version": "identity-control.v1",
+      "mapping_version": "version-000002",
+      "operation_ref": "identity.revoke_sessions",
+      "schema_version": "action.v1"
+     }
+    ],
+    "tenant_id": "00000000-0000-4000-8000-000000000006"
+   }
+  ],
+  "events": [
+   {
+    "actor_id": "00000000-0000-4000-8000-000000000003",
+    "event_hash": "e166667ff05f76fc636e814436226604f1ef28ce5732e74e061b72bd80525905",
+    "event_id": "00000000-0000-4000-8000-00000000000c",
+    "kind": "execution.evaluated",
+    "occurred_at": "2026-10-20T17:53:07.486318Z",
+    "payload": {
+     "approval": null,
+     "bundle_id": "00000000-0000-4000-8000-00000000000b",
+     "canonical_target_id": "00000000-0000-4000-8000-000000000002",
+     "decision": {
+      "bundle_id": "00000000-0000-4000-8000-00000000000b",
+      "content_hash": "e34131136871957c5cf8df53b556fefb21030c2bb530bf1c21b365a85abc250a",
+      "effect": "ELIGIBLE",
+      "obligation_ids": [],
+      "plan_hash": "b75d46fffd51242866a90f83422ba29a62076b55f14ce2c293ba7777d7687ab9",
+      "reasons": []
+     },
+     "execution_id": "00000000-0000-4000-8000-000000000008",
+     "finished_time": "2026-10-20T17:53:07.482574Z",
+     "frozen": {
+      "alias_id": null,
+      "context_contract_version": "identity-control.v1",
+      "facts": [
+       {
+        "dependencies": [],
+        "name": "privilege_class",
+        "observed_at": "2026-10-20T17:52:07.482574Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000009",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.482574Z",
+        "value": "standard"
+       },
+       {
+        "dependencies": [],
+        "name": "environment",
+        "observed_at": "2026-10-20T17:52:07.482574Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000009",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.482574Z",
+        "value": "development"
+       },
+       {
+        "dependencies": [],
+        "name": "criticality",
+        "observed_at": "2026-10-20T17:52:07.482574Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000009",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.482574Z",
+        "value": 1
+       },
+       {
+        "dependencies": [
+         "environment"
+        ],
+        "name": "is_production",
+        "observed_at": "2026-10-20T17:52:07.482574Z",
+        "origin": "DERIVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000009",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.482574Z",
+        "value": false
+       },
+       {
+        "dependencies": [],
+        "name": "incident_status",
+        "observed_at": "2026-10-20T17:52:07.482574Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000001",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-000000000001",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.482574Z",
+        "value": "OPEN"
+       },
+       {
+        "dependencies": [],
+        "name": "incident_severity",
+        "observed_at": "2026-10-20T17:52:07.482574Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000001",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-000000000001",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.482574Z",
+        "value": "CRITICAL"
+       }
+      ],
+      "intent": {
+       "account_id": "00000000-0000-4000-8000-000000000004",
+       "action": "identity.disable",
+       "arguments": {},
+       "principal_id": "00000000-0000-4000-8000-000000000003",
+       "provider": "graph",
+       "provider_operation": "disable",
+       "resource_type": "identity",
+       "target_id": "00000000-0000-4000-8000-00000000000d",
+       "tenant_id": "00000000-0000-4000-8000-000000000006",
+       "version": 1
+      },
+      "mapping_version": "version-000002",
+      "request": {
+       "arguments": {},
+       "claimed_context": {
+        "criticality": 4,
+        "environment": null,
+        "incident_id": "00000000-0000-4000-8000-000000000001",
+        "role": "domain_controller",
+        "severity": "LOW"
+       },
+       "idempotency_key": "key-000001",
+       "operation_ref": "identity.disable",
+       "run_id": null,
+       "target": {
+        "kind": "canonical",
+        "value": "00000000-0000-4000-8000-00000000000d"
+       }
+      },
+      "resolved_at": "2026-10-20T17:53:07.482574Z",
+      "resource_provider_id": "resource-000001",
+      "resource_version": "version-000003",
+      "schema_version": "action.v1",
+      "valid_until": "2026-10-20T17:57:07.482574Z"
+     },
+     "human_decision": null,
+     "identity": {
+      "credential_id": "00000000-0000-4000-8000-00000000000a",
+      "expires_at": "2026-10-20T18:53:07.482574Z",
+      "groups": [],
+      "issued_at": "2026-10-20T16:53:07.482574Z",
+      "kind": "AGENT",
+      "principal_id": "00000000-0000-4000-8000-000000000003",
+      "tenant_id": "00000000-0000-4000-8000-000000000006"
+     },
+     "operation_id": "00000000-0000-4000-8000-000000000005",
+     "reviewer": null,
+     "semantic_time": "2026-10-20T17:53:07.482574Z",
+     "stage": "ADMISSION",
+     "usage_time": "2026-10-20T17:53:07.482574Z",
+     "version": 1
+    },
+    "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sequence": 1,
+    "tenant_id": "00000000-0000-4000-8000-000000000006"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-000000000003",
+    "event_hash": "a6cd4afdfc2a1f58fd6036390eaf45202f46ee4e57e5fc650908f08d61278a5d",
+    "event_id": "00000000-0000-4000-8000-000000000007",
+    "kind": "execution.transition",
+    "occurred_at": "2026-10-20T17:53:07.486567Z",
+    "payload": {
+     "evidence": {
+      "account_id": "00000000-0000-4000-8000-000000000004",
+      "authenticated_record": "{\"key_id\":\"signer-000001\",\"record\":{\"version\":1,\"scheme\":\"connector-record.v1\",\"operation_id\":\"00000000-0000-4000-8000-000000000005\",\"account_id\":\"00000000-0000-4000-8000-000000000004\",\"intent_hash\":\"e1d7eae5bd420834d23a3d62b4fe15667c55d6cf508e9feaae3260e5b15fe68b\",\"plan_hash\":\"b75d46fffd51242866a90f83422ba29a62076b55f14ce2c293ba7777d7687ab9\",\"provider\":\"graph\",\"provider_operation\":\"disable\",\"frozen\":\"version-000003\",\"observed\":\"version-000003\",\"window_ms\":12,\"status\":204,\"outcome\":\"EXECUTED\"},\"signature\":\"9cdc73b088ba0b3dfd842341cb30f5aa211079499fed0c52da787a2fd41b51b3\"}",
+      "intent_hash": "e1d7eae5bd420834d23a3d62b4fe15667c55d6cf508e9feaae3260e5b15fe68b",
+      "operation_id": "00000000-0000-4000-8000-000000000005",
+      "outcome": "EXECUTED",
+      "plan_hash": "b75d46fffd51242866a90f83422ba29a62076b55f14ce2c293ba7777d7687ab9",
+      "proof_digest": "44521e0e255539aa866a47ffdbf7b78bdd8184d04f05cfd373db51f0d831f448",
+      "reason": "EXECUTED",
+      "window_ms": 12
+     },
+     "execution_id": "00000000-0000-4000-8000-000000000008",
+     "from_state": "DISPATCH_COMMITTED",
+     "intent_hash": "e1d7eae5bd420834d23a3d62b4fe15667c55d6cf508e9feaae3260e5b15fe68b",
+     "operation_id": "00000000-0000-4000-8000-000000000005",
+     "plan_hash": "b75d46fffd51242866a90f83422ba29a62076b55f14ce2c293ba7777d7687ab9",
+     "replay": {
+      "semantic_time": "2026-10-20T17:53:07.482574+00:00",
+      "version": 1
+     },
+     "to_state": "EXECUTED"
+    },
+    "previous_hash": "e166667ff05f76fc636e814436226604f1ef28ce5732e74e061b72bd80525905",
+    "sequence": 2,
+    "tenant_id": "00000000-0000-4000-8000-000000000006"
+   }
+  ],
+  "head": {
+   "event_hash": "a6cd4afdfc2a1f58fd6036390eaf45202f46ee4e57e5fc650908f08d61278a5d",
+   "sequence": 2,
+   "tenant_id": "00000000-0000-4000-8000-000000000006",
+   "version": 1
+  },
+  "tenant_id": "00000000-0000-4000-8000-000000000006",
+  "version": 1
+ },
+ "format": "execbound.replay-fixture",
+ "sanitization": {
+  "digests": 0,
+  "identifiers": 13,
+  "labels": 6,
+  "signatures": {
+   "connector": "replay-fixture"
+  },
+  "version": 2
+ },
+ "trusted_head": {
+  "event_hash": "a6cd4afdfc2a1f58fd6036390eaf45202f46ee4e57e5fc650908f08d61278a5d",
+  "sequence": 2,
+  "tenant_id": "00000000-0000-4000-8000-000000000006",
+  "version": 1
+ },
+ "version": 2
+}

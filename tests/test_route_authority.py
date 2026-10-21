@@ -218,6 +218,9 @@ CONSOLE = {
     ("/api/console/v1/approvals/{approval_id}/decision", "POST"): SESSION,
     ("/api/console/v1/settings", "GET"): SESSION,
     ("/api/console/v1/settings/sessions/revoke-others", "POST"): SESSION,
+    # Removing one's own trusted browsers (#859): only tightens, so no step-up.
+    ("/api/console/v1/settings/trusted-browsers/remove", "POST"): SESSION,
+    ("/api/console/v1/settings/trusted-browsers/remove-all", "POST"): SESSION,
     ("/api/console/v1/tenant", "GET"): SESSION,
     ("/api/console/v1/tenant/sign-in", "GET"): SESSION,
     ("/api/console/v1/tenant/sign-in", "POST"): SESSION,

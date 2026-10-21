@@ -389,3 +389,116 @@ describe("the second-factor card (AK10)", () => {
     expect(screen.queryByRole("link", { name: "Add a second factor" })).toBeNull();
   });
 });
+
+describe("the trusted browsers card (#859)", () => {
+  const HERE = "cccccccc-3333-4333-8333-333333333333";
+  const THERE = "dddddddd-4444-4444-8444-444444444444";
+  const base = { authenticator: true, passkeys: 0, recovery_remaining: 10, requirement: "optional" as const, available: true };
+  const here = { browser_id: HERE, label: "Chrome on Windows", created_at: "2026-10-01T09:00:00+00:00", last_used_at: "2026-10-18T09:00:00+00:00", expires_at: "2026-10-31T09:00:00+00:00", this_browser: true };
+  const there = { browser_id: THERE, label: null, created_at: "2026-09-25T09:00:00+00:00", last_used_at: null, expires_at: "2026-10-25T09:00:00+00:00", this_browser: false };
+
+  function trusting(trusted: (typeof here | typeof there)[], trust_allowed = true): PersonalSettingsView {
+    return { ...view([mine]), security: { ...base, trusted, trust_allowed } };
+  }
+
+  async function card() {
+    const heading = await screen.findByRole("heading", { level: 2, name: "Trusted browsers" });
+    const section = heading.closest("section");
+    if (section === null) throw new Error("No card");
+    return within(section);
+  }
+
+  it("says how a browser comes to be trusted when none is, and what a workspace that forbids it does", async () => {
+    answerWith({ "GET /api/console/v1/settings": { body: trusting([]) } });
+    const first = renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    const section = await card();
+    expect(section.getByText(/No browser is trusted\./)).toBeInTheDocument();
+    expect(section.queryByRole("table")).toBeNull();
+    expect(section.queryByRole("button", { name: /Remove/ })).toBeNull();
+    first.unmount();
+    answerWith({ "GET /api/console/v1/settings": { body: trusting([], false) } });
+    renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    expect((await card()).getByText(/This workspace does not allow trusted browsers/)).toBeInTheDocument();
+  });
+
+  it("is not shown where this deployment has no account security", async () => {
+    answerWith({ "GET /api/console/v1/settings": { body: view([mine]) } });
+    renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    await screen.findByRole("heading", { level: 2, name: "Multi-factor authentication" });
+    expect(screen.queryByRole("heading", { level: 2, name: "Trusted browsers" })).toBeNull();
+  });
+
+  it("lists each trust, marks this browser, and offers Remove and Remove all", async () => {
+    answerWith({ "GET /api/console/v1/settings": { body: trusting([here, there]) } });
+    renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    const section = await card();
+    const rows = section.getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(2);
+    const [first, second] = rows;
+    if (first === undefined || second === undefined) throw new Error("No rows");
+    expect(first).toHaveTextContent("Chrome on Windows");
+    expect(within(first).getByText("This browser")).toBeInTheDocument();
+    expect(first).toHaveTextContent("2026-10-31 09:00 UTC");
+    expect(second).toHaveTextContent("Unknown browser");
+    expect(second).toHaveTextContent("Not yet");
+    expect(within(second).queryByText("This browser")).toBeNull();
+    expect(section.getByRole("button", { name: "Remove Chrome on Windows" })).toBeInTheDocument();
+    expect(section.getByRole("button", { name: "Remove Unknown browser" })).toBeInTheDocument();
+    expect(section.getByRole("button", { name: "Remove all" })).toBeInTheDocument();
+  });
+
+  it("removes one only after the confirmation, naming it, and shows the server's answer", async () => {
+    const seen = answerWith({
+      "GET /api/console/v1/settings": { body: trusting([here, there]) },
+      "POST /api/console/v1/settings/trusted-browsers/remove": { body: trusting([here]) },
+    });
+    renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    const user = userEvent.setup();
+    const section = await card();
+    await user.click(section.getByRole("button", { name: "Remove Unknown browser" }));
+    const dialog = await screen.findByRole("dialog", { name: "Remove this trusted browser?" });
+    expect(seen.filter((request) => request.method === "POST")).toHaveLength(0);
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(seen.filter((request) => request.method === "POST")).toHaveLength(0);
+
+    await user.click(section.getByRole("button", { name: "Remove Unknown browser" }));
+    const again = await screen.findByRole("dialog", { name: "Remove this trusted browser?" });
+    await user.click(within(again).getByRole("button", { name: "Remove" }));
+    await screen.findByText("Trusted browser removed.");
+    const posted = seen.filter((request) => request.method === "POST");
+    expect(posted).toHaveLength(1);
+    expect(posted[0]?.path).toBe("/api/console/v1/settings/trusted-browsers/remove");
+    expect(posted[0]?.headers.get("x-csrf-token")).toBe("token-under-test");
+    expect(posted[0]?.body).toEqual({ browser_id: THERE });
+    expect((await card()).getAllByRole("row")).toHaveLength(2);
+  });
+
+  it("removes every trust after its own confirmation", async () => {
+    const seen = answerWith({
+      "GET /api/console/v1/settings": { body: trusting([here, there]) },
+      "POST /api/console/v1/settings/trusted-browsers/remove-all": { body: trusting([]) },
+    });
+    renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    const user = userEvent.setup();
+    await user.click((await card()).getByRole("button", { name: "Remove all" }));
+    const dialog = await screen.findByRole("dialog", { name: "Remove every trusted browser?" });
+    expect(dialog).toHaveTextContent("this one included");
+    await user.click(within(dialog).getByRole("button", { name: "Remove all" }));
+    expect(await screen.findByText(/No browser is trusted\./)).toBeInTheDocument();
+    const posted = seen.filter((request) => request.method === "POST");
+    expect(posted.map((request) => request.path)).toEqual(["/api/console/v1/settings/trusted-browsers/remove-all"]);
+    expect(posted[0]?.body).toEqual({});
+    expect(screen.getByRole("status")).toHaveTextContent("Removed 2 trusted browsers.");
+  });
+
+  it("does not say this browser is included when it holds none of the trusts", async () => {
+    answerWith({ "GET /api/console/v1/settings": { body: trusting([there]) } });
+    renderPage(<PersonalSettings />, { ...PLACEHOLDER, role: "APPROVER" });
+    const user = userEvent.setup();
+    await user.click((await card()).getByRole("button", { name: "Remove all" }));
+    const dialog = await screen.findByRole("dialog", { name: "Remove every trusted browser?" });
+    expect(dialog).toHaveTextContent("Every browser listed here will ask for your second factor at its next sign-in.");
+    expect(dialog).not.toHaveTextContent("this one included");
+  });
+});

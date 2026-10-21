@@ -26,6 +26,8 @@ NOTICES = {
     "account_security.requirement_changed": "Workspace MFA requirement changed",
     "account_security.passkey_added": "A passkey was added",
     "account_security.passkey_removed": "A passkey was removed",
+    # An administrator's own change, recorded in the workspace's chain (#859).
+    "account_security.trusted_browsers_changed": "Workspace trusted-browser setting changed",
     "password.changed": "Password changed",
 }
 ACCOUNT_NOTICES = {
@@ -40,6 +42,9 @@ ACCOUNT_NOTICES = {
     "password_reset": "Password reset from an emailed link",  # nosec B105 - Event label.
     "other_devices_signed_out": "Other devices signed out",
     "signed_out": "Signed out",
+    # A browser trusted for thirty days at sign-in, and one removed (#859); a use is no event.
+    "trusted_browser_added": "A trusted browser was added",
+    "trusted_browser_removed": "A trusted browser was removed",
 }
 REQUEST_KINDS = {"data_access", "close_account", "close_workspace"}
 

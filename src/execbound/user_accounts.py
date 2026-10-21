@@ -249,35 +249,60 @@ def first_membership(
     return entered[0] if entered else available[0]
 
 
+_DIRECTORY_UNMET = text("""
+    SELECT 1 FROM execbound.identity_providers p WHERE p.tenant_id=:t AND p.require_sign_in
+    AND (p.state<>'enabled' OR NOT EXISTS(
+        SELECT 1 FROM execbound.federated_sign_ins f
+        JOIN execbound.identity_links l ON l.tenant_id=f.tenant_id
+            AND l.provider_id=f.provider_id AND l.subject=f.subject
+        WHERE f.tenant_id=p.tenant_id AND f.provider_id=p.provider_id
+            AND f.credential_id=:c AND f.revoked_reason IS NULL
+            AND l.principal_id=:person AND l.revoked_at IS NULL
+            AND f.verified_at<=:now
+            AND (CAST(:earliest AS timestamptz) IS NULL OR f.verified_at>:earliest))) LIMIT 1
+""")
+
+
 def validate_workspace_session(conn: Connection, row: dict[str, Any], now: datetime) -> UUID | None:
-    """A tenant session is valid only while its independently authenticated account is."""
+    """A tenant session is valid only while its independently authenticated account is.
+
+    In a workspace that requires its directory, the session's own directory sign-in must have
+    been verified within `RECHECK_GRACE`. When that is the only thing wrong (the provider is
+    enabled and the sign-in is live and linked, merely verified longer ago than the grace, as
+    it is for a person back after more than fifteen minutes away), the refusal is
+    `DirectoryStale`, a `DIRECTORY_REQUIRED` refusal raised only once every other check here
+    has passed, so a caller that can ask the directory (`directory_store.load_rechecked`)
+    rechecks it and loads the session again rather than ending it (#859). Every other caller
+    sees `DIRECTORY_REQUIRED`, as before."""
     # A configured IdP is optional until the operator explicitly requires it. A
     # personal account session is never evidence of authentication at that directory.
     from execbound.directory_store import RECHECK_GRACE
-    from execbound.surfaces.sessions import SessionError
+    from execbound.surfaces.sessions import DirectoryStale, SessionError
 
-    unavailable_directory = conn.execute(
-        text("""
-        SELECT 1 FROM execbound.identity_providers p WHERE p.tenant_id=:t AND p.require_sign_in
-        AND (p.state<>'enabled' OR NOT EXISTS(
-            SELECT 1 FROM execbound.federated_sign_ins f
-            JOIN execbound.identity_links l ON l.tenant_id=f.tenant_id
-                AND l.provider_id=f.provider_id AND l.subject=f.subject
-            WHERE f.tenant_id=p.tenant_id AND f.provider_id=p.provider_id
-                AND f.credential_id=:c AND f.revoked_reason IS NULL
-                AND l.principal_id=:person AND l.revoked_at IS NULL
-                AND f.verified_at<=:now AND f.verified_at>:earliest)) LIMIT 1
-    """),
-        {
-            "t": row["tenant_id"],
-            "c": row["credential_id"],
-            "person": row["principal_id"],
-            "now": now,
-            "earliest": now - RECHECK_GRACE,
-        },
-    ).scalar_one_or_none()
-    if unavailable_directory:
-        raise SessionError("DIRECTORY_REQUIRED")
+    values = {
+        "t": row["tenant_id"],
+        "c": row["credential_id"],
+        "person": row["principal_id"],
+        "now": now,
+        "earliest": now - RECHECK_GRACE,
+    }
+    stale = False
+    if conn.execute(_DIRECTORY_UNMET, values).scalar_one_or_none():
+        # Read again without the age bound: only a verification that is merely old may be
+        # rechecked; a disabled provider, a revoked sign-in or link, or a credential that never
+        # signed in through the directory is refused here as it always was.
+        if conn.execute(_DIRECTORY_UNMET, {**values, "earliest": None}).scalar_one_or_none():
+            raise SessionError("DIRECTORY_REQUIRED")
+        stale = True
+    account = _workspace_account(conn, row, now)
+    if stale:
+        raise DirectoryStale()
+    return account
+
+
+def _workspace_account(conn: Connection, row: dict[str, Any], now: datetime) -> UUID | None:
+    """The account behind a tenant session, refused while that account is not valid."""
+    from execbound.surfaces.sessions import SessionError
 
     if row.get("account_id") is None:
         member = (

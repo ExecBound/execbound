@@ -113,7 +113,7 @@ class SessionView(BaseModel):
     csrf_token: str
     release: str | None
     expires_at: datetime
-    # The hard end no renewal passes, and why it falls then: eight hours after sign-in
+    # The hard end no renewal passes, and why it falls then: two days after sign-in
     # (`sign_in`), or the expiry of the setup credential the session was opened with
     # (`setup_credential`). The console warns before it (#678).
     ends_at: datetime

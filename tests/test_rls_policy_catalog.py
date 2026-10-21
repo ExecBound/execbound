@@ -46,6 +46,8 @@ ACCOUNT_FENCED = frozenset(
         "user_identities",
         "user_factors",
         "user_passkeys",
+        # Trusted browsers (0101), the account's own.
+        "trusted_browsers",
         "account_sessions",
         "account_provider_links",
         "user_security_events",

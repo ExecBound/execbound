@@ -1,17 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Pure replay histories with real policy results and independent synthetic journal bytes."""
 
+import base64
 import hashlib
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
-from execbound.audit import GENESIS, _event_hash
+from execbound.audit import GENESIS, _event_hash, canonical_json
 from execbound.execution.models import AssertedOutcome, DispatchCommand, TerminalEvidence
 from execbound.policy.evaluate import evaluate
-from execbound.provider.executor import ExecutorRecord, sign_outcome
+from execbound.provider.executor import ExecutorRecord, SignedOutcomeJws, sign_outcome
 from execbound.provider.models import (
     CredentialState,
     CredentialTransition,
@@ -382,6 +386,53 @@ def executor_evidence(capture, *, outcome="EXECUTED", key_id="executor-v1", **ch
         plan_hash=record.plan_hash,
         outcome=record.outcome,
         reason=record.reason,
+        proof_digest=hashlib.sha256(signed.encode()).hexdigest(),
+        authenticated_record=signed,
+    )
+
+
+def _segment(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+
+
+def attested_jws_evidence(capture, *, key_id="tines-jwt-2026", **changes):
+    """What an ES256 attested settlement retains: the executor's JWS as its flattened wrapper.
+
+    As `executor_evidence`, the private key is generated and thrown away. The claims are
+    base64url inside the wrapper, so its identifiers are not text a reader of the export sees.
+    """
+    claims = {
+        "domain": "execbound.executor.outcome",
+        "version": 1,
+        "operation_id": str(capture.operation_id),
+        "account_id": str(capture.frozen.intent.account_id),
+        "intent_hash": intent_hash(capture.frozen.intent),
+        "plan_hash": capture.decision.plan_hash,
+        "outcome": "EXECUTED",
+        "reason": "EXECUTED",
+        "reported_at": capture.semantic_time.isoformat().replace("+00:00", "Z"),
+        **changes,
+    }
+    head = _segment(canonical_json({"alg": "ES256", "kid": key_id}).encode())
+    body = _segment(canonical_json(claims).encode())
+    der = ec.generate_private_key(ec.SECP256R1()).sign(
+        f"{head}.{body}".encode("ascii"), ec.ECDSA(hashes.SHA256())
+    )
+    r, s = decode_dss_signature(der)
+    signed = SignedOutcomeJws(
+        format="jws-es256",
+        key_id=key_id,
+        protected=head,
+        payload=body,
+        signature=_segment(r.to_bytes(32, "big") + s.to_bytes(32, "big")),
+    ).model_dump_json()
+    return TerminalEvidence(
+        operation_id=capture.operation_id,
+        account_id=capture.frozen.intent.account_id,
+        intent_hash=claims["intent_hash"],
+        plan_hash=claims["plan_hash"],
+        outcome=claims["outcome"],
+        reason=claims["reason"],
         proof_digest=hashlib.sha256(signed.encode()).hexdigest(),
         authenticated_record=signed,
     )

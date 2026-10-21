@@ -213,7 +213,7 @@ def test_policy_requires_enrollment_and_cannot_be_disabled_by_a_member(db, human
 
 def aged(db, token, clock, minutes):
     """Move the injected clock `minutes` on, reading the session every seven minutes as an
-    open console does, so the fifteen-minute idle limit keeps renewing it and only the age of
+    open console does, so the twelve-hour idle limit keeps renewing it and only the age of
     the factor verified on it changes."""
     remaining = minutes
     while remaining > 0:

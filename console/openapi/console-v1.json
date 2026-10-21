@@ -11856,6 +11856,29 @@
         "title": "RelatedRequest",
         "type": "object"
       },
+      "RemoveAllTrustedBrowsers": {
+        "additionalProperties": false,
+        "description": "The confirmation carries nothing but the session's token, as the form does.",
+        "properties": {},
+        "title": "RemoveAllTrustedBrowsers",
+        "type": "object"
+      },
+      "RemoveTrustedBrowser": {
+        "additionalProperties": false,
+        "description": "Remove one of the account's own trusts. Removing only tightens, so no step-up.",
+        "properties": {
+          "browser_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Browser Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "browser_id"
+        ],
+        "title": "RemoveTrustedBrowser",
+        "type": "object"
+      },
       "ReplaceConnectionKey": {
         "additionalProperties": false,
         "description": "A new API key for a sealed Tines connection.",
@@ -13502,6 +13525,18 @@
             ],
             "title": "Requirement",
             "type": "string"
+          },
+          "trust_allowed": {
+            "default": true,
+            "title": "Trust Allowed",
+            "type": "boolean"
+          },
+          "trusted": {
+            "items": {
+              "$ref": "#/components/schemas/TrustedBrowserView"
+            },
+            "title": "Trusted",
+            "type": "array"
           }
         },
         "required": [
@@ -15031,6 +15066,63 @@
           "count"
         ],
         "title": "TopActionView",
+        "type": "object"
+      },
+      "TrustedBrowserView": {
+        "description": "One live trust of the person's account (#859): when it was added, last used and\nexpires, and whether it is this browser's. Never the cookie, its secret or its hash.",
+        "properties": {
+          "browser_id": {
+            "format": "uuid",
+            "title": "Browser Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "this_browser": {
+            "title": "This Browser",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "browser_id",
+          "label",
+          "created_at",
+          "last_used_at",
+          "expires_at",
+          "this_browser"
+        ],
+        "title": "TrustedBrowserView",
         "type": "object"
       },
       "TurnList": {
@@ -21577,6 +21669,66 @@
           }
         },
         "summary": "Revoke one of your tokens",
+        "x-execbound-token": "refused"
+      }
+    },
+    "/api/console/v1/settings/trusted-browsers/remove": {
+      "post": {
+        "description": "Remove one of the person's own trusted browsers (#859).\n\nRemoving only tightens, so it asks for no step-up; one that is gone, or was never this\naccount's, changes nothing. The next sign-in on that browser asks for the code.\n\nPersonal access tokens: refused; sign in to the console.",
+        "operationId": "removeTrustedBrowser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveTrustedBrowser"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalSettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove Trusted Browser",
+        "x-execbound-token": "refused"
+      }
+    },
+    "/api/console/v1/settings/trusted-browsers/remove-all": {
+      "post": {
+        "description": "Remove every trusted browser of the person's account (#859), with no step-up.\n\nPersonal access tokens: refused; sign in to the console.",
+        "operationId": "removeAllTrustedBrowsers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveAllTrustedBrowsers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalSettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Remove All Trusted Browsers",
         "x-execbound-token": "refused"
       }
     },

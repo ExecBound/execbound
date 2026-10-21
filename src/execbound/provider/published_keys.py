@@ -7,9 +7,10 @@ signed under one journal key, their `test_verification_key_hex`, and chapter 2's
 report vectors publish an Ed25519 and an ES256 executor key with their private halves, and a
 journal key. The vectors' executor (`tests/checkpoint_vectors.py`) also signs the refusals with
 three keys outside every ring, written as byte runs, and the vector file publishes those
-signatures; those keys are refused too. So is the journal key replay's regression fixtures are
-re-signed under, which `replay.sanitize` publishes as `FIXTURE_JOURNAL_KEY`. A key anyone holds
-authenticates nobody, so these are refused wherever a key becomes authority (#37):
+signatures; those keys are refused too. So are the keys replay's regression fixtures are
+re-signed under, which `replay.fixture_keys` publishes: a journal key, and an Ed25519 and an
+ES256 executor key (#819). A key anyone holds authenticates nobody, so these are refused
+wherever a key becomes authority (#37):
 
 - `administration._public_key` refuses a published executor key at registration and rotation,
   as `INVALID_KEY`, after normalizing it, so no spelling of one is stored;
@@ -29,7 +30,7 @@ never as the bytes it was written in.
 The keys are held here as values rather than read from the vector files, because those files
 are not part of an installed server. `tests/test_published_test_keys.py` holds both sets equal
 to every key the vector files publish, every byte-run key the vectors' executor signs with and
-the replay fixture key, so none of them can publish a key ExecBound would accept.
+the replay fixture keys, so none of them can publish a key ExecBound would accept.
 """
 
 import hashlib
@@ -52,6 +53,10 @@ PUBLISHED_EXECUTOR_KEYS: frozenset[str] = frozenset(
         "cd14b37f956e953194ff7fb73b3d81dcc561d61a7538094b7c3e1a643ee5f3aa",
         # The vectors' executor's ES256 key outside every ring, `OUTSIDE_ES256_SCALAR`.
         "020d0918a04198474605615b6df90fdcb34791fb3ecb822f4b26eb6e4fc4511b9d",
+        # Replay's regression fixtures re-sign attested evidence under these, Ed25519 from
+        # `replay.fixture_keys.FIXTURE_ED25519_SEED` and ES256 from `FIXTURE_ES256_SCALAR`.
+        "04c5e144bf6701760898ae3fb5ec3a3678e96493ab56ce154a8a2d08262373d0",
+        "0288de27bf3cd97b0fcf7bf74a8a79afcd8217ae086dbaee9e554e52dc7a03d391",
     }
 )
 

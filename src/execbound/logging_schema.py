@@ -165,6 +165,10 @@ EVENTS = frozenset(
         # Regular sign-in (#429). Both carry the private reason a page never states.
         "sign_in.refused",
         "password.refused",
+        # A trusted browser (#859) not granted or not applied at sign-in for a reason the
+        # store raised: its code and the factor method, never the cookie. The sign-in itself
+        # goes on, with the code prompt or without trust.
+        "trusted_browser.refused",
         # A customer's own identity provider (#177, #241). The refusal carries the private
         # code a page never states; the recheck carries which of its three outcomes the
         # directory gave, which is the only way an operator can see a directory going quiet

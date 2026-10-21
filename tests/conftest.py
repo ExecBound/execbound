@@ -315,6 +315,7 @@ def seeded(admin_engine):
                 "execbound.job_tenants, "
                 "execbound.workspace_memberships, execbound.user_passwords, "
                 "execbound.user_identities, execbound.user_factors, execbound.user_passkeys, "
+                "execbound.trusted_browsers, "
                 "execbound.community_allocations, "
                 "execbound.account_login_proofs, execbound.account_sessions, "
                 "execbound.account_provider_links, "

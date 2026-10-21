@@ -88,7 +88,7 @@ export interface SessionSummary {
    */
   service?: ServiceLinksView;
   /**
-   * The hard end no renewal passes, and why it falls then: eight hours after signing in
+   * The hard end no renewal passes, and why it falls then: two days after signing in
    * (`sign_in`), or the expiry of the setup credential the session was opened with
    * (`setup_credential`). Absent in a fixture that names none, where no notice is shown (#678).
    */

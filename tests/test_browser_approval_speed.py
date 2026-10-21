@@ -238,7 +238,7 @@ def test_a_cold_load_is_signed_in_however_long_it_waited_for_the_machine(
 
     The session cookie's lifetime is counted on the browser's clock and the session's own on
     the test's frozen one, so only the cookie runs out. The quiet wait and the lock queue
-    together have passed the fifteen minutes a session lasts, and the third load then
+    together have passed the twelve hours a session lasts, and the third load then
     arrived signed out at the sign-in form. Here the session lasts thirty seconds and the
     wait outlasts it.
     """

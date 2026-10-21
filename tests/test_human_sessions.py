@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import event, text
@@ -34,7 +34,25 @@ def humans(db, seeded, admin_engine):
         conn.execute(
             text("UPDATE execbound.principals SET kind = 'HUMAN_APPROVER', space_id = NULL")
         )
+        # The fixture's credentials last an hour; a session lasts twelve, so it outlives them.
+        # Only the credentials the fixture hands out, to two days from the clocks the tests use.
+        conn.execute(
+            text(
+                "UPDATE execbound.credentials SET expires_at = :e WHERE credential_id = ANY(:ids)"
+            ),
+            {
+                "e": datetime.now(UTC) + timedelta(days=2),
+                "ids": [UUID(token.split(".")[2]) for token in seeded["tokens"]],
+            },
+        )
     return [authenticate(db, token) for token in seeded["tokens"]]
+
+
+def live_count(db, identity):
+    with db.transaction(identity.tenant_id) as conn:
+        return conn.execute(
+            text("SELECT count(*) FROM execbound.human_sessions WHERE revoked_at IS NULL")
+        ).scalar_one()
 
 
 def session_count(db, identity):
@@ -54,7 +72,7 @@ def test_session_contains_only_hashed_secrets_and_authoritative_identity(
     loaded = sessions.load_session(db, grant.token, clock=clock)
     assert loaded.identity == grant.identity == identity
     assert loaded.session_id == grant.session_id
-    assert loaded.expires_at == grant.expires_at == clock.now() + timedelta(minutes=15)
+    assert loaded.expires_at == grant.expires_at == clock.now() + sessions.SESSION_LIFETIME
     assert sessions.verify_csrf(loaded, grant.csrf_token)
     assert len(grant.token.split(".")[3]) == len(grant.csrf_token) == 43
     assert grant.token.startswith(f"hs1.{identity.tenant_id}.{grant.session_id}.")
@@ -186,22 +204,47 @@ def test_csrf_is_session_bound_and_strictly_parsed(db, humans):
     assert sessions.verify_csrf(loaded, grants[0].csrf_token)
 
 
-def test_capacity_rejects_issuance_without_revoking_existing_sessions(db, humans):
-    grants = [sessions.issue_session(db, humans[0]) for _ in range(5)]
-    with pytest.raises(sessions.SessionError) as exc:
-        sessions.issue_session(db, humans[0])
-    assert exc.value.code == "SESSION_CAPACITY"
-    for grant in grants:
-        assert sessions.load_session(db, grant.token).identity == humans[0]
-    sessions.revoke_session(db, sessions.load_session(db, grants[0].token))
-    assert sessions.issue_session(db, humans[0]).identity == humans[0]
+def test_capacity_ends_the_oldest_session_to_admit_a_new_one(db, humans, admin_engine):
+    """A sixth session of one credential ends the first and is admitted; five stay live."""
+    clock = FixedClock(datetime.now(UTC))
+    grants = []
+    for _ in range(5):
+        grants.append(sessions.issue_session(db, humans[0], clock=clock))
+        clock.value += timedelta(seconds=1)
+    sixth = sessions.issue_session(db, humans[0], clock=clock)
+    assert sixth.identity == humans[0]
+    with pytest.raises(sessions.SessionError) as gone:
+        sessions.load_session(db, grants[0].token, clock=clock)
+    assert gone.value.code == "INVALID_SESSION"
+    for grant in grants[1:] + [sixth]:
+        assert sessions.load_session(db, grant.token, clock=clock).identity == humans[0]
+    assert live_count(db, humans[0]) == 5
+    with db.transaction(humans[0].tenant_id) as conn:
+        ended = [
+            event["payload"]
+            for event in read_events(conn, humans[0].tenant_id)
+            if event["kind"] == "human_session.revoked"
+        ]
+    assert len(ended) == 1
+    assert ended[0]["reason"] == "SESSION_CAPACITY"
+    assert ended[0]["session_id"] == str(grants[0].session_id)
+    assert ended[0]["credential_id"] == str(humans[0].credential_id)
+    with admin_engine.begin() as conn:
+        revoked = (
+            conn.execute(
+                text("SELECT session_id FROM execbound.human_sessions WHERE revoked_at IS NOT NULL")
+            )
+            .scalars()
+            .all()
+        )
+    assert revoked == [grants[0].session_id]
 
 
 def test_expired_sessions_do_not_consume_active_capacity(db, humans):
     clock = FixedClock(datetime.now(UTC))
     for _ in range(5):
         sessions.issue_session(db, humans[0], clock=clock)
-    clock.value += timedelta(minutes=15)
+    clock.value += sessions.SESSION_LIFETIME
     assert sessions.issue_session(db, humans[0], clock=clock).identity == humans[0]
 
 
@@ -219,9 +262,10 @@ def test_concurrent_issuance_has_one_shared_capacity_fence(db, humans):
 
     with ThreadPoolExecutor(max_workers=5) as pool:
         results = list(pool.map(lambda _: issue(), range(5)))
-    assert sum(isinstance(result, sessions.SessionGrant) for result in results) == 1
-    assert results.count("SESSION_CAPACITY") == 4
-    assert session_count(db, humans[0]) == 5
+    # Every issuer is admitted, each ending an older session, and five stay live.
+    assert all(isinstance(result, sessions.SessionGrant) for result in results), results
+    assert session_count(db, humans[0]) == 9
+    assert live_count(db, humans[0]) == 5
 
 
 @pytest.mark.parametrize("operation", ["issue", "revoke"])
@@ -368,7 +412,7 @@ def test_session_lifetime_expires_while_original_credential_remains_current(db, 
         "kind = 'AGENT'",
         "token_hash = 'invalid'",
         "csrf_hash = 'invalid'",
-        "expires_at = created_at + interval '8 hours 1 minute'",
+        "expires_at = created_at + interval '2 days 1 minute'",
         "expires_at = created_at",
         "credential_expires_at = expires_at - interval '1 second'",
     ],

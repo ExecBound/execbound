@@ -23,13 +23,21 @@ from execbound.policy.store import PolicyStoreError, _identity
 from execbound.resolution.models import Clock, SystemClock
 
 MAX_ACTIVE_SESSIONS = 5
-SESSION_LIFETIME = timedelta(minutes=15)
-# A session is renewed on activity once half its lifetime has passed, never past the
-# credential's expiry or this long after sign-in. Walking away still ends it in fifteen
-# minutes; reading and navigating keep it alive.
-SESSION_ABSOLUTE = timedelta(hours=8)
-# Every sign-in credential is minted for eight hours a few milliseconds before its session row,
-# so its expiry falls just short of the row's own eight hours. A session whose credential ends
+SESSION_LIFETIME = timedelta(hours=12)
+# A session is renewed on activity this long after it was last extended, never past the
+# credential's expiry or `SESSION_ABSOLUTE` after sign-in. The cadence is its own constant, no
+# longer half the lifetime: a directory session is rechecked each time it renews, and that stays
+# about every seven and a half minutes. Walking away ends the session after twelve hours;
+# reading and navigating keep it alive.
+RENEW_AFTER = timedelta(minutes=7, seconds=30)
+# A session that still owes its second factor stands this long, as every session once did, and a
+# session a workspace switch opens starts at it too. Once nothing is owed (the factor was
+# verified, or the switch carried the source's verification), the next load of any kind extends
+# it to the full lifetime; a session that still owes the factor is never extended.
+PENDING_LIFETIME = timedelta(minutes=15)
+SESSION_ABSOLUTE = timedelta(days=2)
+# Every sign-in credential is minted for two days a few milliseconds before its session row,
+# so its expiry falls just short of the row's own two days. A session whose credential ends
 # more than this much sooner ends on that credential, which in practice is a setup credential
 # exchanged at `POST /session` (#678).
 CREDENTIAL_END_TOLERANCE = timedelta(minutes=1)
@@ -43,6 +51,19 @@ class SessionError(ValueError):
         super().__init__("Session unavailable")
 
 
+class DirectoryStale(SessionError):
+    """`DIRECTORY_REQUIRED`, for a session whose only fault is that its directory sign-in was
+    last verified longer ago than `directory_store.RECHECK_GRACE` (#859).
+
+    Raised by `_validated` only once every other check of the session has passed, carrying the
+    session's identity, so `directory_store.load_rechecked` can ask the directory and load the
+    session again. Every other handler treats it as the `DIRECTORY_REQUIRED` it is."""
+
+    def __init__(self, identity: Identity | None = None) -> None:
+        super().__init__("DIRECTORY_REQUIRED")
+        self.identity = identity
+
+
 @dataclass(frozen=True)
 class Session:
     identity: Identity
@@ -52,10 +73,14 @@ class Session:
     # Set on the object this request loaded when the row was just extended, so the
     # response can re-issue the cookies with the new age. Never persisted.
     renewed: bool = False
+    # Set on the object this request loaded when `RENEW_AFTER` had passed since the session was
+    # last extended, whether or not the row could move: a session already at its two-day end
+    # cannot be extended, and a directory session is still rechecked on this cadence.
+    renewal_due: bool = False
     mfa_required: bool = False
     account_id: UUID | None = None
     account_session_id: UUID | None = None
-    # The hard end no renewal passes: eight hours after sign-in or the credential's expiry,
+    # The hard end no renewal passes: two days after sign-in or the credential's expiry,
     # whichever is sooner, and why it falls then. `None` only for a token session, which has
     # no row to read it from.
     ends_at: datetime | None = None
@@ -140,7 +165,13 @@ def _validated(
         raise SessionError()
     from execbound.user_accounts import validate_workspace_session
 
-    factor_account = validate_workspace_session(conn, row, _now(clock))
+    stale = False
+    try:
+        factor_account = validate_workspace_session(conn, row, _now(clock))
+    except DirectoryStale:
+        # Raised below, once the rest of the session is known to be valid: only a session that
+        # would load but for its directory verification's age is offered a recheck.
+        factor_account, stale = None, True
     identity = Identity(
         row["tenant_id"],
         row["principal_id"],
@@ -151,6 +182,8 @@ def _validated(
     _human(conn, identity, clock)
     if not row["created_at"] <= _now(clock) < row["expires_at"]:
         raise SessionError()
+    if stale:
+        raise DirectoryStale(identity)
     from execbound.mfa import requires_mfa
 
     pending = requires_mfa(conn, {**row, "factor_account_id": factor_account}, _now(clock))
@@ -172,9 +205,9 @@ def _validated(
 
 def _hard_end(row: dict[str, Any]) -> tuple[datetime, str]:
     """When a session must end whatever renews it, and why: `setup_credential` when a session
-    with no account ends on its credential more than the tolerance before its eight hours,
+    with no account ends on its credential more than the tolerance before its two days,
     `sign_in` otherwise. An account-bound session's credential is the account sign-in's own
-    eight hours, a switched-to session's included, so it always reads `sign_in`."""
+    two days, a switched-to session's included, so it always reads `sign_in`."""
     absolute = row["created_at"] + SESSION_ABSOLUTE
     credential = row["credential_expires_at"]
     early = credential < absolute - CREDENTIAL_END_TOLERANCE
@@ -259,16 +292,49 @@ def issue_session(
             fence(conn, identity.tenant_id, clock)
             _human(conn, identity, clock)
             created_at = _now(clock)
-            expires_at = min(created_at + SESSION_LIFETIME, identity.expires_at)
-            count = conn.execute(
-                text(
-                    "SELECT count(*) FROM execbound.human_sessions WHERE tenant_id=:t "
-                    "AND credential_id=:c AND revoked_at IS NULL AND expires_at>:n"
-                ),
-                {"t": identity.tenant_id, "c": identity.credential_id, "n": created_at},
-            ).scalar_one()
-            if count >= MAX_ACTIVE_SESSIONS:
-                raise SessionError("SESSION_CAPACITY")
+            # Whether the second factor is still owed is known only once the row exists, so the
+            # row starts at the pending bound and a session that owes nothing is extended to
+            # its full idle lifetime below.
+            expires_at = min(
+                created_at + min(PENDING_LIFETIME, SESSION_LIFETIME), identity.expires_at
+            )
+            # At the bound the oldest live sessions of this credential are ended to admit the
+            # new one, under the tenant fence taken above, so there are never more than
+            # `MAX_ACTIVE_SESSIONS` live after this one. A setup credential exchanged again and
+            # again, with the old sessions never signed out, would otherwise be refused for the
+            # twelve hours they stand.
+            live = (
+                conn.execute(
+                    text(
+                        "SELECT session_id FROM execbound.human_sessions WHERE tenant_id=:t "
+                        "AND credential_id=:c AND revoked_at IS NULL AND expires_at>:n "
+                        "ORDER BY created_at, session_id"
+                    ),
+                    {"t": identity.tenant_id, "c": identity.credential_id, "n": created_at},
+                )
+                .scalars()
+                .all()
+            )
+            for evicted in live[: max(0, len(live) - MAX_ACTIVE_SESSIONS + 1)]:
+                conn.execute(
+                    text(
+                        "UPDATE execbound.human_sessions SET revoked_at=:n "
+                        "WHERE tenant_id=:t AND session_id=:s AND revoked_at IS NULL"
+                    ),
+                    {"t": identity.tenant_id, "s": evicted, "n": created_at},
+                )
+                append_event(
+                    conn,
+                    identity.tenant_id,
+                    identity.principal_id,
+                    "human_session.revoked",
+                    {
+                        "session_id": str(evicted),
+                        "credential_id": str(identity.credential_id),
+                        "principal_id": str(identity.principal_id),
+                        "reason": "SESSION_CAPACITY",
+                    },
+                )
             conn.execute(
                 text("""
                     INSERT INTO execbound.human_sessions
@@ -295,6 +361,22 @@ def issue_session(
                     "av": account_version,
                 },
             )
+            pending = _validated(
+                conn, _read(conn, identity.tenant_id, session_id), clock, allow_pending_mfa=True
+            ).mfa_required
+            if not pending:
+                extended = conn.execute(
+                    text("SELECT execbound.renew_human_session(:s, :h, :n, :l, :a)"),
+                    {
+                        "s": session_id,
+                        "h": _hash(token),
+                        "n": created_at,
+                        "l": SESSION_LIFETIME,
+                        "a": SESSION_ABSOLUTE,
+                    },
+                ).scalar_one_or_none()
+                if extended is not None:
+                    expires_at = extended.astimezone(UTC)
             append_event(
                 conn,
                 identity.tenant_id,
@@ -307,6 +389,8 @@ def issue_session(
                     "expires_at": expires_at.isoformat(),
                 },
             )
+            # Recheck after the audit write, as before: a credential revoked while it waited
+            # fails the session here, inside the transaction, rather than committing.
             pending = _validated(
                 conn, _read(conn, identity.tenant_id, session_id), clock, allow_pending_mfa=True
             ).mfa_required
@@ -365,11 +449,16 @@ def load_session(
 
 
 def _renewed(conn: Connection, session: Session, digest: str, clock: Clock) -> Session:
-    """Extend a live session once half its lifetime has passed; the database enforces the
-    caps and answers NULL when nothing may change."""
+    """Extend a live session once `RENEW_AFTER` has passed since it was last extended; the
+    database enforces the caps and answers NULL when nothing may change."""
     now = _now(clock)
-    if now < session.expires_at - SESSION_LIFETIME / 2:
+    if now < session.expires_at - SESSION_LIFETIME + RENEW_AFTER:
         return session
+    due = replace(session, renewal_due=True)
+    if session.ends_at is not None and session.expires_at >= session.ends_at:
+        # Already at the hard end, which only a new sign-in moves: no statement can change the
+        # row, so none is sent.
+        return due
     extended = conn.execute(
         text("SELECT execbound.renew_human_session(:s, :h, :n, :l, :a)"),
         {
@@ -381,8 +470,8 @@ def _renewed(conn: Connection, session: Session, digest: str, clock: Clock) -> S
         },
     ).scalar_one_or_none()
     if extended is None or extended <= session.expires_at:
-        return session
-    return replace(session, expires_at=extended.astimezone(UTC), renewed=True)
+        return due
+    return replace(due, expires_at=extended.astimezone(UTC), renewed=True)
 
 
 def revoke_session(db: Database, session: Session, *, clock: Clock | None = None) -> None:
@@ -471,6 +560,12 @@ def revoke_other_sessions(db: Database, session: Session, *, clock: Clock | None
 
     One audit event per ended session, with the reason ``OTHER_DEVICES``, so the chain says
     which sessions a person ended from the console and which ended by sign-out or expiry.
+
+    A session with no account sign-in (a setup credential's, say) whose membership links an
+    account also moves that account's version, as the account path does
+    (`account_sign_out_others`, migration `0101_trusted_browsers`): every trusted browser of
+    the account ends and every account sign-in of it is signed out, so "Sign out other
+    devices" means the same from either kind of session (#859).
     """
     from execbound.personal_tokens import TokenSession
 
@@ -484,7 +579,19 @@ def revoke_other_sessions(db: Database, session: Session, *, clock: Clock | None
     identity = session.identity
     try:
         with db.transaction(identity.tenant_id) as conn:
+            from execbound.user_accounts import lock_account
+
             _human(conn, identity, clock)
+            linked = conn.execute(
+                text(
+                    "SELECT account_id FROM execbound.workspace_memberships "
+                    "WHERE tenant_id=:t AND principal_id=:p AND active"
+                ),
+                {"t": identity.tenant_id, "p": identity.principal_id},
+            ).scalar_one_or_none()
+            if linked is not None:
+                # The account's lock comes before the tenant fence, as everywhere else.
+                lock_account(conn, linked)
             fence(conn, identity.tenant_id, clock)
             check_session(conn, session, clock)
             ended = (
@@ -515,6 +622,11 @@ def revoke_other_sessions(db: Database, session: Session, *, clock: Clock | None
                         "credential_id": str(row["credential_id"]),
                         "reason": "OTHER_DEVICES",
                     },
+                )
+            if linked is not None:
+                conn.execute(
+                    text("SELECT execbound.account_sign_out_others(:t,:s,:n)"),
+                    {"t": identity.tenant_id, "s": session.session_id, "n": _now(clock)},
                 )
             check_session(conn, session, clock)
             return len(ended)

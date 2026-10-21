@@ -207,6 +207,16 @@ ACCEPTANCE_PREFIXES: dict[str, tuple[str, ...]] = {
         "tests/test_event_export.py::test_fd12",
         "tests/test_monitoring_worker.py::test_receipt_then_worker_crash_recovers_same_delivery",
     ),
+    # Trusted browsers (TB1 to TB10, #859): a browser trusted at sign-in skips the sign-in
+    # factor and a workspace entry's for thirty days, and nothing more; My account lists and
+    # removes it, and a workspace administrator may forbid it. TB11 is the hosted review step.
+    "TB": (
+        "tests/test_trusted_browsers.py::test_tb",
+        "tests/test_trusted_browser_sign_in.py::test_tb",
+        "tests/test_browser_trusted_browser.py::test_tb",
+        "tests/test_console_api_trusted_browsers.py::test_tb",
+        "tests/test_browser_workspaces.py::test_tb",
+    ),
     # Self-hosted export (EX1 to EX10). Only the rows whose tests the export carries: EX5's
     # stage list, the service links (EX8), a plugin's token routes (EX9) and the release's
     # preflight and provenance (EX10). EX1 to EX4, EX6, EX7 and the release workflow's shape

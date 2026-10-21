@@ -43,6 +43,7 @@ from execbound.monitoring.sealing import CollectorPublicKey
 from execbound.notifications import delivery_times
 from execbound.notifications import summary as notification_summary
 from execbound.operations import PRODUCTION_ACTIONS, CatalogError
+from execbound.passwords import SIGN_IN_LIFETIME
 from execbound.plugins import ApprovalLinks
 from execbound.policy.models import LimitRule
 from execbound.resolution.models import ResolvedRequest
@@ -68,7 +69,6 @@ from execbound.surfaces.sessions import (
     check_session,
     device_label,
     issue_session,
-    load_session,
     revoke_session,
     verify_csrf,
 )
@@ -1655,7 +1655,7 @@ def _session_cookies[R: Response](
         response.set_cookie(
             config.cookie("account"),
             granted.account_token,
-            max_age=8 * 60 * 60,
+            max_age=int(SIGN_IN_LIFETIME.total_seconds()),
             httponly=True,
             secure=config.secure,
             samesite="strict",
@@ -1678,6 +1678,26 @@ def _session_cookies[R: Response](
         response.delete_cookie(
             config.cookie("review_return"), secure=config.secure, httponly=True, samesite="lax"
         )
+    return response
+
+
+def trust_cookie[R: Response](
+    response: R, config: HumanConfig, runtime: Runtime, value: str, expires_at: datetime
+) -> R:
+    """Set the trusted-browser cookie (#859) for as long as the trust itself lasts.
+
+    Lax, not Strict like the session's: a Google, GitHub, Microsoft or directory sign-in
+    finishes on a cross-site navigation, where a Strict cookie is not sent. It grants nothing
+    by itself; `GET /mfa` reads it only for a session already past the password or provider."""
+    response.set_cookie(
+        config.cookie("trust"),
+        value,
+        max_age=max(0, int((expires_at - runtime.clock.now()).total_seconds())),
+        httponly=True,
+        secure=config.secure,
+        samesite="lax",
+        path="/",
+    )
     return response
 
 
@@ -1777,21 +1797,28 @@ def request_guards(runtime: Runtime, config: HumanConfig) -> RequestGuards:
     ) -> tuple[Session, str]:
         await boundary(request, query)
         values = cookies(request)
+        from execbound.directory_store import load_rechecked
+
+        # A directory session back after more than the grace away is rechecked, not refused,
+        # before it loads; with no directory configured this is `load_session` itself.
         session = await run_in_threadpool(
-            load_session, runtime.db, values.get(config.cookie("session"), ""), clock=runtime.clock
+            load_rechecked, runtime, config.directory, values.get(config.cookie("session"), "")
         )
-        if session.renewed:
-            # A directory session is rechecked against its provider before it is extended, and
-            # only then: a session renews once half of its fifteen minutes has passed, so this
-            # costs one call to the customer's directory about every seven and a half minutes
-            # of continuous use and one indexed read for every other kind of session. What it
+        if session.renewal_due:
+            # A directory session is rechecked against its provider whenever its renewal is
+            # due, which is `RENEW_AFTER` (seven and a half minutes) after it was last
+            # extended, and only then. It is due whether or not the row could move: a session
+            # already at its two-day end cannot be extended, and is still rechecked. This costs
+            # one call to the customer's directory about every seven and a half minutes of
+            # continuous use (`recheck_session` itself asks the directory at most once per
+            # `RECHECK_INTERVAL`) and one indexed read for every other kind of session. What it
             # buys is that an account disabled in the directory loses the console here rather
-            # than at the end of the eight hours a session may be renewed for.
+            # than at the end of the two days a session may be renewed for.
             if config.directory is not None:
                 from execbound.directory_store import recheck_session
 
                 await run_in_threadpool(recheck_session, runtime, config.directory, session)
-            if session.account_id is None:
+            if session.renewed and session.account_id is None:
                 request.state.session_renewal = session.expires_at
         csrf = values.get(config.cookie("csrf"), "")
         if not verify_csrf(session, csrf):

@@ -11,11 +11,13 @@ replay reads. Times, the event order, the catalog's vocabulary and policy text a
 this is pseudonymization and not anonymization (docs/REPLAY.md, "Regression fixtures").
 
 Every digest that covers a replaced value is then recomputed, in the order the digests depend
-on one another, and the provider journal is re-signed under a published key that signs
-nothing real. Nothing is written unless the result verifies, replays to the same classified
-outcomes under the mapping, carries no secret, keeps no source identifier or label that is
-not a kept word, and holds a pseudonym at every label position. The mapping itself is never
-kept.
+on one another, and every retained record is re-signed under a published key that signs nothing
+real (`fixture_keys`): a provider's journal, ExecBound's connector record, and an external
+executor's Ed25519 record or ES256 attestation, whose header and claims are opened into text
+first so the identifiers in them are replaced like any other (`pseudonyms.opened`). Nothing is
+written unless the result verifies, replays to the same classified outcomes under the mapping,
+carries no secret, keeps no source identifier or label that is not a kept word, and holds a
+pseudonym at every label position. The mapping itself is never kept.
 """
 
 import hashlib
@@ -24,19 +26,20 @@ import re
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from execbound.audit import GENESIS, _event_hash, canonical_json
 from execbound.policy.models import BundleContent
+from execbound.provider.connector_record import ConnectorExchange
+from execbound.provider.executor import ExecutorRecord, JwsClaims
 from execbound.provider.models import (
     JournalRecord,
     ProviderCommand,
     ProviderError,
-    SignedJournal,
     parse_provider,
-    sign_journal,
 )
+from execbound.replay import fixture_keys
 from execbound.replay.fixture import (
     FORMAT,
     MAX_CANDIDATES,
@@ -65,6 +68,7 @@ from execbound.replay.pseudonyms import (
     every_string,
     identifier,
     is_sanitized,
+    opened,
     pseudonym,
     rewrite,
     vocabulary,
@@ -75,13 +79,13 @@ from execbound.requests import derive_key
 from execbound.resolution.models import CanonicalIntent, intent_hash, plan_hash
 from execbound.secrets import find_secrets
 
-# Published on purpose. A fixture's journal is re-signed under it because its source's
-# provider key is never available offline and a recomputed command hash needs a signature
-# over it. The key id says so, and the runtime refuses the key as any connector's evidence
-# key, Gate account's journal key or sample key (`provider.published_keys`), so a journal
-# signed under it settles nothing.
-FIXTURE_JOURNAL_KEY = b"execbound-replay-fixture-journal-key-v1"
-FIXTURE_KEY_ID = "replay-fixture"
+# Published on purpose, in `fixture_keys`: a fixture's journal is re-signed under it because
+# its source's provider key is never available offline and a recomputed command hash needs a
+# signature over it. The key id says so, and the runtime refuses the key as any connector's
+# evidence key, Gate account's journal key or sample key (`provider.published_keys`), so a
+# journal signed under it settles nothing.
+FIXTURE_JOURNAL_KEY = fixture_keys.FIXTURE_JOURNAL_KEY
+FIXTURE_KEY_ID = fixture_keys.FIXTURE_KEY_ID
 
 # The kinds whose payloads replay reads whole. Every other kind keeps only what replay reads
 # of it: `execution_id`, which carries an earlier execution's taint forward, a bundle event's
@@ -285,28 +289,6 @@ def _keyed_digests(value: Any) -> Iterator[str]:
             yield from _keyed_digests(child)
 
 
-def _refuse_unsupported(history: VerifiedHistory) -> None:
-    """Version 1 re-signs only a provider journal. An executor's Ed25519 record, an ES256
-    JWS, a connector's record and an assertion carry signatures or words this cannot redo,
-    so a history holding one is refused rather than rewritten."""
-    for entry in history.events:
-        payload = entry.event.payload
-        if (
-            entry.settlement_tier is not None
-            or entry.asserted_outcome is not None
-            or (
-                entry.event.kind == "execution.transition"
-                and ("tier" in payload or "asserted" in payload)
-            )
-        ):
-            raise FixtureError("FIXTURE_UNSUPPORTED_EVIDENCE")
-        if entry.terminal_evidence is not None:
-            try:
-                parse_provider(entry.terminal_evidence.authenticated_record.encode(), SignedJournal)
-            except ProviderError:
-                raise FixtureError("FIXTURE_UNSUPPORTED_EVIDENCE") from None
-
-
 def _pair(pairs: dict[str, str], old: str, new: str) -> None:
     if pairs.setdefault(old, new) != new:
         raise FixtureError("FIXTURE_NOT_FAITHFUL")
@@ -336,18 +318,47 @@ def _attempted_plan(frozen: Mapping[str, Any], bundle: BundleContent) -> str:
 
 
 def _resign(text: str) -> str:
-    """A journal with its command hash recomputed, signed under the fixture key."""
+    """A retained record, its replaced values in place, signed again under the fixture key
+    for its envelope (`fixture_keys`). A journal's command hash is recomputed first; an
+    attestation arrives opened and leaves as the flattened wrapper the kernel retains.
+
+    The envelope is known by its shape before anything is validated, so a known one that
+    fails once rewritten is unfaithful, and only an unknown one is unsupported."""
     try:
         raw = json.loads(text)
-        command = ProviderCommand.model_validate_json(canonical_json(raw["record"]["command"]))
-        record = parse_provider(
-            canonical_json({**raw["record"], "command_hash": command.command_hash}).encode(),
-            JournalRecord,
-        )
-        return sign_journal(record, FIXTURE_KEY_ID, FIXTURE_JOURNAL_KEY).model_dump_json()
-    except (KeyError, TypeError, ValueError, ProviderError):
-        pass
-    raise FixtureError("FIXTURE_NOT_FAITHFUL")
+    except (TypeError, ValueError, RecursionError):
+        raise FixtureError("FIXTURE_NOT_FAITHFUL") from None
+    record: Any = raw.get("record") if isinstance(raw, dict) else None
+    if isinstance(raw, dict) and raw.get("format") == "jws-es256":
+        envelope = "attestation"
+    elif isinstance(record, dict) and "command" in record:
+        envelope = "journal"
+    elif isinstance(record, dict) and "scheme" in record:
+        envelope = "connector"
+    elif isinstance(record, dict) and "operation_id" in record:
+        envelope = "executor"
+    else:
+        raise FixtureError("FIXTURE_UNSUPPORTED_EVIDENCE")
+    try:
+        if envelope == "attestation":
+            claims = JwsClaims.model_validate_json(canonical_json(raw["payload"]))
+            return fixture_keys.attestation(raw["protected"]["kid"], claims, raw["key_id"])
+        if envelope == "journal":
+            command = ProviderCommand.model_validate_json(canonical_json(record["command"]))
+            journal = parse_provider(
+                canonical_json({**record, "command_hash": command.command_hash}).encode(),
+                JournalRecord,
+            )
+            return fixture_keys.journal(journal)
+        if envelope == "connector":
+            exchange = ConnectorExchange.model_validate_json(canonical_json(record))
+            return fixture_keys.connector(exchange, raw["key_id"])
+        executor = ExecutorRecord.model_validate_json(canonical_json(record))
+        return fixture_keys.executor_record(executor, raw["key_id"])
+    except fixture_keys.SigningUnavailable:
+        raise FixtureError("FIXTURE_SIGNING_UNAVAILABLE") from None
+    except (KeyError, TypeError, ValueError, AttributeError, ProviderError):
+        raise FixtureError("FIXTURE_NOT_FAITHFUL") from None
 
 
 def _rederive_keys(document: dict[str, Any]) -> None:
@@ -456,7 +467,8 @@ def _survives(raw: bytes, identifiers: set[str], labels: Mapping[str, str]) -> b
     those words, such as `complete`, is replaced where it was recorded and still becomes a
     fixture.
     """
-    text = raw.decode("utf-8")
+    written = opened(json.loads(raw))
+    text = json.dumps(written, ensure_ascii=False)
     lowered = text.lower()
     if identifiers & set(_EVERY_UUID.findall(lowered)):
         return True
@@ -466,7 +478,6 @@ def _survives(raw: bytes, identifiers: set[str], labels: Mapping[str, str]) -> b
         if any(run[start : start + 32] in undashed for start in range(len(run) - 31)):
             return True
     finder = Finder(labels)
-    written = json.loads(text)
     history = {"export": written["export"], "candidates": written["candidates"]}
     return any(value in labels or finder.search(value) for value in every_string(history))
 
@@ -515,17 +526,19 @@ def build(
         history = verify_export(export, head)
     except ReplayValidationError as refusal:
         raise FixtureError(refusal.code) from None
-    _refuse_unsupported(history)
     if find_secrets([candidate.model_dump(mode="json") for candidate in candidates], limit=1):
         raise FixtureError("PRIVATE_DATA")
     try:
         recorded = expected_outcomes(history, candidates)
     except ReplayValidationError as refusal:
         raise FixtureError(refusal.code) from None
-    source: dict[str, Any] = {
-        "export": history.export.model_dump(mode="json"),
-        "candidates": [candidate.model_dump(mode="json") for candidate in candidates],
-    }
+    # Each attestation's header and claims as text, so what they name is found and replaced.
+    source: dict[str, Any] = opened(
+        {
+            "export": history.export.model_dump(mode="json"),
+            "candidates": [candidate.model_dump(mode="json") for candidate in candidates],
+        }
+    )
     identifiers = {found.lower() for found in _UUID.findall(canonical_json(source))}
     identifiers |= {str(UUID(found)) for text in _strings(source) for found in _HEX32.findall(text)}
     labels = collect(source)
@@ -554,15 +567,24 @@ def build(
         raise
     except (ReplayValidationError, ValueError, TypeError, KeyError, AttributeError, RecursionError):
         raise FixtureError("FIXTURE_NOT_FAITHFUL") from None
+    # Version 2 only for what version 1 refused, so every other history's fixture stays the
+    # bytes it was; it names the published key each kind of record is now signed under.
+    kinds, external = fixture_keys.evidence_kinds({"export": sanitized.model_dump(mode="json")})
+    version: Literal[1, 2] = 2 if external else 1
     raw = render(
         ReplayFixture(
             format=FORMAT,
-            version=1,
+            version=version,
             sanitization=Sanitization(
-                version=1,
+                version=version,
                 identifiers=len(names.identifiers),
                 labels=len(names.labels),
                 digests=len(names.digests),
+                signatures=(
+                    {kind: fixture_keys.SIGNERS[kind] for kind in sorted(kinds)}
+                    if external
+                    else None
+                ),
             ),
             trusted_head=sanitized.head,
             export=sanitized,
@@ -576,7 +598,11 @@ def build(
     # Two nets: nothing sought survives anywhere, and every position a label is collected from
     # holds a pseudonym, which is also what reading a fixture checks.
     sought = {value: kind for value, kind in labels.items() if value not in kept}
-    if _survives(raw, identifiers, sought) or not is_sanitized(written):
+    if (
+        _survives(raw, identifiers, sought)
+        or not is_sanitized(written)
+        or not fixture_keys.signed_by_fixture_keys(written)
+    ):
         raise FixtureError("FIXTURE_NOT_SANITIZED")
     replayed_value = expected.model_dump(mode="json")
     for candidate in replayed_value["candidates"]:

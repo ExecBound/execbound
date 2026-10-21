@@ -46,10 +46,11 @@ def _inside(conn: Connection, tenant: UUID) -> Iterator[None]:
 def carries(conn: Connection, session: "Session", now: datetime) -> bool:
     """Whether a switch from this session now would carry its verification into the
     destination: the session's own `session_assurance` row is for the account's enabled factor
-    at its current version and was verified within `mfa.STEP_UP_WINDOW`. The same conditions
-    as `account_switch`'s carry read (migration `0089_assurance_carry`), which a test holds
-    to this. Called under the session's own tenant setting: inside another workspace's row
-    security the row is invisible."""
+    at its current version and was verified within `mfa.STEP_UP_WINDOW`, by a factor rather
+    than a trusted browser (`0101_trusted_browsers`: the destination may forbid trust). The
+    same conditions as `account_switch`'s carry read (migrations `0089_assurance_carry` and
+    `0101_trusted_browsers`), which a test holds to this. Called under the session's own
+    tenant setting: inside another workspace's row security the row is invisible."""
     from execbound.mfa import STEP_UP_WINDOW
 
     return (
@@ -58,7 +59,8 @@ def carries(conn: Connection, session: "Session", now: datetime) -> bool:
                 "SELECT 1 FROM execbound.session_assurance sa "
                 "JOIN execbound.user_factors f ON f.account_id=:a "
                 "WHERE sa.tenant_id=:t AND sa.session_id=:s AND f.enabled_at IS NOT NULL "
-                "AND sa.version=f.version AND sa.verified_at<=:now AND sa.verified_at>:since"
+                "AND sa.version=f.version AND sa.verified_at<=:now AND sa.verified_at>:since "
+                "AND sa.method<>'trusted'"
             ),
             {
                 "a": session.account_id,
@@ -79,6 +81,7 @@ def entry_proof(
     kind: str,
     now: datetime,
     carried: bool = False,
+    trusted: bool = False,
 ) -> Entry:
     """What entering this membership asks beyond the current sign-in.
 
@@ -86,8 +89,11 @@ def entry_proof(
     current session's verification when `carried` (see `carries`), and so asks for nothing
     more; otherwise it starts without assurance, and a workspace whose second-factor rule
     applies asks for the account's factor, or for one to be set up where the account has none.
-    A directory requirement is never carried. Any change to what a switch carries must change
-    this function in step. Called inside the tenant.
+    `trusted` is whether this browser's trust applies there (`trusted_browsers.applies`, which
+    reads the destination's own allowance): the switch then satisfies the factor with it
+    (`trusted_entry`), and entering asks for nothing more, exactly as a carry. A directory
+    requirement is never carried or trusted. Any change to what a switch carries or trusts
+    must change this function in step. Called inside the tenant.
     """
     from execbound.mfa import requires_mfa
 
@@ -108,7 +114,7 @@ def entry_proof(
     ).scalar_one_or_none()
     # A carry is honoured only for an account that holds an enabled factor now, as the switch's
     # own read requires: an account without one is sent to set one up whatever `carried` says.
-    if carried and enabled:
+    if (carried or trusted) and enabled:
         return "open"
     return "factor" if enabled else "enrol"
 
@@ -157,9 +163,14 @@ def list_workspaces(
     *,
     clock: Clock | None = None,
     waiting: bool = False,
+    trust: str | None = None,
 ) -> list[dict[str, Any]]:
     """This account's own workspaces, each with what a session there would be and what
     entering it asks.
+
+    ``trust`` is the browser's trust cookie, when it holds one: a workspace whose factor that
+    trust satisfies, in a workspace that allows it, asks for nothing more, since the switch
+    applies it (`trusted_entry`).
 
     With ``waiting``, a workspace other than the current one that asks nothing more to enter
     also carries the number of approvals waiting for this account there and the earliest of
@@ -168,6 +179,7 @@ def list_workspaces(
     that would ask for more proof is withheld with no count read at all (#678). A workspace a
     switch would enter carrying this session's recent verification asks for no more proof.
     """
+    from execbound import trusted_browsers
     from execbound.access_control import workspace_role_ids
     from execbound.surfaces.sessions import check_session
 
@@ -189,7 +201,13 @@ def list_workspaces(
                     text("SELECT execbound.access_effective_kind(:p)"), {"p": principal}
                 ).scalar_one()
                 roles = workspace_role_ids(conn, tenant, principal)
-                entry = entry_proof(conn, account, item, kind, now, carried)
+                # Read only where it could matter: no cookie, or a carry, needs no read.
+                trusted = (
+                    bool(trust)
+                    and not carried
+                    and trusted_browsers.applies(conn, account, tenant, trust, now)
+                )
+                entry = entry_proof(conn, account, item, kind, now, carried, trusted)
                 state, count, lapse = "current" if current else "withheld", None, None
                 if not current and entry == "open":
                     if waiting and index < COUNTED_WORKSPACES:
@@ -328,3 +346,38 @@ def switch_workspace(
             )
     except SQLAlchemyError:
         raise SessionError("SESSION_UNAVAILABLE") from None
+
+
+def trusted_entry(
+    db: Database, grant: "SessionGrant", cookie: str | None, *, clock: Clock | None = None
+) -> "SessionGrant":
+    """A switch's grant with the destination's factor satisfied by this browser's trust (#859).
+
+    A switch whose new session still owes the factor, on a browser holding a trust the
+    destination honours, goes straight on, as `GET /mfa` would take it there:
+    `trusted_browsers.apply` writes the session's assurance with method `trusted` and the
+    trust's own verification time, never now, and rotates its token and CSRF. The answer keeps
+    the switch's `place`. A missing cookie, one that does not apply there, or a refusal leaves
+    the grant as it was, and the person is asked for the code at `/mfa` as before; a step-up in
+    the destination still asks, since a trusted assurance is never fresh. The trust is applied
+    in a transaction of its own after the switch has committed, so a failure here fails safe:
+    the new session simply still owes its factor and the answer is `/mfa`."""
+    from dataclasses import replace
+
+    from execbound import trusted_browsers
+    from execbound.logging_schema import log_event
+    from execbound.mfa import MfaError
+    from execbound.surfaces.sessions import SessionError, load_session
+
+    if not cookie or not grant.mfa_required:
+        return grant
+    clock = clock or SystemClock()
+    try:
+        pending = load_session(db, grant.token, clock=clock, allow_pending_mfa=True)
+        applied = trusted_browsers.apply(db, pending, cookie, clock=clock)
+    except (MfaError, SessionError) as exc:
+        log_event("trusted_browser.refused", level="WARNING", code=exc.code, method="trusted")
+        return grant
+    if applied is None:
+        return grant
+    return replace(applied, place=grant.place)

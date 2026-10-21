@@ -17,7 +17,7 @@ from test_emergency_stop import audit, scoped
 from test_execution import activate, request, targets
 from test_execution import registry as registry
 from test_execution import world as world
-from test_human_surface import credential, form_values, pending
+from test_human_surface import credential, form_values, outlast_the_credential, pending
 from test_human_surface import human_app as human_app
 from test_human_surface import human_client as human_client
 from test_human_surface import human_config as human_config
@@ -338,28 +338,39 @@ def test_ad8b_off_is_labelled_as_the_context_clock(human_client, runtime, world,
 
 
 def test_ad10_sessions_renew_on_activity_within_the_caps(db, world, admin_engine, monkeypatch):
-    clock, human = world["clock"], world["human"]
+    clock = world["clock"]
+    # The world's credentials last two hours and a session twelve, so the credential is
+    # lengthened to outlast the whole run (the two-day cap is the session's, not its own).
+    human = replace(world["human"], expires_at=clock.now() + timedelta(days=3))
+    with admin_engine.begin() as conn:
+        conn.execute(
+            text("UPDATE execbound.credentials SET expires_at=:e WHERE credential_id=:c"),
+            {"e": human.expires_at, "c": human.credential_id},
+        )
+    lifetime = sessions.SESSION_LIFETIME
     grant = sessions.issue_session(db, human, clock=clock)
     issued = clock.now()
-    assert grant.expires_at == issued + timedelta(minutes=15)
+    assert grant.expires_at == issued + lifetime
     clock.value = issued + timedelta(minutes=5)
     early = sessions.load_session(db, grant.token, clock=clock)
-    assert not early.renewed and early.expires_at == issued + timedelta(minutes=15)
+    assert not early.renewed and early.expires_at == issued + lifetime
     clock.value = issued + timedelta(minutes=8)
     renewed = sessions.load_session(db, grant.token, clock=clock)
-    assert renewed.renewed and renewed.expires_at == issued + timedelta(minutes=23)
+    assert renewed.renewed and renewed.expires_at == issued + timedelta(minutes=8) + lifetime
     again = sessions.load_session(db, grant.token, clock=clock)
     assert not again.renewed and again.expires_at == renewed.expires_at
     # Reading keeps it alive; walking away does not.
     clock.value = issued + timedelta(minutes=22)
     kept = sessions.load_session(db, grant.token, clock=clock)
-    assert kept.renewed and kept.expires_at == issued + timedelta(minutes=37)
-    clock.value = issued + timedelta(minutes=38)
+    assert kept.renewed and kept.expires_at == issued + timedelta(minutes=22) + lifetime
+    clock.value = issued + timedelta(minutes=23) + lifetime
     with pytest.raises(sessions.SessionError):
         sessions.load_session(db, grant.token, clock=clock)
-    # The absolute cap: no renewal takes a session past it, however active.
+    # The absolute cap: no renewal takes a session past it, however active. The idle limit is
+    # shortened with it, since a cap shorter than the idle limit would never be reached.
+    monkeypatch.setattr(sessions, "SESSION_LIFETIME", timedelta(minutes=15))
     monkeypatch.setattr(sessions, "SESSION_ABSOLUTE", timedelta(minutes=20))
-    clock.value = issued + timedelta(minutes=40)
+    clock.value = issued + timedelta(minutes=25) + lifetime
     capped_grant = sessions.issue_session(db, human, clock=clock)
     started = clock.now()
     clock.value = started + timedelta(minutes=8)
@@ -372,7 +383,7 @@ def test_ad10_sessions_renew_on_activity_within_the_caps(db, world, admin_engine
     with pytest.raises(sessions.SessionError):
         sessions.load_session(db, capped_grant.token, clock=clock)
     # The credential's own expiry caps it too, and a revoked session is not renewed.
-    monkeypatch.setattr(sessions, "SESSION_ABSOLUTE", timedelta(hours=8))
+    monkeypatch.undo()
     clock.value = started + timedelta(minutes=21)
     short = replace(human, expires_at=clock.now() + timedelta(minutes=10))
     with admin_engine.begin() as conn:
@@ -390,9 +401,12 @@ def test_ad10_sessions_renew_on_activity_within_the_caps(db, world, admin_engine
         sessions.load_session(db, short_grant.token, clock=clock)
 
 
-def test_ad10b_the_console_reissues_cookies_when_the_session_renews(human_client, world):
+def test_ad10b_the_console_reissues_cookies_when_the_session_renews(
+    human_client, world, admin_engine
+):
     # A console route is a page load like any other: the renewal is the gateway's and
     # happens on the document, not on anything the application asks for afterwards.
+    outlast_the_credential(admin_engine, world)
     world["clock"].value += timedelta(minutes=5)
     quiet = human_client.get("/activity")
     assert quiet.status_code == 200 and "set-cookie" not in quiet.headers
@@ -401,9 +415,10 @@ def test_ad10b_the_console_reissues_cookies_when_the_session_renews(human_client
     assert renewed.status_code == 200
     cookies = renewed.headers.get_list("set-cookie")
     assert len(cookies) == 2
-    assert all("Max-Age=900" in c and "HttpOnly" in c and "SameSite=strict" in c for c in cookies)
-    # Fifteen quiet minutes after the renewal end the session as before.
-    world["clock"].value += timedelta(minutes=16)
+    max_age = f"Max-Age={int(sessions.SESSION_LIFETIME.total_seconds())}"
+    assert all(max_age in c and "HttpOnly" in c and "SameSite=strict" in c for c in cookies)
+    # Twelve quiet hours after the renewal end the session.
+    world["clock"].value += sessions.SESSION_LIFETIME + timedelta(minutes=1)
     ended = human_client.get("/activity")
     assert ended.status_code == 303 and ended.headers["location"] == "/login?review=%2Factivity"
     assert human_client.get("/api/console/v1/executions").status_code == 401

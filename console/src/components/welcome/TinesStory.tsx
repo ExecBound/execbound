@@ -2,7 +2,8 @@
 // A Tines story as an agent's host (#678): the two committed stories as downloads, unchanged, and
 // the steps the integration's README gives for each, in its order. The files carry no origin,
 // token or tenant id; the person adds the agent's key as a Tines credential and the origin as a
-// resource, here shown from the gateway's own answer. Both are Advisory for Tines.
+// resource, here shown from the gateway's own answer. Both are Advisory for Tines. With sample
+// targets added, the Execute story's last step carries a test event for one of them (#178).
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -11,6 +12,7 @@ import { readConnectionOptions, readTenantOptions } from "../../api/@tanstack/re
 import { useEdition } from "../../edition/context";
 import { CopyRecipe } from "./CopyRecipe";
 import { ServiceOperatorWords } from "./OperatorSteps";
+import { TinesTestEvent } from "./TinesTestEvent";
 
 type Story = "execute" | "gate";
 
@@ -63,7 +65,7 @@ export function TinesStory() {
         <li>{resources("execbound_origin, execbound_poll_seconds and execbound_wait_seconds")}</li>
         <li>Import the story into a real team, not a personal one.</li>
         {reach("both Outcome and Refused: no reference")}
-        <li>Run it with a test event naming a target you control, a <code>reference</code> and an <code>incident_id</code>.</li>
+        <li>Run it with a test event naming a target you control, a <code>reference</code> and an <code>incident_id</code>.<TinesTestEvent /></li>
       </ol> : <ol className="steps tines-steps">
         <li>Create three Text credentials: <code>execbound_gate</code>, this agent&apos;s key, allowed only the gateway&apos;s <code>/v1/execute</code> and <code>/v1/executions/</code> paths; <code>execbound_gate_vendor</code>, the vendor&apos;s dispatch token, allowed only the vendor&apos;s host; and <code>execbound_gate_signing</code>, the ES256 private key, which Tines requires to have no host restriction.</li>
         <li>{resources("execbound_origin, execbound_vendor_origin, execbound_gate_key_id, execbound_poll_seconds and execbound_wait_seconds")}</li>
