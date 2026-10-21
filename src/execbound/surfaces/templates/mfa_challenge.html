@@ -4,7 +4,11 @@
 {% block body %}
 {# The second step of signing in, and nothing else. Managing factors, passkeys and the
    organization's requirement belongs on Account security; a person here only needs to finish
-   signing in, so this page asks for one code and goes straight on once it is accepted. #}
+   signing in, so this page asks for one code and goes straight on once it is accepted.
+   Each way to verify carries its own unticked "Trust this browser" box (#859), so the box
+   posts with the form it sits in; the passkey script submits its form element, box and all.
+   A workspace whose administrator forbids trust offers no box at all, since the grant would
+   be refused. #}
 <section class="login challenge">
   {# A session a workspace switch created opens that workspace, and says which; its name is
      the tenant's own string and is escaped as text. #}
@@ -14,6 +18,7 @@
   <input type="hidden" id="passkey-options" value="{{ options }}">
   <form id="passkey-finish" data-ceremony="{{ ceremony }}" action="/account/security/passkey/{{ ceremony }}/finish" method="post">
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="credential">
+    {% if view.trust_allowed %}<label class="trust"><input type="checkbox" name="trust" value="on"> Trust this browser for 30 days</label>{% endif %}
     <button id="passkey-prompt" type="button">Continue with passkey</button>
   </form>
   <p id="passkey-problem" role="alert"></p>
@@ -25,6 +30,7 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label for="code">Authentication code</label>
     <input id="code" class="code-input" name="code" required maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" autofocus>
+    {% if view.trust_allowed %}<label class="trust"><input type="checkbox" name="trust" value="on"> Trust this browser for 30 days</label>{% endif %}
     <button>Verify</button>
   </form>
   {% if view.passkeys %}
@@ -38,6 +44,7 @@
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <label for="recovery-code">Recovery code</label>
       <input id="recovery-code" name="code" required maxlength="29" autocomplete="off" autocapitalize="none" spellcheck="false">
+      {% if view.trust_allowed %}<label class="trust"><input type="checkbox" name="trust" value="on"> Trust this browser for 30 days</label>{% endif %}
       <button class="secondary">Verify with a recovery code</button>
     </form>
   </details>

@@ -6,14 +6,15 @@ body:
   - type: markdown
     attributes:
       value: >-
-        A security vulnerability is never reported here. Follow the
+        **Never report a security vulnerability here.** Follow the
         [security policy](https://github.com/ExecBound/execbound/security/policy)
-        instead, so it can be fixed before it is public.
+        instead, so it can be fixed before it's public. For install help or questions,
+        use [Discussions → Q&A](https://github.com/ExecBound/execbound/discussions/categories/q-a).
   - type: textarea
     id: happened
     attributes:
       label: What happened
-      description: What you did, and what ExecBound did in answer.
+      description: What you did, and what ExecBound did in answer. Include the response `code` if there was one; codes are listed in docs/ERROR_CODES.md.
     validations:
       required: true
   - type: textarea
@@ -26,7 +27,7 @@ body:
     id: reproduce
     attributes:
       label: Steps to reproduce
-      description: The smallest sequence that shows it, from a fresh installation where you can.
+      description: The smallest sequence that shows it, from a fresh installation if you can.
       placeholder: |
         1.
         2.
@@ -37,7 +38,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: The release, or the commit you built from.
+      description: The release and image digest you ran (for example v0.1.0, sha256:1954f9f5…), or the commit you built from.
     validations:
       required: true
   - type: dropdown
@@ -50,9 +51,24 @@ body:
         - Another deployment of the image
     validations:
       required: true
+  - type: input
+    id: host
+    attributes:
+      label: Host
+      description: OS and CPU architecture, and the output of `docker version --format '{{.Server.Version}}'` and `docker compose version`.
+      placeholder: Ubuntu 24.04 x86-64, Docker 28.x, Compose v2.x
   - type: textarea
     id: logs
     attributes:
       label: Logs and output
-      description: Remove credentials, tokens and anyone else's data first.
+      description: For example `docker compose logs gateway jobs`. Remove credentials, tokens and anyone else's data first.
       render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I removed credentials, tokens (including anything from `state/` or `private/`) and other people's data from this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

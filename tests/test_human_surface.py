@@ -50,6 +50,7 @@ from execbound.operations import PRODUCTION_ACTIONS, ActionCatalog
 from execbound.policy.models import LimitSelector
 from execbound.runtime import Runtime
 from execbound.surfaces.human import HumanConfig, limit_label
+from execbound.surfaces.sessions import SESSION_LIFETIME
 from execbound.surfaces.tokens import TokenKeys
 
 
@@ -104,6 +105,34 @@ def human_client(human_app, world, admin_engine):
             and "SameSite=strict" in result.headers["set-cookie"]
         )
         yield client
+
+
+def outlast_the_credential(admin_engine, world):
+    """Give the signed-in session the length a real one has.
+
+    The world's credentials last two hours, so a console session signed in with one ends at
+    two, not at its twelve idle hours. This lengthens the credential, the session's copy of
+    it and the session's own end, so the idle limit is what a test moves the clock past.
+    """
+    human = world["human"]
+    ends = world["clock"].now() + timedelta(days=3)
+    which = {"t": human.tenant_id, "c": human.credential_id}
+    with admin_engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE execbound.credentials SET expires_at=:e "
+                "WHERE tenant_id=:t AND credential_id=:c"
+            ),
+            {"e": ends, **which},
+        )
+        conn.execute(
+            text(
+                "UPDATE execbound.human_sessions SET credential_expires_at=:e, "
+                "expires_at=created_at + make_interval(secs => :s) "
+                "WHERE tenant_id=:t AND credential_id=:c"
+            ),
+            {"e": ends, "s": SESSION_LIFETIME.total_seconds(), **which},
+        )
 
 
 def pending(runtime, world):
@@ -207,7 +236,7 @@ def test_logout_invalidates_retained_cookie(human_client, runtime, world):
 
 
 def test_expired_session_cannot_read(human_client, world):
-    world["clock"].value += timedelta(minutes=16)
+    world["clock"].value += SESSION_LIFETIME + timedelta(minutes=1)
     # A person who opened a console route is sent to sign in; the API a script calls answers
     # 401, because a redirect to an HTML page is not an answer a fetch can act on.
     document = human_client.get("/activity")
@@ -291,7 +320,7 @@ def test_session_expiry_during_decision_rolls_back(
             # About to expire and at its absolute cap, so activity cannot renew it.
             text(
                 "UPDATE execbound.human_sessions "
-                "SET expires_at=:e, created_at=:e - interval '8 hours'"
+                "SET expires_at=:e, created_at=:e - interval '2 days'"
             ),
             {"e": world["clock"].now() + timedelta(seconds=1)},
         )
@@ -361,32 +390,40 @@ def test_https_session_cookie_security(db, runtime, world, admin_engine, human_c
 @pytest.mark.parametrize(
     "change", ["expire_before_read", "logout_before_read", "expire_during_read"]
 )
-def test_privileged_list_rechecks_session(human_client, runtime, world, monkeypatch, change):
+def test_privileged_list_rechecks_session(
+    human_client, runtime, world, monkeypatch, change, admin_engine
+):
     from execbound.surfaces import human
     from execbound.surfaces.sessions import revoke_session
 
     pending(runtime, world)
+    if change != "logout_before_read":
+        outlast_the_credential(admin_engine, world)
     if change == "expire_during_read":
         original = human.store.bundle
 
         def read(*args, **kwargs):
             result = original(*args, **kwargs)
-            world["clock"].value += timedelta(minutes=16)
+            world["clock"].value += SESSION_LIFETIME + timedelta(minutes=1)
             return result
 
         monkeypatch.setattr(human.store, "bundle", read)
     else:
-        original = human.load_session
+        # Every guarded load goes through `directory_store.load_rechecked`, which calls the
+        # session load it imported; that is the one a request reaches.
+        from execbound import directory_store
+
+        original = directory_store.load_session
 
         def load(*args, **kwargs):
             session = original(*args, **kwargs)
             if change == "logout_before_read":
                 revoke_session(runtime.db, session, clock=runtime.clock)
             else:
-                world["clock"].value += timedelta(minutes=16)
+                world["clock"].value += SESSION_LIFETIME + timedelta(minutes=1)
             return session
 
-        monkeypatch.setattr(human, "load_session", load)
+        monkeypatch.setattr(directory_store, "load_session", load)
     # The console reads its queue through the API, so that is where the recheck has to bite.
     response = human_client.get("/api/console/v1/approvals")
     assert response.status_code == 401

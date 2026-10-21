@@ -211,7 +211,7 @@ def test_an_installed_plugin_nobody_named_adds_nothing(db, runtime, sample, fake
     assert sign_in_links(login.text) == []
 
 
-SAMPLE_LINK = '<p><a href="/sample-plugin/hello">Say hi</a></p>'
+SAMPLE_LINK = '<p class="alternative"><a href="/sample-plugin/hello">Say hi</a></p>'
 DIRECTORY_RING = KeyRing("dir-v1", {"dir-v1": b"\x22" * KEY_BYTES})
 
 
@@ -775,7 +775,9 @@ def test_a_plugin_command_refusal_prints_its_own_sentence(sample, monkeypatch, c
     assert "Sample refused: NO." in err.splitlines()
 
 
-RECOVERY_LINK = '<p><a href="/sample-plugin/reset">Forgot your password?</a></p>'
+RECOVERY_LINK = (
+    '<p class="alternative"><a href="/sample-plugin/reset">Forgot your password?</a></p>'
+)
 
 
 def test_a_plugins_recovery_link_is_on_every_page_sign_in_lands_on(db, monkeypatch, connector):

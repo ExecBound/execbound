@@ -55,6 +55,23 @@ AUDIT = (
       if (!th.getAttribute('scope')) problems.push('th without scope');
     }
   }
+  // Targets (#858): a standalone link or control is at least 24 px tall (WCAG 2.2, 2.5.8), and
+  // at least 44 px at phone width, the console program's bar. A link inside a sentence is
+  // exempt, as the criterion's inline exception allows; so is a checkbox, whose label is the
+  // target, and the skip link, which is off screen until it has focus.
+  const least = window.innerWidth <= 767 ? 44 : 24;
+  const targets = 'a, button, select, summary, '
+    + 'input:not([type=hidden]):not([type=checkbox]):not([type=radio])';
+  for (const node of document.querySelectorAll(targets)) {
+    const box = node.getBoundingClientRect();
+    if (!box.width || !box.height || node.matches('a.skip')) continue;
+    const words = (node.textContent || node.getAttribute('aria-label') || node.name || '').trim();
+    if (node.tagName === 'A' && node.parentElement.textContent.trim() !== words) continue;
+    if (box.height < least - 0.5) {
+      const tag = node.tagName.toLowerCase();
+      problems.push(`target ${Math.round(box.height)} px: ${tag} ${words.slice(0, 40)}`);
+    }
+  }
   // FITS, the browser suite's one sideways check: neither the document nor `main`.
   if (!("""
     + FITS
@@ -78,6 +95,9 @@ def audit(page, path):
     assert problems == [], f"{path}: {problems}"
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.getAttribute('href')") == "#main", path
+    # Focused, the skip link drops into the header over the brand. Left there, axe-core run
+    # after this read the brand as a target the skip link covers (#858).
+    page.evaluate("document.activeElement.blur()")
 
 
 def test_the_pages_that_stay_pass_the_audit_at_phone_width(

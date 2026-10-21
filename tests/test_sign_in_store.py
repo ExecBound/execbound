@@ -20,6 +20,7 @@ from execbound.db import UnsafeDatabaseRole, check_runtime
 from execbound.identity import AuthenticationFailed
 from execbound.passwords import (
     MAX_RESET_LIFETIME,
+    SIGN_IN_LIFETIME,
     PasswordError,
     bind_identity,
     change_password,
@@ -212,7 +213,7 @@ def test_a_verified_sign_in_mints_a_credential_nothing_can_present(db, cast, clo
         db, cast["tenant"], cast["approver"], "password", clock=clock
     )
     assert identity.kind == "HUMAN_APPROVER"
-    assert identity.expires_at - clock.now() == timedelta(hours=8)
+    assert identity.expires_at - clock.now() == SIGN_IN_LIFETIME == timedelta(days=2)
     from execbound.identity import authenticate
 
     # The digest is of bytes that were discarded, so no string authenticates as this row.

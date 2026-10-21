@@ -71,7 +71,7 @@ describe("the notice before a session's hard end (#678)", () => {
       "You will be signed out at" ,
     );
     expect(notice()).toHaveTextContent(
-      "eight hours after you signed in. Save what you are doing, then sign in again to keep working.",
+      "two days after you signed in. Save what you are doing, then sign in again to keep working.",
     );
     expect(notice()?.querySelector("time")?.getAttribute("dateTime")).toBe(ENDS);
     screen.getByRole("button", { name: "Sign in again" }).click();

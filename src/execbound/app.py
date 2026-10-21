@@ -353,7 +353,7 @@ def create_app(
             from starlette.responses import RedirectResponse
 
             return RedirectResponse("/mfa", status_code=303)
-        code = 429 if exc.code == "SESSION_CAPACITY" else 401
+        code = 401
         if exc.code == "SESSION_UNAVAILABLE":
             code = 503
         if is_console_api(request.url.path):

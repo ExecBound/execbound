@@ -3,6 +3,12 @@ name: Feature request
 description: A change to what ExecBound does, proposed before it is built.
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: >-
+        Open-ended ideas and design questions fit better in
+        [Discussions → Ideas](https://github.com/ExecBound/execbound/discussions/categories/ideas).
+        Use this form when you can describe a concrete change.
   - type: textarea
     id: problem
     attributes:
@@ -16,10 +22,37 @@ body:
       label: What you propose
       description: >-
         How it should behave. If it changes what an agent may do, say which security
-        invariant in the threat model it touches and why that invariant still holds.
+        invariant in the [threat model](https://github.com/ExecBound/execbound/blob/main/docs/THREAT_MODEL.md)
+        it touches and why that invariant still holds.
     validations:
       required: true
+  - type: dropdown
+    id: placement
+    attributes:
+      label: Placement it concerns
+      description: See docs/INTEGRATIONS.md for what each placement and enforcement mode means.
+      options:
+        - Execute (ExecBound holds the credential and dispatches)
+        - Gate (a plan-bound grant to an external executor)
+        - Monitor (activity only)
+        - Policy, limits or approvals
+        - Console
+        - Install, deployment or operations
+        - Not sure
+  - type: input
+    id: integration
+    attributes:
+      label: Action, provider or agent host (if any)
+      description: For example identity.revoke_sessions on Okta, or a particular MCP host.
   - type: textarea
     id: alternatives
     attributes:
       label: Alternatives you considered
+  - type: dropdown
+    id: testing
+    attributes:
+      label: Could you help test it?
+      options:
+        - Yes, against a non-production tenant or lab I control
+        - Yes, against mocks or fixtures only
+        - "No"

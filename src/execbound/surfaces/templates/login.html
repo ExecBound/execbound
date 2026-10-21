@@ -15,10 +15,10 @@
   {# A loaded plugin's way to reset a forgotten password (#678), with the help page kept for
      a lost second factor, which stays an operator's recovery. Without one, the help line. #}
   {% if recovery_link %}
-  <p><a href="{{ recovery_link.path }}">{{ recovery_link.label }}</a></p>
+  <p class="alternative"><a href="{{ recovery_link.path }}">{{ recovery_link.label }}</a></p>
   {% if service.help_url %}<p class="muted">Lost your authenticator app and recovery codes? <a href="{{ service.help_url }}">Get account help</a></p>{% endif %}
   {% else %}
-  {% if service.help_url %}<p><a href="{{ service.help_url }}">Forgot your password or lost access?</a></p>{% endif %}
+  {% if service.help_url %}<p class="alternative"><a href="{{ service.help_url }}">Forgot your password or lost access?</a></p>{% endif %}
   {% endif %}
   {% if providers or directory %}
   <p class="rule"><span>or continue with</span></p>
@@ -42,9 +42,10 @@
   {% endif %}
   {# A loaded plugin's link, such as the way to sign up. The label is the plugin's text, so it
      is rendered as text by the autoescaping template; it stays a plain link, never a button
-     or a field, below every way to sign in so "or continue with" still reads as signing in. #}
+     or a field, below every way to sign in so "or continue with" still reads as signing in.
+     Each standalone link here is an `alternative`: its own line and its own target (#858). #}
   {% if sign_in_link %}
-  <p><a href="{{ sign_in_link.path }}">{{ sign_in_link.label }}</a></p>
+  <p class="alternative"><a href="{{ sign_in_link.path }}">{{ sign_in_link.label }}</a></p>
   {% endif %}
   {% if setup %}
   <h2 class="eyebrow">Installation setup</h2>

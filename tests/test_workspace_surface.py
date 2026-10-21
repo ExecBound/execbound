@@ -18,6 +18,7 @@ from test_workspace_switching import member_pair
 
 from execbound.app import create_app
 from execbound.resolution.models import SystemClock
+from execbound.surfaces.sessions import SESSION_LIFETIME
 
 pytestmark = pytest.mark.integration
 
@@ -40,7 +41,7 @@ def test_account_activity_renews_server_idle_timeout_without_reissuing_workspace
     session_cookie = next(
         value for value in initial.headers.getlist("set-cookie") if value.startswith("eb_session=")
     )
-    # The browser retains the opaque cookie; the server still enforces fifteen minutes idle.
+    # The browser retains the opaque cookie; the server still enforces twelve hours idle.
     with TestClient(create_app(db, runtime=runtime, human=config), base_url=ORIGIN) as client:
         client.cookies.set("eb_session", grant.token)
         client.cookies.set("eb_csrf", grant.csrf_token)
@@ -50,8 +51,11 @@ def test_account_activity_renews_server_idle_timeout_without_reissuing_workspace
         assert response.status_code == 200
         # A delayed response from A must never overwrite cookies issued by a switch to B.
         assert not response.headers.get_list("set-cookie")
-        assert int(session_cookie.split("Max-Age=")[1].split(";")[0]) > 15 * 60
-        runtime.clock.value += timedelta(minutes=16)
+        assert (
+            int(session_cookie.split("Max-Age=")[1].split(";")[0])
+            > SESSION_LIFETIME.total_seconds()
+        )
+        runtime.clock.value += SESSION_LIFETIME + timedelta(minutes=1)
         assert client.get(API + "/session").status_code == 401
 
 

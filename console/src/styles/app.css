@@ -872,6 +872,9 @@ a.cite:hover { border-color: var(--eb-accent); }
 .workspace-switcher > button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; height: auto; min-height: 34px; padding: 4px 12px; line-height: 1.2; }
 .workspace-current { flex-shrink: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--eb-hold); }
+/* The dot sits in the chip's corner, so the chip keeps room for it: at 12 px of padding the dot
+   painted over the end of "Workspace" (#858). */
+.workspace-switcher > button:has(.workspace-dot) { padding-right: 22px; }
 @media (max-width: 767px) { .workspace-current { max-width: 85px; } }
 /* The workspace menu's own rules load with it, in `shell/workspace-menu.css`. */
 
@@ -925,3 +928,21 @@ a.cite:hover { border-color: var(--eb-accent); }
 .readiness-space-name { margin: 12px 0 4px; font-size: 13px; font-weight: 600; }
 .readiness-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; overflow-wrap: anywhere; }
 .readiness-custom { display: block; }
+
+/* @block kit: a phone, where every control a thumb aims at is at least 44 px tall (#858), the
+   console program's bar over WCAG's 24: buttons of every size, fields, selects, filter chips
+   and the Space switcher. A minimum, so a control already taller, such as a decision button
+   at 50 px, keeps its height, and widths are left alone: the top bar's icon buttons stay
+   34 px wide, since 44 left the Space switcher too little room at 390 px. Last in the file,
+   so it outranks each control's own height wherever that rule sits. */
+@media (max-width: 767px) {
+  .btn, .btn-small { min-height: 44px; }
+  .field input:not([type="checkbox"]):not([type="radio"]), .field select { min-height: 44px; }
+  .chip { min-height: 44px; border-radius: 22px; }
+  .switcher-compact .tenant { min-height: 44px; }
+}
+
+/* @block home: the segmented toggles on a phone, held to the same 44 px (#858) */
+@media (max-width: 767px) {
+  .segments .btn { min-height: 44px; }
+}

@@ -92,6 +92,7 @@ from execbound.policy.store import PolicyStoreError
 from execbound.provider.checkpoint_evidence import CheckpointProvider
 from execbound.provider.connector import ConnectionConfig, MockConnector
 from execbound.provider.sample_accounts import SampleProvider
+from execbound.replay import fixture_keys as replay_keys
 from execbound.replay import sanitize
 from execbound.runtime import Runtime, attestable_ring, executor_verifier
 from execbound.surfaces.configuration import load_runtime, read_configuration, reload_keys
@@ -123,6 +124,13 @@ EXECUTOR_SIGNED_VECTORS = sorted(
     name for name, scenario in BY_NAME.items() if scenario.evidence in {"record", "attestation"}
 )
 CHAPTER_1_JOURNAL_KEY = bytes(range(32))
+# The executor keys replay's regression fixtures re-sign attested evidence under (#819), as a
+# key set of their own, beside the journal key those fixtures re-sign journals under.
+FIXTURE_KEYS = Keys(
+    replay_keys.FIXTURE_ED25519_SEED, replay_keys.FIXTURE_ES256_SCALAR, sanitize.FIXTURE_JOURNAL_KEY
+)
+# Every published executor key set, each refused in every spelling and at settlement.
+KEY_SETS = {"vectors": PUBLISHED_KEYS, "replay fixture": FIXTURE_KEYS}
 
 
 def _key_fields(value: object, *, names: bool = False) -> set[str]:
@@ -187,16 +195,27 @@ def byte_run_keys() -> tuple[set[str], set[bytes], set[str]]:
     return executor, journal, names
 
 
-def fixture_keys() -> tuple[set[bytes], set[str]]:
-    """Every journal key replay's fixture source publishes, and the names it holds them under."""
-    keys: set[bytes] = set()
+def fixture_keys() -> tuple[set[str], set[bytes], set[str]]:
+    """Every key replay's fixture sources publish, as the refused sets hold them: the journal key
+    as written, and the executor keys' public halves, with the names they are held under."""
+    executor: set[str] = set()
+    journal: set[bytes] = set()
     names: set[str] = set()
-    for name in dir(sanitize):
-        value = getattr(sanitize, name)
-        if name.endswith("_KEY") and type(value) is bytes:
-            keys.add(value)
+    for module in (sanitize, replay_keys):
+        for name in dir(module):
+            value = getattr(module, name)
+            if type(value) is not bytes:
+                continue
+            if name.endswith("_KEY"):
+                journal.add(value)
+            elif name.endswith("_SEED"):
+                executor.add(ed25519_public(value).hex())
+            elif name.endswith("_SCALAR"):
+                executor.add(es256_public(value).hex())
+            else:
+                continue
             names.add(name)
-    return keys, names
+    return executor, journal, names
 
 
 def test_the_refused_keys_are_exactly_the_keys_the_vectors_publish():
@@ -222,9 +241,10 @@ def test_the_refused_keys_are_exactly_the_keys_the_vectors_publish():
         "OUTSIDE_JOURNAL_KEY",
     }
     assert executor <= run_executor and journal - {CHAPTER_1_JOURNAL_KEY} <= run_journal
-    fixture, fixture_names = fixture_keys()
-    assert fixture_names == {"FIXTURE_JOURNAL_KEY"}
-    assert PUBLISHED_EXECUTOR_KEYS == executor | run_executor
+    fixture_executor, fixture, fixture_names = fixture_keys()
+    assert fixture_names == {"FIXTURE_JOURNAL_KEY", "FIXTURE_ED25519_SEED", "FIXTURE_ES256_SCALAR"}
+    assert len(fixture_executor) == 2
+    assert PUBLISHED_EXECUTOR_KEYS == executor | run_executor | fixture_executor
     assert PUBLISHED_JOURNAL_KEYS == journal | run_journal | fixture
 
 
@@ -316,9 +336,10 @@ def registered_kinds(admin_engine, tenant):
     return [kind for kind, _ in audit_kinds(admin_engine, tenant) if kind.startswith("executor")]
 
 
+@pytest.mark.parametrize("keys", sorted(KEY_SETS))
 @pytest.mark.parametrize("spelling", SPELLINGS)
 def test_registration_refuses_a_published_key_in_every_spelling(
-    owner, admin_engine, gate_world, spelling
+    owner, admin_engine, gate_world, spelling, keys
 ):
     """Refused as every unusable key is, storing and auditing nothing; the same spelling of a
     key nobody published registers, so what is refused is the material."""
@@ -328,7 +349,7 @@ def test_registration_refuses_a_published_key_in_every_spelling(
         administration.list_executor_keys(owner, tenant),
         registered_kinds(admin_engine, tenant),
     )
-    algorithm, value = spellings(PUBLISHED_KEYS)[spelling]
+    algorithm, value = spellings(KEY_SETS[keys])[spelling]
     with pytest.raises(AdministrationError) as refusal:
         administration.register_executor_key(
             owner, tenant, "published", value, actor, algorithm=algorithm
@@ -397,13 +418,13 @@ def test_the_cli_refuses_to_register_a_published_key(
 # A ring holding the published keys, as one registered before this guard would.
 
 
-def store_published_keys(admin_engine, world):
+def store_published_keys(admin_engine, world, keys=PUBLISHED_KEYS):
     """Write the published executor keys into the tenant's ring under the vectors' own key
     ids, straight into the table: registration refuses them now, and a row this guard
     predates is exactly such a row."""
     tenant = world["identity"].tenant_id
     with admin_engine.begin() as conn:
-        for key_id, (algorithm, public_key) in PUBLISHED_KEYS.public_keys().items():
+        for key_id, (algorithm, public_key) in keys.public_keys().items():
             conn.execute(
                 text(
                     "INSERT INTO execbound.executor_keys "
@@ -588,20 +609,20 @@ def test_the_tenants_own_last_key_is_not_retired_beside_published_ones(
     administration.revoke_executor_key(owner, tenant, "executor-v2", actor)
 
 
-def published_evidence(db, world, execution_id, scheme, **changes) -> bytes:
+def published_evidence(db, world, execution_id, scheme, keys=PUBLISHED_KEYS, **changes) -> bytes:
     """Evidence an executor signs with a published key, as an administrator would paste it."""
     if scheme == "ED25519":
         signed = signed_record(
             db,
             world,
             execution_id,
-            private_key=ed25519(ED25519_SEED),
+            private_key=ed25519(keys.ed25519_seed),
             key_id=ED25519_KEY_ID,
             **changes,
         )
         return json.dumps(signed).encode()
     claims = attestation_claims(db, world, execution_id, **changes)
-    return jws(es256(ES256_SCALAR), {"alg": "ES256", "kid": ES256_KEY_ID}, claims).encode()
+    return jws(es256(keys.es256_scalar), {"alg": "ES256", "kid": ES256_KEY_ID}, claims).encode()
 
 
 def administrators_settlement(db, world, execution_id, evidence: bytes):
@@ -622,21 +643,25 @@ def administrators_settlement(db, world, execution_id, evidence: bytes):
     )
 
 
+@pytest.mark.parametrize("keys", sorted(KEY_SETS))
 @pytest.mark.parametrize("scheme", ["ED25519", "ES256"])
 def test_an_administrator_settles_nothing_from_evidence_a_published_key_signed(
-    db, admin_engine, gate_world, scheme
+    db, admin_engine, gate_world, scheme, keys
 ):
     """`reconcile`, the administrator's exit, weighs evidence at the same verifier: a record or
     an attestation a published key signed is refused and the grant stays as it was, and the
     tenant's own record then settles it."""
     world = gate_world
     tenant = world["identity"].tenant_id
-    store_published_keys(admin_engine, world)
+    store_published_keys(admin_engine, world, KEY_SETS[keys])
     granted = checkpoint(db, world)
     execution_id = granted.view.execution_id
     with pytest.raises(ExecutionError) as refused:
         administrators_settlement(
-            db, world, execution_id, published_evidence(db, world, execution_id, scheme)
+            db,
+            world,
+            execution_id,
+            published_evidence(db, world, execution_id, scheme, KEY_SETS[keys]),
         )
     assert refused.value.code == "INVALID_EVIDENCE"
     row = retained(admin_engine, tenant, execution_id)

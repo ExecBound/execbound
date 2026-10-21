@@ -62,9 +62,9 @@ MAX_PASSWORD = 200
 MAX_EMAIL = 254
 _EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
 
-# The credential a sign-in mints lives exactly as long as a session may be renewed for, so a
-# password session renews for as long as a credential session does and no longer.
-SIGN_IN_LIFETIME = timedelta(hours=8)
+# The credential a sign-in mints lives exactly as long as a session may be renewed for (two
+# days), so a password session renews for as long as a credential session does and no longer.
+SIGN_IN_LIFETIME = timedelta(days=2)
 DEFAULT_RESET_LIFETIME = timedelta(hours=24)
 MIN_RESET_LIFETIME = timedelta(hours=1)
 MAX_RESET_LIFETIME = timedelta(days=14)

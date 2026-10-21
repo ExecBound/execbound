@@ -87,6 +87,7 @@ def test_manifest_maps_exact_tests_and_excludes_private_files(inputs):
         "AV",
         "RF",
         "FD",
+        "TB",
     }
     assert result["test_count"] == len(collected.read_text().splitlines())
     assert {item["path"] for item in result["artifacts"]} == set(evidence.artifact_names())

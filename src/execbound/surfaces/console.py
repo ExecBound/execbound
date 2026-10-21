@@ -52,7 +52,7 @@ from execbound.plugins import NO_PLUGINS, LoadedPlugins, check_added_routes
 from execbound.runtime import Runtime
 from execbound.surfaces.human import HumanConfig, request_guards
 from execbound.surfaces.login_return import canonical, login_location, remember_path
-from execbound.surfaces.sessions import SessionError, load_session, verify_csrf
+from execbound.surfaces.sessions import SessionError, verify_csrf
 
 # What every response outside the console carries: no script or style but the package's own,
 # no frames, no base. `font-src 'self'` is there because the pages take the console's own IBM
@@ -399,12 +399,18 @@ def console_router(
         await guards.boundary(request, keys)
         cookies = guards.cookies(request)
         try:
+            from execbound.directory_store import load_rechecked
+
             session = await run_in_threadpool(
-                load_session,
-                runtime.db,
-                cookies.get(config.cookie("session"), ""),
-                clock=runtime.clock,
+                load_rechecked, runtime, config.directory, cookies.get(config.cookie("session"), "")
             )
+            if session.renewal_due and config.directory is not None:
+                # The shell's load uses up the renewal that is due, so it rechecks a directory
+                # session exactly as `session_for` does: a person disabled at the directory who
+                # only reloads the page is refused here, not on a later API read.
+                from execbound.directory_store import recheck_session
+
+                await run_in_threadpool(recheck_session, runtime, config.directory, session)
         except SessionError as exc:
             # The whole place, the page and the query that says what it shows, rides the
             # signed hint through sign-in or the second factor; `canonical` keeps only what a

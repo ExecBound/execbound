@@ -632,6 +632,21 @@ def test_xw9_the_menu_by_keyboard_and_pointer(
     expect(menu).to_have_count(0)
 
 
+DOT_COVERS_LABEL = """
+() => {
+  const button = document.querySelector('.workspace-switcher > button');
+  const word = document.createRange();
+  word.selectNodeContents(button.firstChild);
+  const label = word.getBoundingClientRect();
+  const name = button.querySelector('.workspace-current').getBoundingClientRect();
+  const dot = button.querySelector('.workspace-dot').getBoundingClientRect();
+  const meets = (a, b) =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  return meets(label, dot) || meets(name, dot);
+}
+"""
+
+
 @pytest.mark.parametrize("width", [1280, 390])
 def test_xw12_the_switcher_shows_what_waits_elsewhere_and_passes_the_audit(
     console_page, console_gateway, runtime, db, admin_engine, seeded, world, width
@@ -662,6 +677,9 @@ def test_xw12_the_switcher_shows_what_waits_elsewhere_and_passes_the_audit(
     )
     expect(trigger).to_be_visible()
     expect(console_page.locator(".workspace-dot")).to_be_visible()
+    # The dot sits clear of both lines of the chip; it painted over the end of "Workspace"
+    # before (#858).
+    assert not console_page.evaluate(DOT_COVERS_LABEL), width
     trigger.click()
     menu = console_page.get_by_role("listbox", name="Workspaces")
     waiting = menu.get_by_role("option", name=re.compile("^Customer A"))
@@ -675,3 +693,74 @@ def test_xw12_the_switcher_shows_what_waits_elsewhere_and_passes_the_audit(
         assert 0 <= box["x"] and box["x"] + box["width"] <= viewport["width"], box
         if width == 390:
             assert box["height"] >= 44, box
+
+
+def test_tb_the_menu_opens_a_workspace_on_a_trusted_browser_with_no_code(
+    chromium, runtime, db, admin_engine, seeded
+):
+    """On a browser the account trusted two days ago, with the code behind it long past the
+    switch's carry, the menu says nothing about a second factor for the other workspace and
+    choosing it opens it with no `/mfa` on the way (#859)."""
+    import secrets
+    from datetime import timedelta
+
+    from test_console_api_step_up import stale
+    from test_trusted_browsers import aged, granted
+    from test_workspace_switching import RING, assurance_of, verified_pair
+
+    from execbound.app import create_app
+    from execbound.surfaces.human import HumanConfig
+    from execbound.surfaces.tokens import TokenKeys
+
+    runtime.clock = SystemClock()
+    first, second = seeded["tenants"]
+    grant, current, account, _, _ = verified_pair(db, admin_engine, seeded)
+    cookie, _, _ = granted(db, admin_engine, current)
+    aged(admin_engine, account, timedelta(days=2))
+    stale(admin_engine, first, current.session_id, minutes=40)
+    _name(admin_engine, (first, second), ("Personal", "Team"))
+    keys = TokenKeys("browser-v1", {"browser-v1": secrets.token_bytes(32)})
+
+    def app(origin):
+        return create_app(db, runtime=runtime, human=HumanConfig(origin, keys, mfa=RING))
+
+    with serve(app) as gateway, chromium.new_context(base_url=gateway) as context:
+        page = context.new_page()
+        page.set_default_timeout(ACTION_TIMEOUT_MS)
+        page.add_init_script(COLLECT)
+        page.add_init_script(path=str(AXE))
+        visited: list[str] = []
+        page.on("request", lambda request: visited.append(request.url))
+        context.add_cookies(
+            [
+                {
+                    "name": name,
+                    "value": value,
+                    "url": gateway,
+                    "httpOnly": True,
+                    "sameSite": same_site,
+                }
+                for name, value, same_site in (
+                    ("eb_session", grant.token, "Strict"),
+                    ("eb_csrf", grant.csrf_token, "Strict"),
+                    ("eb_account", grant.account_token, "Strict"),
+                    ("eb_trust", cookie, "Lax"),
+                )
+            ]
+        )
+        page.goto("/activity")
+        expect(page.get_by_role("heading", level=1)).to_have_text("Activity")
+        page.get_by_role("button", name=re.compile(r"^Workspace.*Personal")).click()
+        menu = page.get_by_role("listbox", name="Workspaces")
+        team = menu.get_by_role("option", name=re.compile("^Team"))
+        expect(team).to_be_visible()
+        expect(team).not_to_contain_text("second factor")
+        clean(page, "the menu on a trusted browser")
+        team.click()
+        expect(page.get_by_role("button", name=re.compile(r"^Workspace.*Team"))).to_be_visible()
+        selected = page.request.get(gateway + "/api/console/v1/session").json()
+        assert selected["tenant"]["tenant_id"] == str(second)
+        assert not [url for url in visited if url.split("?")[0].endswith("/mfa")], visited
+        assured = assurance_of(admin_engine, second, selected["generation"])
+        assert assured["method"] == "trusted"
+        clean(page, "the other workspace, opened on trust")

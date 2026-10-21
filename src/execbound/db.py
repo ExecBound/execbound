@@ -14,7 +14,7 @@ from sqlalchemy.engine import URL, Connection, RowMapping
 
 from execbound.connection import connect_args, database_url
 
-SCHEMA_REVISION = "0099_scout_agents_page"
+SCHEMA_REVISION = "0102_directory_recheck_claim"
 # SECURITY DEFINER functions: owned by the schema owner, executable by the runtime role unless
 # dormant (below), and the only way the runtime writes principals, credentials, scopes, a
 # session's expiry, a sandbox claim or a sandbox's fact observation times.
@@ -338,9 +338,46 @@ FUNCTIONS = (
     (
         "directory_recheck",
         "p_credential uuid, p_refresh_ciphertext text, p_refresh_key_id text, "
-        "p_now timestamp with time zone",
+        "p_now timestamp with time zone, p_claimed timestamp with time zone",
     ),
     ("directory_revoke", "p_credential uuid, p_reason text, p_now timestamp with time zone"),
+    # Claiming a directory recheck (0100, 0102): one of several simultaneous requests calls the
+    # directory, by setting `recheck_claimed_at` only while `verified_at` reads the value it saw
+    # and no other claim stands. The claim never moves `verified_at`; only the directory's yes
+    # does (`directory_recheck`).
+    (
+        "directory_recheck_claim",
+        "p_credential uuid, p_seen timestamp with time zone, p_now timestamp with time zone",
+    ),
+    ("directory_recheck_release", "p_credential uuid, p_claimed timestamp with time zone"),
+    # Trusted browsers (0101): an account's trusts are written only through these. The runtime
+    # reads its own account's rows of `trusted_browsers` and writes none.
+    (
+        "trusted_browser_add",
+        "p_tenant uuid, p_session uuid, p_browser uuid, p_hash text, p_label text, "
+        "p_method text, p_verified_at timestamp with time zone, "
+        "p_now timestamp with time zone",
+    ),
+    (
+        "trusted_browser_use",
+        "p_tenant uuid, p_session uuid, p_browser uuid, p_hash text, p_token_hash text, "
+        "p_csrf_hash text, p_now timestamp with time zone",
+    ),
+    (
+        "trusted_browser_remove",
+        "p_account uuid, p_browser uuid, p_now timestamp with time zone",
+    ),
+    ("trusted_browser_remove_all", "p_account uuid, p_now timestamp with time zone"),
+    (
+        "trusted_browser_policy",
+        "p_tenant uuid, p_principal uuid, p_allow boolean, p_now timestamp with time zone",
+    ),
+    # "Sign out other devices" for a session with no account sign-in (0101): it moves the
+    # linked account's version, as the account path does, which ends every trust.
+    (
+        "account_sign_out_others",
+        "p_tenant uuid, p_session uuid, p_now timestamp with time zone",
+    ),
     # Personal access tokens (0063): an administrator's own bearer token for the console
     # API, minted with a discarded secret alongside its backing credential in `credentials`.
     (
@@ -463,6 +500,7 @@ TABLES = (
     "user_identities",
     "user_factors",
     "user_passkeys",
+    "trusted_browsers",
     "community_allocations",
     "account_login_proofs",
     "account_sessions",

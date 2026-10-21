@@ -159,12 +159,12 @@ Each of these follows one successful access change. A change that promotes a per
 | `human_sign_in.microsoft` | A person signed in with a Microsoft work account. `subject` is the account's tenant and object identifiers, joined by a colon. | `credential_id`, `kind`, `expires_at`, `subject`, `subject_digest` |
 | `human_sign_in.directory` | A person signed in through the workspace's own identity provider. | `credential_id`, `kind`, `provider_id`, `subject`, `subject_digest`, `expires_at` |
 | `human_session.issued` | A console session was issued after a sign-in. | `session_id`, `credential_id`, `kind`, `expires_at` |
-| `human_session.revoked` | A console session ended before it expired: signed out, ended from another device, ended by an administrator, or ended because the credential under it was. | `session_id`, `credential_id`, `principal_id`, `reason`, `actor_credential_id` |
+| `human_session.revoked` | A console session ended before it expired: signed out, ended from another device, ended by an administrator, ended to admit a sixth session of one credential (`reason` `SESSION_CAPACITY`), or ended because the credential under it was. | `session_id`, `credential_id`, `principal_id`, `reason`, `actor_credential_id` |
 | `workspace.entered` | A person switched their session into another workspace they belong to. | `session_id` |
 
 ## Account and account security
 
-Most of these are written by a person acting on their own account; `account.resolve` and `account_security.requirement_changed` are an administrator's. The `account_security.*` kinds carry the session that acted.
+Most of these are written by a person acting on their own account; `account.resolve`, `account_security.requirement_changed` and `account_security.trusted_browsers_changed` are an administrator's. The `account_security.*` kinds carry the session that acted.
 
 | Kind | Written when | Payload |
 | --- | --- | --- |
@@ -177,10 +177,12 @@ Most of these are written by a person acting on their own account; `account.reso
 | `account_security.verification_failed` | A second-factor code or passkey did not verify. | `session_id`, `method` |
 | `account_security.code_reused` | An authenticator code for a step this factor already used, still inside the current window, was presented again. It is not accepted and is not counted as a failure. | `session_id` |
 | `account_security.assurance_carried` | A person switched into this workspace within thirty minutes of verifying their second factor in the workspace they left, so the new session carries that verification and asks for no code. Written in the workspace switched into. It names no other workspace: the workspace and session the verification came from are recorded for the account alone (see [DATA_MODEL.md](DATA_MODEL.md)). | `session_id` (the new session), `account_session_id` (the account sign-in it belongs to), `method`, `verified_at` (when the factor was verified, which the new session's thirty minutes still count from) |
+| `account_security.trusted_sign_in` | A person signed in, or switched into this workspace, on a browser they trusted for thirty days, so the second factor was not asked for again. The session's assurance keeps the trust's original verification, so the thirty-minute step-up still asks for a code. Written in the workspace signed in to. | `session_id` (the session the trust satisfied), `browser_id` (the trust used), `method` (how the factor behind the trust was verified), `verified_at` (when it was, which the step-up still counts from) |
 | `account_security.recovery_used` | A person verified with one of their recovery codes. | `session_id`, `method` |
 | `account_security.recovery_replaced` | A person replaced their recovery codes. | `session_id` |
 | `account_security.factor_disabled` | A person removed their authenticator app. | `session_id` |
 | `account_security.requirement_changed` | An administrator changed who in the workspace must use a second factor: no one beyond those who choose to, administrators, or everyone. | `session_id`, `requirement` |
+| `account_security.trusted_browsers_changed` | An administrator allowed or forbade trusted browsers in the workspace: whether a sign-in on a browser a person trusted for thirty days may skip the second factor. | `session_id`, `allowed` |
 | `account_security.passkey_added` | A person registered a passkey. | `session_id` |
 | `account_security.passkey_removed` | A person removed a passkey. | `session_id` |
 | `account_security.password_changed` | A person changed their account's password, presenting the current one. | `session_id` |

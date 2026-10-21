@@ -136,6 +136,8 @@ TOKEN_REFUSED: frozenset[tuple[str, str]] = frozenset(
         # The owner's own account.
         (P + "/settings/password", "POST"),
         (P + "/settings/sessions/revoke-others", "POST"),
+        (P + "/settings/trusted-browsers/remove", "POST"),
+        (P + "/settings/trusted-browsers/remove-all", "POST"),
         (P + "/settings/weekly-summary", "POST"),
         (P + "/account/profile", "POST"),
         (P + "/account/requests", "POST"),

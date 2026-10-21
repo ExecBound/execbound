@@ -33,6 +33,7 @@ from test_runtime import world as world
 from execbound.app import create_app
 from execbound.db import UnsafeDatabaseRole
 from execbound.passwords import (
+    SIGN_IN_LIFETIME,
     PasswordError,
     bind_identity,
     issue_reset,
@@ -105,13 +106,15 @@ class StandIn:
 
 
 def form_values(html, action):
+    """What a browser posts from the form at `action` untouched: every named input with a
+    value, except a checkbox nobody ticked, which a browser leaves out."""
     for found, body in re.findall(r'<form[^>]*action="([^"]+)"[^>]*>(.*?)</form>', html, re.S):
         if found == action:
             return {
                 name: unescape(value)
-                for name, value in re.findall(
-                    r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"', body
-                )
+                for tag in re.findall(r"<input\b[^>]*>", body)
+                if 'type="checkbox"' not in tag or re.search(r"\schecked\b", tag)
+                for name, value in re.findall(r'name="([^"]+)"[^>]*value="([^"]*)"', tag)
             }
     raise AssertionError(f"No form posting to {action}")
 
@@ -1612,7 +1615,7 @@ def test_starting_sign_in_or_a_link_each_delete_a_leftover_signup_intent(
 
 def test_a_session_lasts_no_longer_than_a_credential_one(db, runtime, signed_up):
     identity = sign_in_with_password(db, ADDRESS, PASSWORD, clock=runtime.clock)
-    assert identity.expires_at - runtime.clock.now() == timedelta(hours=8)
+    assert identity.expires_at - runtime.clock.now() == SIGN_IN_LIFETIME == timedelta(days=2)
 
 
 # The pages' policy names exactly the hosts the deployment's own buttons redirect to.
@@ -1936,7 +1939,9 @@ def test_rp12_core_alone_shows_no_reset(db, runtime, connector, monkeypatch):
         section = _login_section(client.get("/login").text)
         assert client.get("/reset-password").status_code == 404
         assert client.get("/reset-password/verify").status_code == 404
-    assert f'<p><a href="{help_url}">Forgot your password or lost access?</a></p>' in section
+    assert (
+        f'<p class="alternative"><a href="{help_url}">Forgot your password or lost access?</a></p>'
+    ) in section
     assert "Lost your authenticator app" not in section
     assert re.findall(r'<a href="([^"]+)"', section) == [help_url]
 
@@ -1956,7 +1961,13 @@ def test_rp12_core_alone_shows_no_reset(db, runtime, connector, monkeypatch):
         wrong = client.post("/session/password", data=values, headers={"Origin": ORIGIN})
     for answer in (page, wrong):
         section = _login_section(answer.text)
-        assert section.count('<p><a href="/sample-plugin/reset">Forgot your password?</a></p>') == 1
+        assert (
+            section.count(
+                '<p class="alternative">'
+                '<a href="/sample-plugin/reset">Forgot your password?</a></p>'
+            )
+            == 1
+        )
         assert (
             '<p class="muted">Lost your authenticator app and recovery codes? '
             f'<a href="{help_url}">Get account help</a></p>'

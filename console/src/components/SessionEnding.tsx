@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // The notice before a session's hard end (#678). A visible console renews its session on every
-// read, so the fifteen-minute idle end is reached only in a hidden tab, where nothing would be
-// seen; what can surprise a person is the end no renewal passes: eight hours after signing in, or
-// the setup credential's own expiry when that is sooner. Two minutes before it, measured on the
-// server's clock, this says when and what to do. It extends nothing and offers nothing that
-// would, never takes focus and cannot be dismissed. When the end passes, the next read answers
-// 401 and the person signs in again back to this page.
+// read, so the end after twelve hours without activity is reached only in a tab left alone, where
+// nothing would be seen; what can surprise a person is the end no renewal passes: two days after
+// signing in, or the setup credential's own expiry when that is sooner. Two minutes before it,
+// measured on the server's clock, this says when and what to do. It extends nothing and offers
+// nothing that would, never takes focus and cannot be dismissed. When the end passes, the next
+// read answers 401 and the person signs in again back to this page.
 
 import { Link } from "@tanstack/react-router";
 import { useEffect, useReducer } from "react";
@@ -66,7 +66,7 @@ function Notice({ endsAt, setup, signInAgain }: { endsAt: string; setup: boolean
   return (
     <div className="banner banner-ending" role="status">
       <span>
-        You will be signed out at {at}, eight hours after you signed in.{" "}
+        You will be signed out at {at}, two days after you signed in.{" "}
         {kept
           ? "Sign in again to keep working. What you have typed on this page is kept."
           : "Save what you are doing, then sign in again to keep working."}

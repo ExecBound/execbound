@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """When a console session ends, and what the session view says about it (#678).
 
-A session lasts fifteen minutes and renews on any authenticated read once half of that has
-passed, never past the credential's own expiry or eight hours after sign-in. The first test
+A session lasts twelve hours without activity and renews on any authenticated read once seven
+and a half minutes have passed since it was last extended, never past the credential's own expiry
+or two days after sign-in. The first test
 holds the renewal for the session a setup credential opens, read as a visible console reads
 it: once a minute. The second holds the hard end the session view names, which no renewal
 moves, and why it ends then.
@@ -70,7 +71,7 @@ def test_sn7_a_setup_credential_session_renews_while_it_is_read(
     db, runtime, world, admin_engine, built
 ):
     """Read once a minute for twenty minutes, a setup-credential session stays signed in and
-    its cookies are rewritten after each half-life; left alone for sixteen minutes, it ends.
+    its cookies are rewritten every `RENEW_AFTER`; left alone for twelve hours, it ends.
 
     The session is not account-bound and passes through no skew-fenced function once it is
     exchanged, so the injected clock advances freely.
@@ -102,15 +103,15 @@ def test_sn7_a_setup_credential_session_renews_while_it_is_read(
                     abs(age - SESSION_LIFETIME.total_seconds()) <= 1 for age in ages.values()
                 )
                 renewals.append(minute)
-        # Half of fifteen minutes is seven and a half: the first read after it renews, and the
-        # first read past the renewed row's own half-life renews again.
+        # The first read past seven and a half minutes renews, and the first read that long
+        # after the renewed row's own extension renews again.
         assert renewals == [8, 16], renewals
-        # A page load past the half-life renews the same way.
+        # A page load past the cadence renews the same way.
         clock.value += timedelta(minutes=8)
         page = client.get("/activity")
         assert page.status_code == 200, page.text
         assert set(_renewed(page)) == {"eb_session", "eb_csrf"}
-        clock.value += timedelta(minutes=16)
+        clock.value += SESSION_LIFETIME + timedelta(minutes=1)
         ended = client.get(API + "/session")
         assert ended.status_code == 401, ended.text
         assert ended.json()["code"] == "SESSION_REQUIRED"
@@ -131,9 +132,9 @@ def _row(admin_engine, tenant, session_id) -> dict:
         )
 
 
-def _just_short_of_eight_hours(session, row) -> None:
-    """A sign-in credential is minted for eight hours just before its session row: the end is
-    the credential's, a moment short of the row's own eight hours, and it is a sign-in's."""
+def _just_short_of_two_days(session, row) -> None:
+    """A sign-in credential is minted for two days just before its session row: the end is
+    the credential's, a moment short of the row's own two days, and it is a sign-in's."""
     assert session.ends_at == row["credential_expires_at"]
     gap = row["created_at"] + SESSION_ABSOLUTE - session.ends_at
     assert timedelta(0) <= gap < timedelta(seconds=5), gap
@@ -146,11 +147,11 @@ def test_sn8_the_view_names_the_hard_end_and_why(
     # A password sign-in through an account, then the session a switch opens from it.
     grant, current, _, _ = member_pair(db, admin_engine, seeded)
     row = _row(admin_engine, seeded["tenants"][0], grant.session_id)
-    _just_short_of_eight_hours(current, row)
+    _just_short_of_two_days(current, row)
     switched = workspaces.switch_workspace(db, current, grant.account_token, seeded["tenants"][1])
     moved = load_session(db, switched.token)
-    # The switched-to row was created later, but its end is still the account sign-in's eight
-    # hours, which the account session fixed when it opened with the first row.
+    # The switched-to row was created later, but its end is still the account sign-in's two
+    # days, which the account session fixed when it opened with the first row.
     assert abs(moved.ends_at - (row["created_at"] + SESSION_ABSOLUTE)) < timedelta(seconds=5)
     assert moved.end_reason == "sign_in"
 
@@ -159,12 +160,12 @@ def test_sn8_the_view_names_the_hard_end_and_why(
         db, sign_in_with_password(db, ADDRESS, PASSWORD, clock=runtime.clock), clock=runtime.clock
     )
     session = load_session(db, legacy.token, clock=runtime.clock)
-    _just_short_of_eight_hours(session, _row(admin_engine, signed_up["tenant"], legacy.session_id))
+    _just_short_of_two_days(session, _row(admin_engine, signed_up["tenant"], legacy.session_id))
 
-    # A setup credential that expires within the hour, exchanged at `POST /session` and read
-    # through the session view; then a renewal moves `expires_at` and never `ends_at`.
+    # A setup credential that expires an hour after the idle limit, exchanged at `POST /session`
+    # and read through the session view; then a renewal moves `expires_at` and never `ends_at`.
     clock, admin = world["clock"], world["admin"]
-    ends = clock.now() + timedelta(hours=1)
+    ends = clock.now() + SESSION_LIFETIME + timedelta(hours=1)
     with admin_engine.begin() as conn:
         conn.execute(
             text(
@@ -189,10 +190,10 @@ def test_sn8_the_view_names_the_hard_end_and_why(
         assert later.json()["end_reason"] == "setup_credential"
 
 
-def test_sn8_a_directory_session_ends_eight_hours_after_sign_in(
+def test_sn8_a_directory_session_ends_two_days_after_sign_in(
     db, settings, cast, clock, admin_engine
 ):
-    """Directory sign-in mints its credential for eight hours as a password sign-in does."""
+    """Directory sign-in mints its credential for two days as a password sign-in does."""
     from test_directory_store import ANOTHER_SUBJECT, account, enabled
 
     from execbound import directory_store as store
@@ -210,4 +211,4 @@ def test_sn8_a_directory_session_ends_eight_hours_after_sign_in(
     # Bound to no account, it is the session the tolerance keeps from reading as a setup
     # credential's.
     assert session.account_id is None
-    _just_short_of_eight_hours(session, _row(admin_engine, cast["tenant"], granted.session_id))
+    _just_short_of_two_days(session, _row(admin_engine, cast["tenant"], granted.session_id))

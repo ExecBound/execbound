@@ -18,7 +18,7 @@ from execbound.surfaces.console_api.guards import ApiGuards
 from execbound.surfaces.human import HumanConfig, _session_cookies
 from execbound.surfaces.login_return import remember_section
 from execbound.surfaces.sections import Section
-from execbound.workspaces import list_workspaces, switch_workspace
+from execbound.workspaces import list_workspaces, switch_workspace, trusted_entry
 
 
 class WorkspaceBody(BaseModel):
@@ -78,6 +78,8 @@ def workspace_routes(
             request.cookies.get(config.cookie("account"), ""),
             clock=runtime.clock,
             waiting=True,
+            # A workspace this browser's trust opens asks for nothing more (#859).
+            trust=request.cookies.get(config.cookie("trust")),
         )
         return WorkspaceList(workspaces=[WorkspaceItem.model_validate(item) for item in available])
 
@@ -96,6 +98,14 @@ def workspace_routes(
             request.cookies.get(config.cookie("account"), ""),
             UUID(body.tenant_id),
             section=body.section,
+            clock=runtime.clock,
+        )
+        # A destination whose factor this browser's trust satisfies opens with no code (#859).
+        grant = await run_in_threadpool(
+            trusted_entry,
+            runtime.db,
+            grant,
+            request.cookies.get(config.cookie("trust")),
             clock=runtime.clock,
         )
         # Renewal of the source session must never overwrite the destination cookies.

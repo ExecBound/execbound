@@ -47,6 +47,8 @@ ROUTES = [
     (API + "/settings", "GET"),
     (API + "/settings/sessions/revoke-others", "POST"),
     (API + "/settings/password", "POST"),
+    (API + "/settings/trusted-browsers/remove", "POST"),
+    (API + "/settings/trusted-browsers/remove-all", "POST"),
     (API + "/tenant", "GET"),
     (API + "/tenant/mode", "POST"),
     (API + "/tenant/deadline", "POST"),
@@ -507,6 +509,17 @@ def test_a_tenant_change_needs_the_token_the_origin_and_json(db, runtime, admin_
         assert admin.get(API + "/tenant/stop").status_code == 405
         assert admin.post(API + "/tenant", {}).status_code == 405
         assert admin.get(API + "/tenant").json()["stop"] is None
+        # The personal trusted-browser removals take the same token, Origin and JSON (#859).
+        for path, sent in (
+            ("/settings/trusted-browsers/remove", {"browser_id": str(uuid4())}),
+            ("/settings/trusted-browsers/remove-all", {}),
+        ):
+            wrong = admin.post(API + path, sent, csrf="wrong")
+            assert wrong.status_code == 403 and wrong.json()["code"] == "INVALID_CSRF", path
+            assert admin.post(API + path, sent, origin="http://evil.example").status_code == 403
+            assert admin.post(API + path, sent, content_type="text/plain").status_code == 415
+            assert admin.post(API + path, raw=b"not json").json()["code"] == "INVALID_BODY"
+            assert admin.get(API + path).status_code == 405
 
 
 def test_the_session_carries_the_stop_for_everyone(db, runtime, admin_engine, world):
@@ -641,6 +654,8 @@ def test_ak10_my_account_states_the_factor_its_passkeys_and_recovery_codes(
             "recovery_remaining": 0,
             "requirement": "optional",
             "available": True,
+            "trusted": [],
+            "trust_allowed": True,
         }
         session = load_session(db, client.client.cookies.get("eb_session"), clock=runtime.clock)
         seed = mfa.begin_enrollment(db, session, ring, clock=runtime.clock)
@@ -666,6 +681,8 @@ def test_ak10_my_account_states_the_factor_its_passkeys_and_recovery_codes(
             "recovery_remaining": 7,
             "requirement": "optional",
             "available": True,
+            "trusted": [],
+            "trust_allowed": True,
         }
         # No sealed seed, recovery digest or passkey identifier reaches the answer.
         with admin_engine.connect() as conn:

@@ -1,0 +1,1300 @@
+{
+ "candidates": [],
+ "expected": {
+  "baseline": {
+   "complete": false,
+   "decisions": [
+    {
+     "action": "endpoint.isolate",
+     "counts": [
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "principal-autonomous-isolation",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 0,
+       "rule_id": "tenant-total-isolation",
+       "unresolved_targets": 0
+      }
+     ],
+     "dependencies": [],
+     "effect": "UNRESOLVED",
+     "execution_id": "00000000-0000-4000-8000-00000000000f",
+     "mode": "ENFORCE",
+     "obligation_ids": [],
+     "outcome": "UNRESOLVED",
+     "provenance": "UNKNOWN",
+     "reasons": [
+      "INCOMPLETE_PRIOR_HISTORY",
+      "INVALID_DECISION_SEQUENCE",
+      "INVALID_TRANSITION_SEQUENCE"
+     ],
+     "recorded_effect": "ELIGIBLE",
+     "sequence": 1,
+     "settlement_tier": "ASSERTED",
+     "stage": "ADMISSION"
+    },
+    {
+     "action": "endpoint.isolate",
+     "counts": [
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 1,
+       "rule_id": "principal-autonomous-isolation",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 1,
+       "rule_id": "tenant-total-isolation",
+       "unresolved_targets": 0
+      }
+     ],
+     "dependencies": [
+      "00000000-0000-4000-8000-00000000000f"
+     ],
+     "effect": "UNRESOLVED",
+     "execution_id": "00000000-0000-4000-8000-00000000000d",
+     "mode": "ENFORCE",
+     "obligation_ids": [],
+     "outcome": "UNRESOLVED",
+     "provenance": "UNKNOWN",
+     "reasons": [
+      "INCOMPLETE_PRIOR_HISTORY",
+      "INVALID_DECISION_SEQUENCE",
+      "INVALID_TRANSITION_SEQUENCE"
+     ],
+     "recorded_effect": "ELIGIBLE",
+     "sequence": 3,
+     "settlement_tier": "ATTESTED",
+     "stage": "ADMISSION"
+    },
+    {
+     "action": "endpoint.isolate",
+     "counts": [
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 2,
+       "rule_id": "principal-autonomous-isolation",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 2,
+       "rule_id": "tenant-total-isolation",
+       "unresolved_targets": 0
+      }
+     ],
+     "dependencies": [
+      "00000000-0000-4000-8000-00000000000d",
+      "00000000-0000-4000-8000-00000000000f"
+     ],
+     "effect": "UNRESOLVED",
+     "execution_id": "00000000-0000-4000-8000-000000000001",
+     "mode": "ENFORCE",
+     "obligation_ids": [],
+     "outcome": "UNRESOLVED",
+     "provenance": "UNKNOWN",
+     "reasons": [
+      "INCOMPLETE_PRIOR_HISTORY",
+      "INVALID_DECISION_SEQUENCE",
+      "INVALID_TRANSITION_SEQUENCE"
+     ],
+     "recorded_effect": "ELIGIBLE",
+     "sequence": 5,
+     "settlement_tier": "ATTESTED",
+     "stage": "ADMISSION"
+    },
+    {
+     "action": "endpoint.isolate",
+     "counts": [
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 3,
+       "rule_id": "principal-autonomous-isolation",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 3,
+       "rule_id": "tenant-total-isolation",
+       "unresolved_targets": 0
+      }
+     ],
+     "dependencies": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-00000000000d",
+      "00000000-0000-4000-8000-00000000000f"
+     ],
+     "effect": "UNRESOLVED",
+     "execution_id": "00000000-0000-4000-8000-00000000001c",
+     "mode": "ENFORCE",
+     "obligation_ids": [],
+     "outcome": "UNRESOLVED",
+     "provenance": "UNKNOWN",
+     "reasons": [
+      "INCOMPLETE_PRIOR_HISTORY",
+      "INVALID_DECISION_SEQUENCE",
+      "INVALID_TRANSITION_SEQUENCE"
+     ],
+     "recorded_effect": "ELIGIBLE",
+     "sequence": 7,
+     "settlement_tier": "PROVIDER_VERIFIED",
+     "stage": "ADMISSION"
+    },
+    {
+     "action": "endpoint.isolate",
+     "counts": [
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 4,
+       "rule_id": "principal-autonomous-isolation",
+       "unresolved_targets": 0
+      },
+      {
+       "confirmed_targets": 0,
+       "possible_targets": 4,
+       "rule_id": "tenant-total-isolation",
+       "unresolved_targets": 0
+      }
+     ],
+     "dependencies": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-00000000000d",
+      "00000000-0000-4000-8000-00000000000f",
+      "00000000-0000-4000-8000-00000000001c"
+     ],
+     "effect": "UNRESOLVED",
+     "execution_id": "00000000-0000-4000-8000-000000000011",
+     "mode": "ENFORCE",
+     "obligation_ids": [],
+     "outcome": "UNRESOLVED",
+     "provenance": "UNKNOWN",
+     "reasons": [
+      "INCOMPLETE_PRIOR_HISTORY",
+      "INVALID_DECISION_SEQUENCE",
+      "INVALID_TRANSITION_SEQUENCE"
+     ],
+     "recorded_effect": "ELIGIBLE",
+     "sequence": 9,
+     "settlement_tier": null,
+     "stage": "ADMISSION"
+    }
+   ],
+   "issues": [
+    "INCOMPLETE_HISTORY",
+    "INVALID_DECISION_SEQUENCE",
+    "INVALID_TRANSITION_SEQUENCE"
+   ]
+  },
+  "candidates": []
+ },
+ "export": {
+  "bundles": [
+   {
+    "approval_policies": "\npermit(principal, action == ExecBound::Action::\"endpoint.isolate\", resource)\nwhen { resource.is_production };\n",
+    "authorization_policies": "\npermit(principal, action == ExecBound::Action::\"endpoint.isolate\", resource)\nwhen {\n    principal.tenant == resource.tenant && resource.role == \"workstation\" &&\n    resource.incident_status == \"OPEN\" && resource.incident_severity == \"CRITICAL\"\n};\nforbid(principal, action == ExecBound::Action::\"endpoint.isolate\", resource)\nwhen { resource.role == \"domain_controller\" || resource.criticality == 4 };\n",
+    "bundle_id": "00000000-0000-4000-8000-00000000001d",
+    "cedar_schema": "{\"ExecBound\":{\"actions\":{\"endpoint.isolate\":{\"appliesTo\":{\"context\":{\"attributes\":{},\"type\":\"Record\"},\"principalTypes\":[\"Agent\"],\"resourceTypes\":[\"Endpoint\"]}}},\"entityTypes\":{\"Agent\":{\"shape\":{\"attributes\":{\"tenant\":{\"type\":\"String\"}},\"type\":\"Record\"}},\"Endpoint\":{\"shape\":{\"attributes\":{\"account\":{\"type\":\"String\"},\"criticality\":{\"type\":\"Long\"},\"environment\":{\"type\":\"String\"},\"incident_severity\":{\"type\":\"String\"},\"incident_status\":{\"type\":\"String\"},\"is_production\":{\"type\":\"Boolean\"},\"role\":{\"type\":\"String\"},\"tenant\":{\"type\":\"String\"}},\"type\":\"Record\"}}}}}",
+    "limits": [
+     {
+      "action": "endpoint.isolate",
+      "budget": "autonomous",
+      "max_targets": 10,
+      "on_exceed": "REQUIRE_APPROVAL",
+      "rule_id": "principal-autonomous-isolation",
+      "scope": "principal",
+      "window_seconds": 3600
+     },
+     {
+      "action": "endpoint.isolate",
+      "budget": "total",
+      "max_targets": 20,
+      "on_exceed": "DENY",
+      "rule_id": "tenant-total-isolation",
+      "scope": "tenant",
+      "window_seconds": 900
+     }
+    ],
+    "mappings": [
+     {
+      "account_id": "00000000-0000-4000-8000-000000000015",
+      "context_contract_version": "endpoint-isolation.v1",
+      "mapping_version": "version-000002",
+      "operation_ref": "endpoint.isolate",
+      "schema_version": "action.v1"
+     }
+    ],
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   }
+  ],
+  "events": [
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "c8e91e45ed2394a20e417370c37b1e7f9b8c94065aaa8e07c71e4fbd12751b1f",
+    "event_id": "00000000-0000-4000-8000-00000000000c",
+    "kind": "execution.evaluated",
+    "occurred_at": "2026-10-20T17:53:07.349243Z",
+    "payload": {
+     "approval": null,
+     "bundle_id": "00000000-0000-4000-8000-00000000001d",
+     "canonical_target_id": "00000000-0000-4000-8000-000000000020",
+     "decision": {
+      "bundle_id": "00000000-0000-4000-8000-00000000001d",
+      "content_hash": "1faac571e33e35231171a901770dcc4ffe2e1e93d017c471b4556f499a0f4ca0",
+      "effect": "ELIGIBLE",
+      "obligation_ids": [],
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reasons": []
+     },
+     "execution_id": "00000000-0000-4000-8000-00000000000f",
+     "finished_time": "2026-10-20T17:53:07.317861Z",
+     "frozen": {
+      "alias_id": null,
+      "context_contract_version": "endpoint-isolation.v1",
+      "facts": [
+       {
+        "dependencies": [],
+        "name": "role",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "workstation"
+       },
+       {
+        "dependencies": [],
+        "name": "environment",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "development"
+       },
+       {
+        "dependencies": [],
+        "name": "criticality",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": 1
+       },
+       {
+        "dependencies": [
+         "environment"
+        ],
+        "name": "is_production",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "DERIVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": false
+       },
+       {
+        "dependencies": [],
+        "name": "incident_status",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "OPEN"
+       },
+       {
+        "dependencies": [],
+        "name": "incident_severity",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "CRITICAL"
+       }
+      ],
+      "intent": {
+       "account_id": "00000000-0000-4000-8000-000000000015",
+       "action": "endpoint.isolate",
+       "arguments": {},
+       "principal_id": "00000000-0000-4000-8000-00000000001b",
+       "provider": "mock_crowdstrike",
+       "provider_operation": "contain",
+       "resource_type": "endpoint",
+       "target_id": "00000000-0000-4000-8000-00000000000e",
+       "tenant_id": "00000000-0000-4000-8000-000000000021",
+       "version": 1
+      },
+      "mapping_version": "version-000002",
+      "request": {
+       "arguments": {},
+       "claimed_context": {
+        "criticality": 4,
+        "environment": null,
+        "incident_id": null,
+        "role": "domain_controller",
+        "severity": "LOW"
+       },
+       "idempotency_key": "key-000001",
+       "operation_ref": "endpoint.isolate",
+       "run_id": null,
+       "target": {
+        "kind": "canonical",
+        "value": "00000000-0000-4000-8000-00000000000e"
+       }
+      },
+      "resolved_at": "2026-10-20T17:53:07.317861Z",
+      "resource_provider_id": "resource-000001",
+      "resource_version": "version-000003",
+      "schema_version": "action.v1",
+      "valid_until": "2026-10-20T17:57:07.317861Z"
+     },
+     "human_decision": null,
+     "identity": {
+      "credential_id": "00000000-0000-4000-8000-000000000013",
+      "expires_at": "2026-10-20T18:53:07.317861Z",
+      "groups": [],
+      "issued_at": "2026-10-20T16:53:07.317861Z",
+      "kind": "AGENT",
+      "principal_id": "00000000-0000-4000-8000-00000000001b",
+      "tenant_id": "00000000-0000-4000-8000-000000000021"
+     },
+     "operation_id": "00000000-0000-4000-8000-000000000019",
+     "reviewer": null,
+     "semantic_time": "2026-10-20T17:53:07.317861Z",
+     "stage": "ADMISSION",
+     "usage_time": "2026-10-20T17:53:07.317861Z",
+     "version": 1
+    },
+    "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sequence": 1,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "76562d494a280e789379fb3f9d128c6bec9c77825d8a47d2dab71f70fe12f1c0",
+    "event_id": "00000000-0000-4000-8000-000000000010",
+    "kind": "execution.transition",
+    "occurred_at": "2026-10-20T17:53:07.349919Z",
+    "payload": {
+     "asserted": {
+      "account_id": "00000000-0000-4000-8000-000000000015",
+      "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+      "operation_id": "00000000-0000-4000-8000-000000000019",
+      "outcome": "EXECUTED",
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reason": "EXECUTED",
+      "reported_at": "2026-10-20T17:53:07.317861Z"
+     },
+     "execution_id": "00000000-0000-4000-8000-00000000000f",
+     "from_state": "DISPATCH_COMMITTED",
+     "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+     "operation_id": "00000000-0000-4000-8000-000000000019",
+     "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+     "replay": {
+      "semantic_time": "2026-10-20T17:53:07.317861+00:00",
+      "version": 1
+     },
+     "tier": "ASSERTED",
+     "to_state": "EXECUTED"
+    },
+    "previous_hash": "c8e91e45ed2394a20e417370c37b1e7f9b8c94065aaa8e07c71e4fbd12751b1f",
+    "sequence": 2,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "177e45f7b8c30e922f2a071c8fe26018ee317a8fb8a27f34c1b7d122e167c545",
+    "event_id": "00000000-0000-4000-8000-000000000018",
+    "kind": "execution.evaluated",
+    "occurred_at": "2026-10-20T17:53:07.350125Z",
+    "payload": {
+     "approval": null,
+     "bundle_id": "00000000-0000-4000-8000-00000000001d",
+     "canonical_target_id": "00000000-0000-4000-8000-000000000002",
+     "decision": {
+      "bundle_id": "00000000-0000-4000-8000-00000000001d",
+      "content_hash": "1faac571e33e35231171a901770dcc4ffe2e1e93d017c471b4556f499a0f4ca0",
+      "effect": "ELIGIBLE",
+      "obligation_ids": [],
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reasons": []
+     },
+     "execution_id": "00000000-0000-4000-8000-00000000000d",
+     "finished_time": "2026-10-20T17:53:07.317861Z",
+     "frozen": {
+      "alias_id": null,
+      "context_contract_version": "endpoint-isolation.v1",
+      "facts": [
+       {
+        "dependencies": [],
+        "name": "role",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "workstation"
+       },
+       {
+        "dependencies": [],
+        "name": "environment",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "development"
+       },
+       {
+        "dependencies": [],
+        "name": "criticality",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": 1
+       },
+       {
+        "dependencies": [
+         "environment"
+        ],
+        "name": "is_production",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "DERIVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": false
+       },
+       {
+        "dependencies": [],
+        "name": "incident_status",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "OPEN"
+       },
+       {
+        "dependencies": [],
+        "name": "incident_severity",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "CRITICAL"
+       }
+      ],
+      "intent": {
+       "account_id": "00000000-0000-4000-8000-000000000015",
+       "action": "endpoint.isolate",
+       "arguments": {},
+       "principal_id": "00000000-0000-4000-8000-00000000001b",
+       "provider": "mock_crowdstrike",
+       "provider_operation": "contain",
+       "resource_type": "endpoint",
+       "target_id": "00000000-0000-4000-8000-00000000000e",
+       "tenant_id": "00000000-0000-4000-8000-000000000021",
+       "version": 1
+      },
+      "mapping_version": "version-000002",
+      "request": {
+       "arguments": {},
+       "claimed_context": {
+        "criticality": 4,
+        "environment": null,
+        "incident_id": null,
+        "role": "domain_controller",
+        "severity": "LOW"
+       },
+       "idempotency_key": "key-000001",
+       "operation_ref": "endpoint.isolate",
+       "run_id": null,
+       "target": {
+        "kind": "canonical",
+        "value": "00000000-0000-4000-8000-00000000000e"
+       }
+      },
+      "resolved_at": "2026-10-20T17:53:07.317861Z",
+      "resource_provider_id": "resource-000001",
+      "resource_version": "version-000003",
+      "schema_version": "action.v1",
+      "valid_until": "2026-10-20T17:57:07.317861Z"
+     },
+     "human_decision": null,
+     "identity": {
+      "credential_id": "00000000-0000-4000-8000-000000000013",
+      "expires_at": "2026-10-20T18:53:07.317861Z",
+      "groups": [],
+      "issued_at": "2026-10-20T16:53:07.317861Z",
+      "kind": "AGENT",
+      "principal_id": "00000000-0000-4000-8000-00000000001b",
+      "tenant_id": "00000000-0000-4000-8000-000000000021"
+     },
+     "operation_id": "00000000-0000-4000-8000-000000000017",
+     "reviewer": null,
+     "semantic_time": "2026-10-20T17:53:07.317861Z",
+     "stage": "ADMISSION",
+     "usage_time": "2026-10-20T17:53:07.317861Z",
+     "version": 1
+    },
+    "previous_hash": "76562d494a280e789379fb3f9d128c6bec9c77825d8a47d2dab71f70fe12f1c0",
+    "sequence": 3,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "703c4ffeb3a6961e90e886b6bb0aae3e3e6c3abd6d6ae6d3a43ad7f8b3e646c7",
+    "event_id": "00000000-0000-4000-8000-000000000008",
+    "kind": "execution.transition",
+    "occurred_at": "2026-10-20T17:53:07.350473Z",
+    "payload": {
+     "evidence": {
+      "account_id": "00000000-0000-4000-8000-000000000015",
+      "authenticated_record": "{\"version\":1,\"key_id\":\"signer-000001\",\"record\":{\"version\":1,\"operation_id\":\"00000000-0000-4000-8000-000000000017\",\"account_id\":\"00000000-0000-4000-8000-000000000015\",\"intent_hash\":\"4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195\",\"plan_hash\":\"47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783\",\"outcome\":\"EXECUTED\",\"reason\":\"EXECUTED\",\"reported_at\":\"2026-10-20T17:53:07.317861Z\"},\"signature\":\"5521d84d7bf0be6d6b7e797e728a56b392d98c2057f4721d8df0e68bc1e0942e5f34e013536353d3b6a3e01f4a97b6ff3e88b66e69172b1b849bb0a202142c07\"}",
+      "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+      "operation_id": "00000000-0000-4000-8000-000000000017",
+      "outcome": "EXECUTED",
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "proof_digest": "f65eef2fdd9f8ea72ef5e644560dea7605bb4acdaa2d62e14ca509ed9a6accf5",
+      "reason": "EXECUTED",
+      "window_ms": null
+     },
+     "execution_id": "00000000-0000-4000-8000-00000000000d",
+     "from_state": "DISPATCH_COMMITTED",
+     "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+     "operation_id": "00000000-0000-4000-8000-000000000017",
+     "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+     "replay": {
+      "semantic_time": "2026-10-20T17:53:07.317861+00:00",
+      "version": 1
+     },
+     "tier": "ATTESTED",
+     "to_state": "EXECUTED"
+    },
+    "previous_hash": "177e45f7b8c30e922f2a071c8fe26018ee317a8fb8a27f34c1b7d122e167c545",
+    "sequence": 4,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "02369d5f06b80d0ee842f951ddcb7d1eff009b58a8a93fa3efeb96768dc8306d",
+    "event_id": "00000000-0000-4000-8000-000000000009",
+    "kind": "execution.evaluated",
+    "occurred_at": "2026-10-20T17:53:07.350645Z",
+    "payload": {
+     "approval": null,
+     "bundle_id": "00000000-0000-4000-8000-00000000001d",
+     "canonical_target_id": "00000000-0000-4000-8000-00000000001f",
+     "decision": {
+      "bundle_id": "00000000-0000-4000-8000-00000000001d",
+      "content_hash": "1faac571e33e35231171a901770dcc4ffe2e1e93d017c471b4556f499a0f4ca0",
+      "effect": "ELIGIBLE",
+      "obligation_ids": [],
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reasons": []
+     },
+     "execution_id": "00000000-0000-4000-8000-000000000001",
+     "finished_time": "2026-10-20T17:53:07.317861Z",
+     "frozen": {
+      "alias_id": null,
+      "context_contract_version": "endpoint-isolation.v1",
+      "facts": [
+       {
+        "dependencies": [],
+        "name": "role",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "workstation"
+       },
+       {
+        "dependencies": [],
+        "name": "environment",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "development"
+       },
+       {
+        "dependencies": [],
+        "name": "criticality",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": 1
+       },
+       {
+        "dependencies": [
+         "environment"
+        ],
+        "name": "is_production",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "DERIVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": false
+       },
+       {
+        "dependencies": [],
+        "name": "incident_status",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "OPEN"
+       },
+       {
+        "dependencies": [],
+        "name": "incident_severity",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "CRITICAL"
+       }
+      ],
+      "intent": {
+       "account_id": "00000000-0000-4000-8000-000000000015",
+       "action": "endpoint.isolate",
+       "arguments": {},
+       "principal_id": "00000000-0000-4000-8000-00000000001b",
+       "provider": "mock_crowdstrike",
+       "provider_operation": "contain",
+       "resource_type": "endpoint",
+       "target_id": "00000000-0000-4000-8000-00000000000e",
+       "tenant_id": "00000000-0000-4000-8000-000000000021",
+       "version": 1
+      },
+      "mapping_version": "version-000002",
+      "request": {
+       "arguments": {},
+       "claimed_context": {
+        "criticality": 4,
+        "environment": null,
+        "incident_id": null,
+        "role": "domain_controller",
+        "severity": "LOW"
+       },
+       "idempotency_key": "key-000001",
+       "operation_ref": "endpoint.isolate",
+       "run_id": null,
+       "target": {
+        "kind": "canonical",
+        "value": "00000000-0000-4000-8000-00000000000e"
+       }
+      },
+      "resolved_at": "2026-10-20T17:53:07.317861Z",
+      "resource_provider_id": "resource-000001",
+      "resource_version": "version-000003",
+      "schema_version": "action.v1",
+      "valid_until": "2026-10-20T17:57:07.317861Z"
+     },
+     "human_decision": null,
+     "identity": {
+      "credential_id": "00000000-0000-4000-8000-000000000013",
+      "expires_at": "2026-10-20T18:53:07.317861Z",
+      "groups": [],
+      "issued_at": "2026-10-20T16:53:07.317861Z",
+      "kind": "AGENT",
+      "principal_id": "00000000-0000-4000-8000-00000000001b",
+      "tenant_id": "00000000-0000-4000-8000-000000000021"
+     },
+     "operation_id": "00000000-0000-4000-8000-000000000006",
+     "reviewer": null,
+     "semantic_time": "2026-10-20T17:53:07.317861Z",
+     "stage": "ADMISSION",
+     "usage_time": "2026-10-20T17:53:07.317861Z",
+     "version": 1
+    },
+    "previous_hash": "703c4ffeb3a6961e90e886b6bb0aae3e3e6c3abd6d6ae6d3a43ad7f8b3e646c7",
+    "sequence": 5,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "f69689c88237050abc3b34d36ef1868f46065a09e1053eb5b81c5e0ba148c3a3",
+    "event_id": "00000000-0000-4000-8000-000000000016",
+    "kind": "execution.transition",
+    "occurred_at": "2026-10-20T17:53:07.350980Z",
+    "payload": {
+     "evidence": {
+      "account_id": "00000000-0000-4000-8000-000000000015",
+      "authenticated_record": "{\"version\":1,\"format\":\"jws-es256\",\"key_id\":\"signer-000002\",\"protected\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6InNpZ25lci0wMDAwMDIifQ\",\"payload\":\"eyJhY2NvdW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDE1IiwiZG9tYWluIjoiZXhlY2JvdW5kLmV4ZWN1dG9yLm91dGNvbWUiLCJpbnRlbnRfaGFzaCI6IjQ0ODdlNWVjNjhiOTk3NGExOTU2ODM2ZTJhMDJkYTNiZTE4ZWJmYmE3N2I5ODNjYjNkZjY2NjI2YjQ4MDAxOTUiLCJvcGVyYXRpb25faWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDYiLCJvdXRjb21lIjoiRVhFQ1VURUQiLCJwbGFuX2hhc2giOiI0NzI5OGI1ZTU3MjIyNjk0MDNhNDhjMTA4ODhlMWJmZmNlYTE5NzI3MzlhMWRkMzhjOWZjM2Q5OTZjODgyNzgzIiwicmVhc29uIjoiRVhFQ1VURUQiLCJyZXBvcnRlZF9hdCI6IjIwMjYtMTAtMjBUMTc6NTM6MDcuMzE3ODYxWiIsInZlcnNpb24iOjF9\",\"signature\":\"STG-_pJgNvoTAchQJ5UKQj_6HMk2f2idJcsCO4p17BCWT4rH4yobILqMwTYGXD8jIDW0MROZMwnHDQSP2KZKJw\"}",
+      "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+      "operation_id": "00000000-0000-4000-8000-000000000006",
+      "outcome": "EXECUTED",
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "proof_digest": "c378dfa60015d6443ceb7d1336fc575ea635a70c39a312264ae6cc11284562ad",
+      "reason": "EXECUTED",
+      "window_ms": null
+     },
+     "execution_id": "00000000-0000-4000-8000-000000000001",
+     "from_state": "DISPATCH_COMMITTED",
+     "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+     "operation_id": "00000000-0000-4000-8000-000000000006",
+     "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+     "replay": {
+      "semantic_time": "2026-10-20T17:53:07.317861+00:00",
+      "version": 1
+     },
+     "tier": "ATTESTED",
+     "to_state": "EXECUTED"
+    },
+    "previous_hash": "02369d5f06b80d0ee842f951ddcb7d1eff009b58a8a93fa3efeb96768dc8306d",
+    "sequence": 6,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "026d309b973aeb2cb0005d62f875faa8716951d8f868671efb3813607dfc4e63",
+    "event_id": "00000000-0000-4000-8000-000000000005",
+    "kind": "execution.evaluated",
+    "occurred_at": "2026-10-20T17:53:07.351127Z",
+    "payload": {
+     "approval": null,
+     "bundle_id": "00000000-0000-4000-8000-00000000001d",
+     "canonical_target_id": "00000000-0000-4000-8000-000000000004",
+     "decision": {
+      "bundle_id": "00000000-0000-4000-8000-00000000001d",
+      "content_hash": "1faac571e33e35231171a901770dcc4ffe2e1e93d017c471b4556f499a0f4ca0",
+      "effect": "ELIGIBLE",
+      "obligation_ids": [],
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reasons": []
+     },
+     "execution_id": "00000000-0000-4000-8000-00000000001c",
+     "finished_time": "2026-10-20T17:53:07.317861Z",
+     "frozen": {
+      "alias_id": null,
+      "context_contract_version": "endpoint-isolation.v1",
+      "facts": [
+       {
+        "dependencies": [],
+        "name": "role",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "workstation"
+       },
+       {
+        "dependencies": [],
+        "name": "environment",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "development"
+       },
+       {
+        "dependencies": [],
+        "name": "criticality",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": 1
+       },
+       {
+        "dependencies": [
+         "environment"
+        ],
+        "name": "is_production",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "DERIVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": false
+       },
+       {
+        "dependencies": [],
+        "name": "incident_status",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "OPEN"
+       },
+       {
+        "dependencies": [],
+        "name": "incident_severity",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "CRITICAL"
+       }
+      ],
+      "intent": {
+       "account_id": "00000000-0000-4000-8000-000000000015",
+       "action": "endpoint.isolate",
+       "arguments": {},
+       "principal_id": "00000000-0000-4000-8000-00000000001b",
+       "provider": "mock_crowdstrike",
+       "provider_operation": "contain",
+       "resource_type": "endpoint",
+       "target_id": "00000000-0000-4000-8000-00000000000e",
+       "tenant_id": "00000000-0000-4000-8000-000000000021",
+       "version": 1
+      },
+      "mapping_version": "version-000002",
+      "request": {
+       "arguments": {},
+       "claimed_context": {
+        "criticality": 4,
+        "environment": null,
+        "incident_id": null,
+        "role": "domain_controller",
+        "severity": "LOW"
+       },
+       "idempotency_key": "key-000001",
+       "operation_ref": "endpoint.isolate",
+       "run_id": null,
+       "target": {
+        "kind": "canonical",
+        "value": "00000000-0000-4000-8000-00000000000e"
+       }
+      },
+      "resolved_at": "2026-10-20T17:53:07.317861Z",
+      "resource_provider_id": "resource-000001",
+      "resource_version": "version-000003",
+      "schema_version": "action.v1",
+      "valid_until": "2026-10-20T17:57:07.317861Z"
+     },
+     "human_decision": null,
+     "identity": {
+      "credential_id": "00000000-0000-4000-8000-000000000013",
+      "expires_at": "2026-10-20T18:53:07.317861Z",
+      "groups": [],
+      "issued_at": "2026-10-20T16:53:07.317861Z",
+      "kind": "AGENT",
+      "principal_id": "00000000-0000-4000-8000-00000000001b",
+      "tenant_id": "00000000-0000-4000-8000-000000000021"
+     },
+     "operation_id": "00000000-0000-4000-8000-000000000003",
+     "reviewer": null,
+     "semantic_time": "2026-10-20T17:53:07.317861Z",
+     "stage": "ADMISSION",
+     "usage_time": "2026-10-20T17:53:07.317861Z",
+     "version": 1
+    },
+    "previous_hash": "f69689c88237050abc3b34d36ef1868f46065a09e1053eb5b81c5e0ba148c3a3",
+    "sequence": 7,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "b014f0837236c04c20aed4ab5b2317cb31ce2ad47042ea4526c600a2acac3aaf",
+    "event_id": "00000000-0000-4000-8000-00000000001e",
+    "kind": "execution.transition",
+    "occurred_at": "2026-10-20T17:53:07.351463Z",
+    "payload": {
+     "evidence": {
+      "account_id": "00000000-0000-4000-8000-000000000015",
+      "authenticated_record": "{\"version\":1,\"key_id\":\"replay-fixture\",\"record\":{\"version\":1,\"command\":{\"version\":1,\"tenant_id\":\"00000000-0000-4000-8000-000000000021\",\"account_id\":\"00000000-0000-4000-8000-000000000015\",\"canonical_target_id\":\"00000000-0000-4000-8000-000000000004\",\"provider\":\"mock_crowdstrike\",\"action\":\"endpoint.isolate\",\"provider_operation\":\"contain\",\"arguments\":{},\"resource_provider_id\":\"resource-000001\",\"expected_version\":\"version-000003\",\"operation_id\":\"00000000-0000-4000-8000-000000000003\",\"execution_id\":\"00000000-0000-4000-8000-00000000001c\",\"intent_hash\":\"4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195\",\"plan_hash\":\"47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783\"},\"command_hash\":\"28aa26d309fd6b23e59b8be14c6db5534a0c6b07e7a6a4d5062b428cf17b8a2d\",\"outcome\":\"EXECUTED\",\"occurred_at\":\"2026-10-20T17:53:07.317861Z\",\"resulting_version\":\"version-000004\",\"mutation_count\":1},\"signature\":\"cca294e4d0977fabc5d3973086704a2856b62fad00a4cd4e9d6d978b024faf22\"}",
+      "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+      "operation_id": "00000000-0000-4000-8000-000000000003",
+      "outcome": "EXECUTED",
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "proof_digest": "19091d9cf321dfa2ff99ee36bbad69c652ce81c168883446edac5ee36d01471e",
+      "reason": "EXECUTED",
+      "window_ms": null
+     },
+     "execution_id": "00000000-0000-4000-8000-00000000001c",
+     "from_state": "DISPATCH_COMMITTED",
+     "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+     "operation_id": "00000000-0000-4000-8000-000000000003",
+     "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+     "replay": {
+      "semantic_time": "2026-10-20T17:53:07.317861+00:00",
+      "version": 1
+     },
+     "tier": "PROVIDER_VERIFIED",
+     "to_state": "EXECUTED"
+    },
+    "previous_hash": "026d309b973aeb2cb0005d62f875faa8716951d8f868671efb3813607dfc4e63",
+    "sequence": 8,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "99c9100ef77360921a28c064b50b64062cfa49b4c534b564008b31af6721f960",
+    "event_id": "00000000-0000-4000-8000-000000000007",
+    "kind": "execution.evaluated",
+    "occurred_at": "2026-10-20T17:53:07.351607Z",
+    "payload": {
+     "approval": null,
+     "bundle_id": "00000000-0000-4000-8000-00000000001d",
+     "canonical_target_id": "00000000-0000-4000-8000-000000000014",
+     "decision": {
+      "bundle_id": "00000000-0000-4000-8000-00000000001d",
+      "content_hash": "1faac571e33e35231171a901770dcc4ffe2e1e93d017c471b4556f499a0f4ca0",
+      "effect": "ELIGIBLE",
+      "obligation_ids": [],
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reasons": []
+     },
+     "execution_id": "00000000-0000-4000-8000-000000000011",
+     "finished_time": "2026-10-20T17:53:07.317861Z",
+     "frozen": {
+      "alias_id": null,
+      "context_contract_version": "endpoint-isolation.v1",
+      "facts": [
+       {
+        "dependencies": [],
+        "name": "role",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "workstation"
+       },
+       {
+        "dependencies": [],
+        "name": "environment",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "development"
+       },
+       {
+        "dependencies": [],
+        "name": "criticality",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": 1
+       },
+       {
+        "dependencies": [
+         "environment"
+        ],
+        "name": "is_production",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "DERIVED",
+        "permitted_writers": [
+         "inventory_sync"
+        ],
+        "source_id": "00000000-0000-4000-8000-000000000012",
+        "source_kind": "inventory",
+        "source_object_id": "resource-000001",
+        "source_version": "version-000003",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": false
+       },
+       {
+        "dependencies": [],
+        "name": "incident_status",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "OPEN"
+       },
+       {
+        "dependencies": [],
+        "name": "incident_severity",
+        "observed_at": "2026-10-20T17:52:07.317861Z",
+        "origin": "RESOLVED",
+        "permitted_writers": [
+         "soc_analyst"
+        ],
+        "source_id": "00000000-0000-4000-8000-00000000000a",
+        "source_kind": "incident",
+        "source_object_id": "00000000-0000-4000-8000-00000000000a",
+        "source_version": "version-000001",
+        "valid_until": "2026-10-20T17:57:07.317861Z",
+        "value": "CRITICAL"
+       }
+      ],
+      "intent": {
+       "account_id": "00000000-0000-4000-8000-000000000015",
+       "action": "endpoint.isolate",
+       "arguments": {},
+       "principal_id": "00000000-0000-4000-8000-00000000001b",
+       "provider": "mock_crowdstrike",
+       "provider_operation": "contain",
+       "resource_type": "endpoint",
+       "target_id": "00000000-0000-4000-8000-00000000000e",
+       "tenant_id": "00000000-0000-4000-8000-000000000021",
+       "version": 1
+      },
+      "mapping_version": "version-000002",
+      "request": {
+       "arguments": {},
+       "claimed_context": {
+        "criticality": 4,
+        "environment": null,
+        "incident_id": null,
+        "role": "domain_controller",
+        "severity": "LOW"
+       },
+       "idempotency_key": "key-000001",
+       "operation_ref": "endpoint.isolate",
+       "run_id": null,
+       "target": {
+        "kind": "canonical",
+        "value": "00000000-0000-4000-8000-00000000000e"
+       }
+      },
+      "resolved_at": "2026-10-20T17:53:07.317861Z",
+      "resource_provider_id": "resource-000001",
+      "resource_version": "version-000003",
+      "schema_version": "action.v1",
+      "valid_until": "2026-10-20T17:57:07.317861Z"
+     },
+     "human_decision": null,
+     "identity": {
+      "credential_id": "00000000-0000-4000-8000-000000000013",
+      "expires_at": "2026-10-20T18:53:07.317861Z",
+      "groups": [],
+      "issued_at": "2026-10-20T16:53:07.317861Z",
+      "kind": "AGENT",
+      "principal_id": "00000000-0000-4000-8000-00000000001b",
+      "tenant_id": "00000000-0000-4000-8000-000000000021"
+     },
+     "operation_id": "00000000-0000-4000-8000-00000000000b",
+     "reviewer": null,
+     "semantic_time": "2026-10-20T17:53:07.317861Z",
+     "stage": "ADMISSION",
+     "usage_time": "2026-10-20T17:53:07.317861Z",
+     "version": 1
+    },
+    "previous_hash": "b014f0837236c04c20aed4ab5b2317cb31ce2ad47042ea4526c600a2acac3aaf",
+    "sequence": 9,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   },
+   {
+    "actor_id": "00000000-0000-4000-8000-00000000001b",
+    "event_hash": "9b8a8458e2ae66cbda5735f426c73894cf333293e0faf035068221838dde8a02",
+    "event_id": "00000000-0000-4000-8000-00000000001a",
+    "kind": "execution.transition",
+    "occurred_at": "2026-10-20T17:53:07.351941Z",
+    "payload": {
+     "asserted": {
+      "account_id": "00000000-0000-4000-8000-000000000015",
+      "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+      "operation_id": "00000000-0000-4000-8000-00000000000b",
+      "outcome": "FAILED_NOT_EXECUTED",
+      "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+      "reason": "CANCELLED_NOT_EXECUTED",
+      "reported_at": "2026-10-20T17:53:07.317861Z"
+     },
+     "execution_id": "00000000-0000-4000-8000-000000000011",
+     "from_state": "DISPATCH_COMMITTED",
+     "intent_hash": "4487e5ec68b9974a1956836e2a02da3be18ebfba77b983cb3df66626b4800195",
+     "operation_id": "00000000-0000-4000-8000-00000000000b",
+     "plan_hash": "47298b5e5722269403a48c10888e1bffcea1972739a1dd38c9fc3d996c882783",
+     "reason": "EXECUTOR_REPORT",
+     "replay": {
+      "semantic_time": "2026-10-20T17:53:07.317861+00:00",
+      "version": 1
+     },
+     "to_state": "INDETERMINATE"
+    },
+    "previous_hash": "99c9100ef77360921a28c064b50b64062cfa49b4c534b564008b31af6721f960",
+    "sequence": 10,
+    "tenant_id": "00000000-0000-4000-8000-000000000021"
+   }
+  ],
+  "head": {
+   "event_hash": "9b8a8458e2ae66cbda5735f426c73894cf333293e0faf035068221838dde8a02",
+   "sequence": 10,
+   "tenant_id": "00000000-0000-4000-8000-000000000021",
+   "version": 1
+  },
+  "tenant_id": "00000000-0000-4000-8000-000000000021",
+  "version": 1
+ },
+ "format": "execbound.replay-fixture",
+ "sanitization": {
+  "digests": 0,
+  "identifiers": 33,
+  "labels": 8,
+  "signatures": {
+   "executor-ed25519": "replay-fixture-ed25519",
+   "executor-es256": "replay-fixture-es256",
+   "journal": "replay-fixture"
+  },
+  "version": 2
+ },
+ "trusted_head": {
+  "event_hash": "9b8a8458e2ae66cbda5735f426c73894cf333293e0faf035068221838dde8a02",
+  "sequence": 10,
+  "tenant_id": "00000000-0000-4000-8000-000000000021",
+  "version": 1
+ },
+ "version": 2
+}

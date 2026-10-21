@@ -4,6 +4,9 @@ contact_links:
   - name: Report a security vulnerability
     url: https://github.com/ExecBound/execbound/security/policy
     about: Never in a public issue. The security policy says how to report one privately.
-  - name: Ask a question
+  - name: Ask a question or get install help
+    url: https://github.com/ExecBound/execbound/discussions/categories/q-a
+    about: Installing, configuring or using ExecBound. Include your OS, Docker version and the command output.
+  - name: Critique the threat model or design
     url: https://github.com/ExecBound/execbound/discussions
-    about: Questions about installing, configuring or using ExecBound.
+    about: Where would you try to route around it? Open or join a thread in Discussions.

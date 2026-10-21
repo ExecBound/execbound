@@ -6,9 +6,11 @@ import {
   changePasswordMutation,
   readSettingsOptions,
   readSettingsQueryKey,
+  removeAllTrustedBrowsersMutation,
+  removeTrustedBrowserMutation,
   revokeOtherSessionsMutation,
 } from "../../api/@tanstack/react-query.gen";
-import type { PersonalSettingsView } from "../../api/types.gen";
+import type { PersonalSettingsView, TrustedBrowserView } from "../../api/types.gen";
 import {
   APPEARANCE_LEAD,
   APPEARANCE_WORDS,
@@ -92,6 +94,7 @@ function Sections({ view }: { view: PersonalSettingsView }) {
         <DirectoryIdentity directory={view.directory} />
         {view.identity.kind === "ADMIN" ? <PersonalTokens /> : null}
         <SecondFactor view={view} />
+        <TrustedBrowsers view={view} />
         <Appearance />
         <WeeklySummary view={view} />
         <Card title="This session">
@@ -362,7 +365,7 @@ function Sessions({ view }: { view: PersonalSettingsView }) {
         <p className="muted">No other device is signed in as you.</p>
       )}
       <p className="muted">
-        Ending other sessions asks for no password: this session is at most eight hours old, the request carries
+        Ending other sessions asks for no password: this session is at most two days old, the request carries
         your session's token, and the button confirms first. The device name comes from a fixed list; the
         browser's own string is never stored.
       </p>
@@ -405,6 +408,146 @@ function SecondFactor({ view }: { view: PersonalSettingsView }) {
       <a className="btn" href="/account/security">
         {any ? "Manage" : "Add a second factor"}
       </a>
+    </Card>
+  );
+}
+
+/** A trust's device, in words: the fixed label sign-in derived, or a plain stand-in. */
+function browserName(trust: TrustedBrowserView): string {
+  return trust.label ?? "Unknown browser";
+}
+
+/**
+ * The account's trusted browsers (#859): each browser that skips the sign-in code for thirty
+ * days, this one marked, with Remove and Remove all. Removing only tightens, so it asks for no
+ * code, only the confirmation. The server never sends the cookie, its secret or its hash.
+ */
+function TrustedBrowsers({ view }: { view: PersonalSettingsView }) {
+  const queryClient = useQueryClient();
+  const [removing, setRemoving] = useState<TrustedBrowserView | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const security = view.security;
+  const trusted = security?.trusted ?? [];
+  const remove = useServerMutation({
+    ...removeTrustedBrowserMutation(),
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(readSettingsQueryKey(), fresh);
+      setRemoving(null);
+      toast("Trusted browser removed.");
+    },
+  });
+  const removeAll = useServerMutation({
+    ...removeAllTrustedBrowsersMutation(),
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(readSettingsQueryKey(), fresh);
+      setClearing(false);
+      toast(`Removed ${count(trusted.length, "trusted browser")}.`);
+    },
+  });
+  if (!security?.available) return null;
+  return (
+    <Card title="Trusted browsers" aside={<span className="muted">{count(trusted.length, "browser")}</span>}>
+      {security.trust_allowed === false ? (
+        <p className="note">
+          This workspace does not allow trusted browsers: every sign-in here asks for your second factor.
+        </p>
+      ) : null}
+      {trusted.length === 0 ? (
+        <p className="muted">
+          No browser is trusted. When you sign in with your second factor, you can tick &ldquo;Trust this
+          browser for 30 days&rdquo; so that browser&apos;s later sign-ins skip the code.
+        </p>
+      ) : (
+        <>
+          <Table caption="Each browser that skips the sign-in code, newest first." density="compact">
+            <thead>
+              <tr>
+                <Th>Browser</Th>
+                <Th>Added</Th>
+                <Th>Last used</Th>
+                <Th>Expires</Th>
+                <Th>
+                  <span className="sr-only">Remove</span>
+                </Th>
+              </tr>
+            </thead>
+            <tbody>
+              {trusted.map((trust) => (
+                <tr key={trust.browser_id}>
+                  <Td>
+                    {browserName(trust)}{" "}
+                    {trust.this_browser ? <Badge tone="accent">This browser</Badge> : null}
+                  </Td>
+                  <Td mono>{when(trust.created_at)}</Td>
+                  <Td mono>{trust.last_used_at !== null ? when(trust.last_used_at) : "Not yet"}</Td>
+                  <Td mono>{when(trust.expires_at)}</Td>
+                  <Td>
+                    <Button
+                      aria-label={`Remove ${browserName(trust)}`}
+                      onClick={() => {
+                        remove.reset();
+                        setRemoving(trust);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          <div className="row">
+            <Button
+              variant="danger"
+              onClick={() => {
+                removeAll.reset();
+                setClearing(true);
+              }}
+            >
+              Remove all
+            </Button>
+          </div>
+          <FormDialog
+            open={removing !== null}
+            onClose={() => {
+              setRemoving(null);
+            }}
+            title="Remove this trusted browser?"
+            description={`${removing !== null ? browserName(removing) : "This browser"} will ask for your second factor at its next sign-in.`}
+            confirm="Remove"
+            variant="danger"
+            pending={remove.isPending}
+            error={remove.isError ? copyFor(remove.error) : undefined}
+            onSubmit={() => {
+              if (removing !== null) remove.mutate({ body: { browser_id: removing.browser_id } });
+            }}
+          />
+          <FormDialog
+            open={clearing}
+            onClose={() => {
+              setClearing(false);
+            }}
+            title="Remove every trusted browser?"
+            description={
+              trusted.some((trust) => trust.this_browser)
+                ? "Every browser listed here, this one included, will ask for your second factor at its next sign-in."
+                : "Every browser listed here will ask for your second factor at its next sign-in."
+            }
+            confirm="Remove all"
+            variant="danger"
+            pending={removeAll.isPending}
+            error={removeAll.isError ? copyFor(removeAll.error) : undefined}
+            onSubmit={() => {
+              removeAll.mutate({ body: {} });
+            }}
+          />
+        </>
+      )}
+      <p className="muted">
+        A trusted browser skips only the code asked at sign-in and when you open another workspace. Changes to
+        people, access, keys and policies still ask for a recent code. Changing your password or second factor,
+        or signing out other devices, removes every trust.
+      </p>
     </Card>
   );
 }

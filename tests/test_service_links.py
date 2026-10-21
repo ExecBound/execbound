@@ -403,7 +403,10 @@ def test_the_sign_in_page_and_every_footer_link_the_deployments_pages(db, runtim
     assert "<h1>Open your invitation.</h1>" in invitation.text
     assert "<h1>Choose a password.</h1>" in password.text
     [section] = re.findall(r'<section class="login">(.*?)</section>', login.text, re.S)
-    assert f'<p><a href="{LINKS.help_url}">Forgot your password or lost access?</a></p>' in section
+    assert (
+        '<p class="alternative">'
+        f'<a href="{LINKS.help_url}">Forgot your password or lost access?</a></p>'
+    ) in section
     for page in (login.text, error, invitation.text, password.text):
         assert footer(page) == FOOTER
         assert "<span>© 2026 Example Operations Ltd · " in page

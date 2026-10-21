@@ -6,6 +6,7 @@ committed fixtures are checked here too (RF10); a fresh build from the signal wo
 PostgreSQL, is in `test_replay_fixture_worlds.py` (RF9).
 """
 
+import base64
 import hashlib
 import json
 import re
@@ -14,13 +15,16 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from replay_fixtures import (
     approved_entries,
     asserted_outcome,
+    attested_jws_evidence,
     chain_export,
     executor_evidence,
     make_capture,
     replay_case,
+    terminal_evidence,
     transition_event,
 )
 
@@ -28,8 +32,9 @@ from execbound.execution.models import TerminalEvidence
 from execbound.operations import PRODUCTION_ACTIONS
 from execbound.policy.models import ContextSetting, Rule, Ruleset
 from execbound.provider.connector_record import ConnectorExchange, sign_exchange
+from execbound.provider.executor import SignedOutcome, sign_outcome
 from execbound.provider.models import SignedJournal, parse_provider, signature
-from execbound.replay import sanitize
+from execbound.replay import fixture_keys, sanitize
 from execbound.replay.fixture import (
     FixtureError,
     ReplayFixture,
@@ -43,6 +48,7 @@ from execbound.replay.pseudonyms import (
     VOCABULARY_FIELDS,
     collect,
     is_sanitized,
+    opened,
     positions,
     vocabulary,
 )
@@ -1057,7 +1063,7 @@ def graph_case():
     return {**case, "resolved": resolved.model_copy(update={"intent": intent})}
 
 
-def connector_evidence(capture):
+def connector_evidence(capture, key_id="connector-v1"):
     """What a Graph settlement retains: ExecBound's own signed record of the exchange."""
     intent = capture.frozen.intent
     exchange = ConnectorExchange(
@@ -1073,7 +1079,7 @@ def connector_evidence(capture):
         status=204,
         outcome="EXECUTED",
     )
-    record = sign_exchange(exchange, "connector-v1", b"fixture-only-connector-key-32-by").decode()
+    record = sign_exchange(exchange, key_id, b"fixture-only-connector-key-32-by").decode()
     return TerminalEvidence(
         operation_id=exchange.operation_id,
         account_id=exchange.account_id,
@@ -1087,25 +1093,46 @@ def connector_evidence(capture):
     )
 
 
-def settled(kind):
-    """One settlement of each kind version 1 cannot re-sign, as the kernel writes it."""
-    case = graph_case() if kind == "connector" else replay_case()
-    capture = make_capture(case)
+# Each kind of settlement version 1 refused, and the key a fixture re-signs its record under.
+SETTLED = {
+    "attested": {"executor-ed25519"},
+    "attested es256": {"executor-es256"},
+    "asserted": set(),
+    "unsettled assertion": set(),
+    "connector": {"connector"},
+    "provider verified": {"journal"},
+}
+
+
+def settlement(capture, kind):
+    """The transition that settles `capture` with one kind of evidence version 1 refused."""
     if kind == "attested":
         proof = executor_evidence(capture).model_dump(mode="json")
-        settlement = transition_event(
+        settled_event = transition_event(
             capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof, tier="ATTESTED"
+        )
+    elif kind == "attested es256":
+        proof = attested_jws_evidence(capture).model_dump(mode="json")
+        settled_event = transition_event(
+            capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof, tier="ATTESTED"
+        )
+    elif kind == "provider verified":
+        # A checkpoint settled from its provider's own journal: the envelope a dispatched
+        # operation's settlement carries, at the tier that says the provider verified it.
+        proof = terminal_evidence(capture).model_dump(mode="json")
+        settled_event = transition_event(
+            capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof, tier="PROVIDER_VERIFIED"
         )
     elif kind == "asserted":
         said = asserted_outcome(capture).model_dump(mode="json")
-        settlement = transition_event(
+        settled_event = transition_event(
             capture, "DISPATCH_COMMITTED", "EXECUTED", asserted=said, tier="ASSERTED"
         )
     elif kind == "unsettled assertion":
         # `outcomes._settle_report` keeps an executor's word with no tier where it settles
         # nothing.
         said = asserted_outcome(capture, outcome="CANCELLED_NOT_EXECUTED").model_dump(mode="json")
-        settlement = transition_event(
+        settled_event = transition_event(
             capture,
             "DISPATCH_COMMITTED",
             "INDETERMINATE",
@@ -1116,18 +1143,217 @@ def settled(kind):
         # No tier: the envelope is chosen from the captured command's provider, so only the
         # record's own parse can tell it is not a provider journal.
         proof = connector_evidence(capture).model_dump(mode="json")
-        settlement = transition_event(capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof)
-    export = chain_export([capture, settlement], (case["bundle"],))
-    verify_export(export, export.head)  # the source itself verifies: the refusal is the build's
+        settled_event = transition_event(capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof)
+    return settled_event
+
+
+def settled(*kinds):
+    """One tenant's history with one settlement of each kind, as the kernel writes it. A
+    Graph connector record needs an identity disable, so it is never in a world with others."""
+    case = graph_case() if "connector" in kinds else replay_case()
+    entries = []
+    for kind in kinds:
+        capture = make_capture(case)
+        entries += [capture, settlement(capture, kind)]
+    export = chain_export(entries, (case["bundle"],))
+    verify_export(export, export.head)
     return export
 
 
-@pytest.mark.parametrize("kind", ["attested", "asserted", "unsettled assertion", "connector"])
-def test_rf6_externally_executed_evidence_is_refused(kind):
+def records(document):
+    """Each retained record in a fixture's export, parsed, with its header and claims opened."""
+    found = []
+    for event in opened(document)["export"]["events"]:
+        evidence = event["payload"].get("evidence")
+        if event["kind"] == "execution.transition" and isinstance(evidence, dict):
+            found.append(json.loads(evidence["authenticated_record"]))
+    return found
+
+
+@pytest.mark.parametrize("kind", sorted(SETTLED))
+def test_rf11_each_kind_of_externally_executed_evidence_becomes_a_fixture(kind):
+    """It builds, checks clean, keeps its tier, declares the fixture key each record is now
+    signed under, and is the same bytes built twice."""
     export = settled(kind)
+    raw = sanitize.build(export, export.head, ())
+    assert sanitize.build(export, export.head, ()) == raw
+    fixture, problems = check(raw)
+    assert problems == []
+    document = json.loads(raw)
+    assert (document["version"], document["sanitization"]["version"]) == (2, 2)
+    assert document["sanitization"]["signatures"] == {
+        signed: fixture_keys.SIGNERS[signed] for signed in SETTLED[kind]
+    }
+    source = expected_outcomes(verify_export(export, export.head), ())
+    assert [row.settlement_tier for row in fixture.expected.baseline.decisions] == [
+        row.settlement_tier for row in source.baseline.decisions
+    ]
+    assert fixture_keys.signed_by_fixture_keys(document)
+    assert rerecord(raw) == raw
+
+
+@pytest.mark.parametrize("kind", sorted(SETTLED))
+def test_rf11_no_source_identifier_or_key_id_survives_inside_any_record(kind):
+    """Read with every attestation's header and claims opened, the fixture holds no source
+    UUID, and a key id is a `signer` pseudonym rather than the executor's or the connector's."""
+    export = settled(kind)
+    raw = sanitize.build(export, export.head, ())
+    document = json.loads(raw)
+    sources = set(UUID_TEXT.findall(export.model_dump_json()))
+    for record in export.events:
+        evidence = record.payload.get("evidence")
+        if isinstance(evidence, dict):
+            sources |= set(UUID_TEXT.findall(json.dumps(opened_record(evidence))))
+    text = json.dumps(opened(document))
+    assert not sources & set(UUID_TEXT.findall(text))
+    for record in records(document):
+        if record.get("format") == "jws-es256":
+            assert record["key_id"] == record["protected"]["kid"] == "signer-000001"
+        elif "command" not in record.get("record", {}):
+            assert record["key_id"] == "signer-000001"
+    for source_key_id in ("executor-v1", "tines-jwt-2026", "connector-v1"):
+        assert source_key_id not in text
+
+
+def opened_record(evidence):
+    return opened(
+        {
+            "export": {
+                "events": [
+                    {"kind": "execution.transition", "payload": {"evidence": dict(evidence)}}
+                ]
+            }
+        }
+    )["export"]["events"][0]["payload"]["evidence"]["authenticated_record"]
+
+
+def test_rf12_a_fixture_holding_a_record_another_key_signed_is_refused():
+    """A fixture never carries a real signer's signature: one re-signed under any key but the
+    fixture's own is refused on reading, as an unsanitized fixture is."""
+    export = settled("attested")
+    document = json.loads(sanitize.build(export, export.head, ()))
+    for event in document["export"]["events"]:
+        evidence = event["payload"].get("evidence")
+        if isinstance(evidence, dict):
+            outcome = parse_provider(evidence["authenticated_record"].encode(), SignedOutcome)
+            evidence["authenticated_record"] = sign_outcome(
+                outcome.record, outcome.key_id, Ed25519PrivateKey.generate()
+            ).model_dump_json()
     with pytest.raises(FixtureError) as refusal:
-        sanitize.build(export, export.head, ())
-    assert refusal.value.code == "FIXTURE_UNSUPPORTED_EVIDENCE"
+        parse(json.dumps(document).encode())
+    assert refusal.value.code == "FIXTURE_NOT_SANITIZED"
+
+
+def test_rf12_an_identifier_hidden_in_an_attestations_claims_is_refused():
+    """The claims are base64url, so a source UUID left in them is not text: reading a fixture
+    opens them first and refuses it."""
+    export = settled("attested es256")
+    document = json.loads(sanitize.build(export, export.head, ()))
+    for event in document["export"]["events"]:
+        evidence = event["payload"].get("evidence")
+        if isinstance(evidence, dict):
+            wrapped = json.loads(evidence["authenticated_record"])
+            claims = json.loads(
+                base64.urlsafe_b64decode(wrapped["payload"] + "=" * (-len(wrapped["payload"]) % 4))
+            )
+            claims["account_id"] = str(uuid4())
+            wrapped["payload"] = (
+                base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
+            )
+            evidence["authenticated_record"] = json.dumps(wrapped)
+    with pytest.raises(FixtureError) as refusal:
+        parse(json.dumps(document).encode())
+    assert refusal.value.code == "FIXTURE_NOT_SANITIZED"
+
+
+def test_rf12_a_version_1_fixture_holding_evidence_version_1_never_wrote_is_unavailable():
+    export = settled("asserted")
+    document = json.loads(sanitize.build(export, export.head, ()))
+    document["version"] = 1
+    document["sanitization"] = {
+        name: value for name, value in document["sanitization"].items() if name != "signatures"
+    } | {"version": 1}
+    with pytest.raises(FixtureError) as refusal:
+        parse(json.dumps(document).encode())
+    assert refusal.value.code == "FIXTURE_UNAVAILABLE"
+
+
+def test_rf12_a_history_with_only_dispatched_evidence_is_still_written_as_version_1(built):
+    _, _, raw = built
+    document = json.loads(raw)
+    assert (document["version"], document["sanitization"]["version"]) == (1, 1)
+    assert "signatures" not in document["sanitization"]
+
+
+def resettled(kind, key_id):
+    """`settled(kind)` with the record's key id named `key_id`."""
+    case = graph_case() if kind == "connector" else replay_case()
+    capture = make_capture(case)
+    if kind == "connector":
+        proof = connector_evidence(capture, key_id).model_dump(mode="json")
+        event = transition_event(capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof)
+    else:
+        proof = attested_jws_evidence(capture, key_id=key_id).model_dump(mode="json")
+        event = transition_event(
+            capture, "DISPATCH_COMMITTED", "EXECUTED", evidence=proof, tier="ATTESTED"
+        )
+    export = chain_export([capture, event], (case["bundle"],))
+    verify_export(export, export.head)
+    return export
+
+
+@pytest.mark.parametrize(
+    ("kind", "key_id"),
+    [
+        ("attested es256", "execbound"),
+        ("attested es256", "executor"),
+        ("attested es256", "ES256"),
+        ("connector", "connector-record"),
+    ],
+)
+def test_rf11_a_label_that_spells_a_word_of_the_envelope_leaves_the_envelope_whole(kind, key_id):
+    """The words every re-signed record holds (an attestation's domain and algorithm, a
+    connector record's scheme) are kept words: a key id spelling one is replaced where it was
+    recorded, and the envelope keeps its own."""
+    export = resettled(kind, key_id)
+    raw = sanitize.build(export, export.head, ())
+    _, problems = check(raw)
+    assert problems == []
+    for record in records(json.loads(raw)):
+        assert record["key_id"] == "signer-000001"
+        if kind == "connector":
+            assert record["record"]["scheme"] == "connector-record.v1"
+        else:
+            assert record["protected"] == {"alg": "ES256", "kid": "signer-000001"}
+            assert record["payload"]["domain"] == "execbound.executor.outcome"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("signature", "a"), ("signature", "é" * 86), ("protected", "é"), ("payload", "*")],
+)
+def test_rf12_a_malformed_attestation_is_refused_rather_than_raised(field, value):
+    export = settled("attested es256")
+    document = json.loads(sanitize.build(export, export.head, ()))
+    for event in document["export"]["events"]:
+        evidence = event["payload"].get("evidence")
+        if isinstance(evidence, dict):
+            wrapped = json.loads(evidence["authenticated_record"])
+            wrapped[field] = value
+            evidence["authenticated_record"] = json.dumps(wrapped)
+    with pytest.raises(FixtureError) as refusal:
+        parse(json.dumps(document).encode())
+    assert refusal.value.code == "FIXTURE_NOT_SANITIZED"
+
+
+def test_rf12_a_version_2_fixture_of_dispatched_operations_alone_is_unavailable(built):
+    _, _, raw = built
+    document = json.loads(raw)
+    document["version"] = 2
+    document["sanitization"] |= {"version": 2, "signatures": {"journal": "replay-fixture"}}
+    with pytest.raises(FixtureError) as refusal:
+        parse(json.dumps(document).encode())
+    assert refusal.value.code == "FIXTURE_UNAVAILABLE"
 
 
 def test_rf6_a_candidate_for_another_tenant_or_too_many_candidates_are_refused():
@@ -1233,11 +1459,42 @@ def test_rf5_the_journal_is_re_signed_under_a_published_fixture_key(built):
 COMMITTED = Path(__file__).resolve().parent / "fixtures" / "replay"
 
 
+# The committed fixtures of externally executed evidence: every kind but the connector's in
+# one tenant's history, and the connector's in its own. They were built once by
+# `checkpoint_worlds`; the worlds draw fresh identifiers, so a rebuild writes other
+# pseudonyms in other ranks and is a new fixture, reviewed as one, not the same bytes.
+CHECKPOINT_WORLDS = {
+    "checkpoint-world-v2.json": tuple(kind for kind in sorted(SETTLED) if kind != "connector"),
+    "connector-world-v2.json": ("connector",),
+}
+
+
+def checkpoint_worlds(directory):
+    """Write the committed version 2 fixtures afresh into `directory`."""
+    for name, kinds in CHECKPOINT_WORLDS.items():
+        export = settled(*kinds)
+        (directory / name).write_bytes(sanitize.build(export, export.head, ()))
+
+
 def test_rf10_the_committed_fixtures_are_the_signal_world_and_the_demonstration():
     assert {path.name for path in COMMITTED.glob("*.json")} >= {
         "signal-world-v1.json",
         "two-provider-tenant-0-v1.json",
+        *CHECKPOINT_WORLDS,
     }
+
+
+def test_rf10_the_committed_version_2_fixtures_hold_every_kind_version_1_refused():
+    """Between them, every signed kind and every tier, each settled by the record it names."""
+    signed, tiers = set(), set()
+    for name in CHECKPOINT_WORLDS:
+        document = json.loads((COMMITTED / name).read_bytes())
+        assert document["version"] == 2
+        signed |= set(document["sanitization"]["signatures"])
+        for event in document["export"]["events"]:
+            tiers.add(event["payload"].get("tier"))
+    assert signed == set(fixture_keys.SIGNERS)
+    assert tiers >= {"ATTESTED", "ASSERTED", "PROVIDER_VERIFIED", None}
 
 
 @pytest.mark.parametrize("path", sorted(COMMITTED.glob("*.json")), ids=lambda path: path.stem)

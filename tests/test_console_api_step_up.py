@@ -24,7 +24,7 @@ from console_api_fixtures import (
 )
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-from test_execution import provision_identity
+from test_execution import provision_identity, request
 from test_human_surface import credential, form_values
 from test_passkeys import assertion, registration
 from test_sign_in_surface import NEW_PASSWORD, PASSWORD, sign_in
@@ -40,6 +40,8 @@ from test_sign_in_surface import world as world
 from execbound import mfa, passkeys
 from execbound.app import create_app
 from execbound.envelope import KeyRing
+from execbound.execution import admit
+from execbound.execution.models import ExecutionError
 from execbound.surfaces.console_api.guards import (
     STEP_UP_EXACT,
     STEP_UP_NESTED,
@@ -433,6 +435,52 @@ def test_activating_a_policy_and_changing_the_mode_ask_for_a_recent_factor(
         for path in POLICY_CHANGES:
             answered = client.post(path, {})
             assert answered.json().get("code") != "MFA_REQUIRED", (path, answered.text)
+
+
+STOP = API + "/tenant/stop"
+RESUME = API + "/tenant/resume"
+
+
+def test_su15_the_emergency_stop_is_set_and_released_without_a_recent_factor(
+    db, runtime, admin_engine, world
+):
+    """The emergency stop is the immediate tightening control, so a workspace administrator
+    whose factor was verified more than thirty minutes ago sets it without hunting for an
+    authenticator, and it takes effect: admission is refused `TENANT_STOPPED`. Releasing it is
+    outside the step-up today as well. In the same session the mode, a step-up change, is
+    refused `MFA_REQUIRED` before and after, so the session really was stale and the stop did
+    not step it up. The comment above `guards.STEP_UP_PREFIXES` and THREAT_MODEL.md T4.48 say
+    the stop stays outside the sets; until this test nothing failed if it moved inside one."""
+    tenant = world["admin"].tenant_id
+    mode = {"mode": "OBSERVE", "reason": "Pilot"}
+    kinds = ("tenant.mode_changed", "tenant.stop_activated", "tenant.stop_released")
+    with enrolled_admin(db, runtime, admin_engine, world) as (client, _seed, _codes, _session):
+        before = {kind: events(admin_engine, tenant, kind) for kind in kinds}
+        refused = client.post(API + "/tenant/mode", mode)
+        assert (refused.status_code, refused.json()["code"]) == (401, "MFA_REQUIRED")
+
+        stopped = client.post(STOP, {"reason": "Contain agent 7"})
+        assert stopped.status_code == 200, stopped.text
+        stop = stopped.json()["stop"]
+        assert stop["stopped_by"] == str(world["admin"].principal_id)
+        assert stop["reason"] == "Contain agent 7"
+        with pytest.raises(ExecutionError) as halted:
+            admit(db, world["identity"], request(world), runtime.clock)
+        assert halted.value.code == "TENANT_STOPPED"
+
+        still = client.post(API + "/tenant/mode", mode)
+        assert (still.status_code, still.json()["code"]) == (401, "MFA_REQUIRED")
+
+        released = client.post(RESUME, {"reason": "Reviewed"})
+        assert released.status_code == 200, released.text
+        assert released.json()["stop"] is None
+        after = {kind: events(admin_engine, tenant, kind) for kind in kinds}
+        assert after == {
+            "tenant.mode_changed": before["tenant.mode_changed"],
+            "tenant.stop_activated": before["tenant.stop_activated"] + 1,
+            "tenant.stop_released": before["tenant.stop_released"] + 1,
+        }
+    assert not steps_up(STOP) and not steps_up(RESUME)
 
 
 def test_every_step_up_prefix_covers_a_change_core_serves():

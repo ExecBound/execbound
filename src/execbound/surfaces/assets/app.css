@@ -233,6 +233,10 @@ footer {
   padding: 0 0 12px; margin-bottom: 14px;
   border-bottom: 1px solid var(--eb-line); color: var(--eb-muted); font-size: 12.5px;
 }
+/* The way back from a classic approval and the details it folds away are targets of their own,
+   at least 24 px tall (WCAG 2.2, 2.5.8; #858): 16 and 21 px before. */
+.scope-line a { display: inline-flex; align-items: center; min-height: 24px; }
+summary { cursor: pointer; padding-block: 2px; }
 .notice { margin: 0 0 14px; padding: 12px 16px; border-radius: 10px; background: var(--eb-hold-bg); color: var(--eb-hold); }
 
 /* Decision badges: word first, tint second. A modifier names a state, never a colour. */
@@ -366,6 +370,13 @@ textarea { min-height: 68px; resize: vertical; }
 .login .consent { display: flex; gap: 9px; align-items: flex-start; margin-top: 16px; }
 .login .consent input { width: auto; margin: 2px 0 0; flex: none; }
 .login .consent span { font-size: 12.5px; line-height: 1.45; }
+/* "Trust this browser for 30 days" on the code prompt (#859): the label is the target, a row
+   the box sits at the start of, clear of the field above and the button below it. */
+.login .trust {
+  display: flex; align-items: center; gap: 9px; min-height: 24px; margin-top: 12px;
+  color: var(--eb-text); font-weight: 400; cursor: pointer;
+}
+.login .trust input { width: auto; margin: 0; padding: 0; flex: none; }
 .honeypot {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
@@ -469,6 +480,17 @@ textarea { min-height: 68px; resize: vertical; }
   .decision-buttons { display: grid; grid-template-columns: 2fr 1fr; }
   .decision-buttons button { height: 50px; }
   .stop-banner, .mode-banner { padding: 12px 16px; }
+  /* Sign-in and the pages that share its look, held to 44 px for every control a thumb aims
+     at (#858): the buttons, the fields, the standalone links, the recovery choice, the brand
+     that leads back, Sign out, a classic approval's way back and the details it folds away.
+     A checkbox keeps its own size; its label is the target. */
+  .login button { height: 44px; }
+  a.brand, .scope-line a { min-height: 44px; }
+  header form button { height: 44px; }
+  summary { padding-block: 12px; }
+  .login input:not([type="checkbox"]):not([type="hidden"]), .login select { min-height: 44px; }
+  .login .alternative a, .login .back a, .challenge .recovery summary { min-height: 44px; }
+  .login .trust { min-height: 44px; }
 }
 
 /* BEGIN generated age classes - scripts/render_age_classes.py */

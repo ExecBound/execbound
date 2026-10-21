@@ -18,10 +18,11 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from execbound.execution.models import Digest
 from execbound.policy.models import BundleContent
+from execbound.replay.fixture_keys import SIGNERS, evidence_kinds, signed_by_fixture_keys
 from execbound.replay.models import MAX_EXPORT_BYTES, ReplayExport, TrustedHead, VerifiedHistory
 from execbound.replay.pseudonyms import is_sanitized
 from execbound.replay.report import DecisionComparison, EvaluationResult, ReplayReport, RuleCount
@@ -93,22 +94,46 @@ class Expected(StrictModel):
 
 
 class Sanitization(StrictModel):
-    """How many distinct values the sanitizer replaced. The mapping itself is never kept."""
+    """How many distinct values the sanitizer replaced. The mapping itself is never kept.
 
-    version: Literal[1]
+    Version 2 also names, for each kind of signed record the history retains, the published
+    key it is now signed under (`fixture_keys.SIGNERS`): a version 2 fixture carries evidence
+    an external executor, a connector or a checkpoint's provider settled, which version 1
+    refused (#819). Version 1 names none, and is still written for a history that holds only
+    journals of operations ExecBound dispatched, so its fixtures stay byte for byte.
+    """
+
+    version: Literal[1, 2]
     identifiers: int = Field(ge=0)
     labels: int = Field(ge=0)
     digests: int = Field(ge=0)
+    signatures: dict[str, str] | None = None
+
+    @model_validator(mode="after")
+    def declared(self) -> "Sanitization":
+        if (self.version == 1) != (self.signatures is None):
+            raise ValueError("Invalid sanitization")
+        if self.signatures is not None and any(
+            SIGNERS.get(kind) != key for kind, key in self.signatures.items()
+        ):
+            raise ValueError("Invalid sanitization")
+        return self
 
 
 class ReplayFixture(StrictModel):
     format: Literal["execbound.replay-fixture"]
-    version: Literal[1]
+    version: Literal[1, 2]
     sanitization: Sanitization
     trusted_head: TrustedHead
     export: ReplayExport
     candidates: tuple[BundleContent, ...] = Field(max_length=MAX_CANDIDATES)
     expected: Expected
+
+    @model_validator(mode="after")
+    def one_version(self) -> "ReplayFixture":
+        if self.version != self.sanitization.version:
+            raise ValueError("Invalid fixture version")
+        return self
 
 
 def _result(result: EvaluationResult) -> dict[str, Any]:
@@ -169,7 +194,11 @@ def expected_outcomes(history: VerifiedHistory, candidates: Sequence[BundleConte
 def render(fixture: ReplayFixture) -> bytes:
     """The one serialization: sorted keys and one-space indentation, so a re-recorded
     expectation reads as an ordinary diff and an unchanged one is byte-identical."""
-    text = json.dumps(fixture.model_dump(mode="json"), indent=1, sort_keys=True, ensure_ascii=False)
+    document = fixture.model_dump(mode="json")
+    if document["sanitization"]["signatures"] is None:
+        # Version 1 never wrote the member, so its fixtures stay the bytes they were.
+        del document["sanitization"]["signatures"]
+    text = json.dumps(document, indent=1, sort_keys=True, ensure_ascii=False)
     raw = (text + "\n").encode("utf-8")
     if len(raw) > MAX_FIXTURE_BYTES:
         raise FixtureError()
@@ -202,8 +231,15 @@ def parse(raw: bytes) -> ReplayFixture:
         raise FixtureError()
     if find_secrets(document, limit=1):
         raise FixtureError("PRIVATE_DATA")
-    if not is_sanitized(document):
+    # A record still signed by the key that signed it at the source would let anyone holding
+    # that key's public half test guesses of what the pseudonyms replaced.
+    if not is_sanitized(document) or not signed_by_fixture_keys(document):
         raise FixtureError("FIXTURE_NOT_SANITIZED")
+    kinds, external = evidence_kinds(document)
+    signatures = fixture.sanitization.signatures
+    # Version 2 is written for what version 1 refused, and only for that.
+    if (fixture.version == 1) == external or (signatures is not None and set(signatures) != kinds):
+        raise FixtureError()
     return fixture
 
 

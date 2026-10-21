@@ -5,7 +5,7 @@ Signed out on a record's address, a person signs in and the drawer opens on that
 policy document typed before the session ended is back after signing in again, and said so once.
 Two minutes before a session's hard end the shell says when and what to do: a setup credential's
 holder is told how to keep signing in and offered no sign-in it could not complete, and an
-eight-hour session says typing is kept only on a page that keeps it. Copy link puts the router's
+two-day session says typing is kept only on a page that keeps it. Copy link puts the router's
 address on the clipboard. Each of those states passes axe at WCAG 2.2 AA with no policy or
 Trusted Types violation and no sideways scroll, in both schemes, at 1280 and 390 pixels.
 """
@@ -49,7 +49,7 @@ def clean(page, where: str) -> None:
 def end_in(admin_engine, identity, seconds: int, *, setup: bool) -> None:
     """Move the signed-in session's hard end to `seconds` from now, through the admin engine.
 
-    A setup credential's session ends on the credential; an eight-hour session ends eight hours
+    A setup credential's session ends on the credential; a two-day session ends two days
     after it was created, so its creation is moved back instead and its credential with it."""
     with admin_engine.begin() as conn:
         if setup:
@@ -66,7 +66,7 @@ def end_in(admin_engine, identity, seconds: int, *, setup: bool) -> None:
         else:
             conn.execute(
                 text(
-                    "UPDATE execbound.human_sessions SET created_at = now() - interval '8 hours' "
+                    "UPDATE execbound.human_sessions SET created_at = now() - interval '2 days' "
                     "+ make_interval(secs => :s), credential_expires_at = now() + "
                     "make_interval(secs => :s), expires_at = least(expires_at, now() + "
                     "make_interval(secs => :s)) WHERE tenant_id=:t AND principal_id=:p "
@@ -155,13 +155,13 @@ def test_sn19_a_setup_credential_is_told_how_to_keep_signing_in(console_page, ad
     expect(console_page.get_by_text("Signed in with a setup credential?")).to_be_visible()
 
 
-def test_sn19_an_eight_hour_session_says_typing_is_kept_only_where_it_is(
+def test_sn19_a_two_day_session_says_typing_is_kept_only_where_it_is(
     console_page, admin_engine, world
 ):
     setup_sign_in(console_page, admin_engine, world["admin"])
     end_in(admin_engine, world["admin"], 100, setup=False)
     console_page.goto("/policy")
-    expect(notice(console_page)).to_contain_text("eight hours after you signed in.")
+    expect(notice(console_page)).to_contain_text("two days after you signed in.")
     expect(notice(console_page)).to_contain_text(
         "Sign in again to keep working. What you have typed on this page is kept."
     )
@@ -196,14 +196,14 @@ def test_sn19_each_state_is_clean(console_page, admin_engine, world, runtime, sc
     if width == 390:
         box = notice(console_page).get_by_role("link").bounding_box()
         assert box is not None and box["height"] >= 44, box
-    # The eight-hour notice, over a kept document restored on the policy page.
+    # The two-day notice, over a kept document restored on the policy page.
     end_in(admin_engine, world["admin"], 100, setup=False)
     console_page.goto("/policy")
     type_document(console_page)
     console_page.reload()
     expect(console_page.get_by_text("Your policy document was kept.")).to_be_visible()
     expect(notice(console_page)).to_contain_text("What you have typed on this page is kept.")
-    clean(console_page, "the eight-hour notice and the kept document")
+    clean(console_page, "the two-day notice and the kept document")
     if width == 390:
         box = notice(console_page).get_by_role("button").bounding_box()
         assert box is not None and box["height"] >= 44, box

@@ -284,13 +284,35 @@ def test_a_chosen_appearance_paints_before_the_bundle_and_stays_clean(
     assert "data-eb-scheme" not in console_page.request.get(console_page.url).text()
 
 
+# Every control a thumb aims at, at least 44 px tall at phone width: the program's bar (#678,
+# #858), above WCAG's 24. Links are left to axe-core's target-size rule, since most sit in a
+# sentence or a table cell; a checkbox or radio is reached through its label.
+PHONE_TARGETS = """
+() => [...document.querySelectorAll(
+  'button, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, summary'
+)].filter((node) => {
+  const box = node.getBoundingClientRect();
+  const shown = box.width > 0 && box.height > 0 && !node.closest('[aria-hidden=true]');
+  return shown && box.height < 43.5;
+}).map((node) => {
+  const words = (node.getAttribute('aria-label') || node.textContent || node.name || '').trim();
+  const tall = Math.round(node.getBoundingClientRect().height);
+  return `${tall} px: ${node.tagName.toLowerCase()} ${words.slice(0, 40)}`;
+})
+"""
+
+
 @pytest.mark.parametrize("scheme", ["dark", "light"])
 def test_every_entry_is_clean_at_phone_width(console_page, admin_engine, world, scheme):
     console_page.emulate_media(color_scheme=scheme)
     console_page.set_viewport_size({"width": 390, "height": 844})
     sign_in_as(console_page, admin_engine, world["admin"])
+    small = {}
     for path, heading in ENTRIES:
         audit(console_page, path, heading)
+        if found := console_page.evaluate(PHONE_TARGETS):
+            small[path] = found
+    assert small == {}, json.dumps(small, indent=1)
     tabs = console_page.get_by_role("navigation", name="Main, phone").get_by_role("link")
     assert [name.strip() for name in tabs.all_inner_texts()] == [
         "Home",

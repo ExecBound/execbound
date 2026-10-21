@@ -629,7 +629,9 @@ def test_scoped_rules_validate_and_activate(db, policy_setup, admin_engine):
     result = store.activate_bundle(db, admin, bundle.bundle_id, setup["clock"])
     assert result.content == bundle and result.state == "ACTIVE"
     assert store.load_active_bundle(db, agent, setup["clock"]) == bundle
-    # An active bundle depends on owner data on every admission: a deleted group fails closed.
+    # A revalidated load of the active bundle checks owner data again, so a deleted group fails
+    # closed here. Admission reads the active bundle without re-running these checks, so it does
+    # not refuse a group deleted after activation (docs/POLICY.md).
     with admin_engine.begin() as conn:
         conn.execute(
             text("DELETE FROM execbound.principal_groups WHERE group_id = :g"), {"g": group}

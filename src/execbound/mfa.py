@@ -250,8 +250,11 @@ def _recent(
     conn: Connection, session: "Session", now: datetime, *, enrollment: bool = False
 ) -> None:
     """Refuse `RECENT_AUTH_REQUIRED` unless this session's enabled factor was verified within
-    `STEP_UP_WINDOW`. With `enrollment` and no enabled factor there is no factor to have
-    verified, so what is read instead is the sign-in's own age, within `ENROLLMENT_WINDOW`."""
+    `STEP_UP_WINDOW`, by a factor entered on it or carried into it: a `trusted` assurance, a
+    sign-in a trusted browser let through, is never fresh, however recent the verification
+    behind the trust (`0101_trusted_browsers`). With `enrollment` and no enabled factor there
+    is no factor to have verified, so what is read instead is the sign-in's own age, within
+    `ENROLLMENT_WINDOW`."""
     factor = _factor(conn, session)
     from execbound.user_accounts import factor_account
 
@@ -284,7 +287,7 @@ def _recent(
             text(f"""SELECT 1 FROM execbound.session_assurance a JOIN {factors}
           WHERE a.tenant_id=:t AND a.session_id=:s
           AND a.version=f.version AND a.verified_at>:n AND a.verified_at<=:now
-          AND f.enabled_at IS NOT NULL"""),  # nosec B608 - Only fixed joins; values are bound.
+          AND f.enabled_at IS NOT NULL AND a.method<>'trusted'"""),  # nosec B608 - Only fixed joins; values are bound.
             {
                 **params,
                 "n": now - STEP_UP_WINDOW,
@@ -475,18 +478,22 @@ def sets_requirement(db: Database, session: "Session", *, clock: Clock | None = 
 def security_overview(
     db: Database, session: "Session", *, clock: Clock | None = None
 ) -> dict[str, Any]:
+    from execbound import trusted_browsers
+
     clock = clock or SystemClock()
     with _transaction(db, session, clock) as conn:
         row = _factor(conn, session)
-        requirement = (
+        policy = (
             conn.execute(
                 text(
                     "SELECT requirement FROM execbound.account_security_policy WHERE tenant_id=:t"
                 ),
                 {"t": session.identity.tenant_id},
-            ).scalar_one_or_none()
-            or "optional"
+            )
+            .mappings()
+            .one_or_none()
         )
+        requirement = policy["requirement"] if policy is not None else "optional"
         keys = [
             {"credential_id": item["credential_id"], "created_at": item["created_at"]}
             for item in saved_passkeys(conn, session)
@@ -511,6 +518,10 @@ def security_overview(
             "locked_until": row["locked_until"] if row else None,
             "passkeys": keys,
             "sets_requirement": _sets_requirement(conn, session),
+            # Whether a sign-in here may skip the factor on a trusted browser (#859): true
+            # unless the workspace's administrator turned it off. The challenge offers the
+            # "Trust this browser" box only where it is.
+            "trust_allowed": trusted_browsers.allowed(conn, session.identity.tenant_id),
             "entering": entering,
         }
 

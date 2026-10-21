@@ -16,6 +16,7 @@ owner's ref named after the vendor's own operation, or a comment that reads `app
 `permit`, neither rewrites the history nor stops it becoming a fixture.
 """
 
+import base64
 import copy
 import json
 import re
@@ -28,6 +29,8 @@ from execbound.contracts import (
     ContractError,
     StringDomain,
 )
+from execbound.provider.connector_record import CONNECTOR_RECORD_V1
+from execbound.provider.executor import OUTCOME_DOMAIN
 
 # The order a value takes its type in when it is found in more than one place.
 LABEL_TYPES = (
@@ -38,6 +41,7 @@ LABEL_TYPES = (
     "key",
     "reference",
     "case",
+    "signer",
     "source",
     "url",
     "writer",
@@ -192,10 +196,15 @@ _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 _EVERY_UUID = re.compile(r"(?=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))")
 _IDENTIFIER = re.compile(r"00000000-0000-4000-8000-[0-9a-f]{12}")
 _URL = "https://case.invalid/url-"
+# The fixed text of every record a fixture re-signs: an attestation's format, algorithm and
+# domain, and a connector record's scheme. A label spelling one is replaced where it was
+# recorded, and the envelope keeps its own (`sanitize._resign` writes these back).
+ENVELOPE_WORDS = frozenset({"jws-es256", "ES256", OUTCOME_DOMAIN, CONNECTOR_RECORD_V1})
 # Words every fixture may hold whatever history it came from: the catalog's, the kernel's
-# reason codes, Cedar's, and the fixed text of a case link's pseudonym (`https`, `case` and
-# `invalid`), which a fixture writes where a source held a link.
-PUBLIC_WORDS = _tokens(_CATALOG_WORDS | REASON_CODES | _CEDAR_WORDS | {_URL})
+# reason codes, Cedar's, the fixed text of a re-signed record, and the fixed text of a case
+# link's pseudonym (`https`, `case` and `invalid`), which a fixture writes where a source held
+# a link.
+PUBLIC_WORDS = _tokens(_CATALOG_WORDS | REASON_CODES | _CEDAR_WORDS | ENVELOPE_WORDS | {_URL})
 _PSEUDONYM = re.compile(
     "(?:(?:" + "|".join(LABEL_TYPES) + ")-[0-9]{6,}|" + re.escape(_URL) + "[0-9]{6,})"
 )
@@ -319,10 +328,18 @@ def _bundle(bundle: Any, visit: Visit) -> None:
         _writers(setting, visit)
 
 
-def _journal(payload: Mapping[str, Any], visit: Visit) -> None:
-    """A settlement's provider journal, whose command copies the plan's resource and version
-    and whose record carries the version the provider reported. It is embedded JSON, read as
-    text or, while `rewrite` replaces labels, already parsed."""
+def _evidence(payload: Mapping[str, Any], visit: Visit) -> None:
+    """A settlement's retained record, embedded JSON read as text or, while `rewrite` replaces
+    labels, already parsed. Which envelope it is decides its positions:
+
+    - a provider's journal, whose command copies the plan's resource and version and whose
+      record carries the version the provider reported;
+    - ExecBound's own connector record, whose composites are the version the plan froze and
+      the one the connector read, and whose key id the deployment named;
+    - an external executor's Ed25519 record, whose key id an administrator named;
+    - an external executor's ES256 attestation, opened (`opened`), whose key id is named
+      twice: on the wrapper and in the header it signed.
+    """
     evidence = payload.get("evidence")
     if not isinstance(evidence, Mapping):
         return
@@ -330,15 +347,28 @@ def _journal(payload: Mapping[str, Any], visit: Visit) -> None:
     try:
         if isinstance(signed, str):
             signed = json.loads(signed)
-        record = signed["record"]
-        command = record["command"]
-    except (KeyError, TypeError, ValueError, RecursionError):
+    except (ValueError, RecursionError):
         return
-    if not isinstance(record, dict) or not isinstance(command, dict):
+    if not isinstance(signed, dict):
         return
-    visit(command, "resource_provider_id", "resource")
-    visit(command, "expected_version", "version")
-    visit(record, "resulting_version", "version")
+    if signed.get("format") == JWS_FORMAT:
+        visit(signed, "key_id", "signer")
+        if isinstance(signed.get("protected"), dict):
+            visit(signed["protected"], "kid", "signer")
+        return
+    record = signed.get("record")
+    if not isinstance(record, dict):
+        return
+    command = record.get("command")
+    if isinstance(command, dict):
+        visit(command, "resource_provider_id", "resource")
+        visit(command, "expected_version", "version")
+        visit(record, "resulting_version", "version")
+        return
+    visit(signed, "key_id", "signer")
+    if "scheme" in record:
+        visit(record, "frozen", "version")
+        visit(record, "observed", "version")
 
 
 def _transition(payload: Mapping[str, Any], visit: Visit) -> None:
@@ -349,7 +379,7 @@ def _transition(payload: Mapping[str, Any], visit: Visit) -> None:
     # them carries no request, so this is the one place the case reaches an export.
     _operation(payload, visit)
     _case(payload.get("external_case"), visit)
-    _journal(payload, visit)
+    _evidence(payload, visit)
 
 
 def positions(document: Mapping[str, Any], visit: Visit) -> None:
@@ -392,6 +422,47 @@ def collect(document: Mapping[str, Any]) -> dict[str, str]:
 
 class _Journal(dict[str, Any]):
     """A settlement's journal, parsed while `rewrite` runs and written back as JSON after."""
+
+
+# How an ES256 attestation is retained (`provider.executor.SignedOutcomeJws`).
+JWS_FORMAT = "jws-es256"
+assert JWS_FORMAT in ENVELOPE_WORDS
+
+
+def _segment(value: str) -> Any:
+    return json.loads(base64.urlsafe_b64decode(value + "=" * (-len(value) % 4)))
+
+
+def opened(document: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy of a fixture or a source with every retained ES256 attestation's header and
+    claims decoded into JSON, so the text in them can be read and replaced like any other.
+
+    An attestation is retained with its header and claims as base64url, where an identifier
+    is not text: a search of the retained bytes would never find it. The sanitizer works on
+    this form and signs it again into the retained one; reading a fixture checks this form.
+    Anything that does not open is left as it was.
+    """
+    result = copy.deepcopy(dict(document))
+    for event in result["export"]["events"]:
+        payload = event.get("payload")
+        evidence = payload.get("evidence") if isinstance(payload, Mapping) else None
+        if event.get("kind") != "execution.transition" or not isinstance(evidence, dict):
+            continue
+        record = evidence.get("authenticated_record")
+        try:
+            signed = json.loads(record) if isinstance(record, str) else None
+            if not isinstance(signed, dict) or signed.get("format") != JWS_FORMAT:
+                continue
+            if not isinstance(signed.get("protected"), str):
+                continue
+            signed["protected"] = _segment(signed["protected"])
+            signed["payload"] = _segment(signed["payload"])
+        except (KeyError, TypeError, ValueError, RecursionError, UnicodeError):
+            continue
+        evidence["authenticated_record"] = json.dumps(
+            signed, ensure_ascii=False, separators=(",", ":")
+        )
+    return result
 
 
 def _opened(document: Mapping[str, Any]) -> dict[str, Any]:
@@ -597,6 +668,7 @@ def is_sanitized(document: Mapping[str, Any]) -> bool:
     re-recorded. It reads the same positions the sanitizer collects from.
     """
     try:
+        document = opened(document)
         text = json.dumps(document, ensure_ascii=False).lower()
         if any(not _IDENTIFIER.fullmatch(found) for found in _EVERY_UUID.findall(text)):
             return False

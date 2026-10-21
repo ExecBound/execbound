@@ -16,7 +16,7 @@
     <button id="passkey-prompt" type="button">Continue with device</button>
   </form>
   <p id="passkey-problem" role="alert"></p>
-  <p><a href="/account/security">Back to account security</a></p>
+  <p class="alternative"><a href="/account/security">Back to account security</a></p>
   {% endif %}
   {% if not available %}
   <p>Your administrator needs to configure account security before you can add an authenticator.</p>
@@ -95,6 +95,13 @@
       <option value="admins" {{ 'selected' if view.requirement == 'admins' else '' }}>Administrators</option>
       <option value="all" {{ 'selected' if view.requirement == 'all' else '' }}>Everyone (recommended)</option>
     </select></label><button>Save requirement</button>
+  </form>
+  <h2>Trusted browsers</h2>
+  <p>A person who verifies their second factor at sign-in may trust that browser for 30 days, so its later sign-ins skip the code. Changes to people, access, keys and policies still ask for a recent code. Turn this off to ask for the factor at every sign-in to this workspace.</p>
+  <form action="/account/security/trusted_browsers" method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="trust"><input type="checkbox" name="allow" value="on"{{ ' checked' if view.trust_allowed else '' }}> Allow trusted browsers in this workspace</label>
+    <button>Save trusted browsers</button>
   </form>
   {% endif %}
   {% if first_password and not view.required %}

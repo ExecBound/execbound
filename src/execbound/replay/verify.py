@@ -106,6 +106,12 @@ _INFORMATIONAL = frozenset(
         "account_security.factor_disabled",
         "account_security.recovery_replaced",
         "account_security.requirement_changed",
+        # An administrator allowed or forbade trusted browsers in the workspace (#859). It
+        # decides who is asked for a code at sign-in, never an agent action replay recomputes.
+        "account_security.trusted_browsers_changed",
+        # A sign-in or a switch on a trusted browser skipped the second factor (#859); it
+        # records the trust used and the verification behind it, never an agent action.
+        "account_security.trusted_sign_in",
         "account_security.passkey_added",
         "account_security.passkey_removed",
         # How a person proved who they were before the session was issued. A sign-in decides

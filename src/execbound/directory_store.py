@@ -22,6 +22,8 @@ beside `WITHHELD` only has to correlate events about the same person, never stan
 import hashlib
 import re
 import secrets
+import threading
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -48,19 +50,51 @@ from execbound.passwords import SIGN_IN_LIFETIME
 from execbound.resolution.models import Clock, SystemClock
 from execbound.runtime import Runtime
 from execbound.secrets import withheld
-from execbound.surfaces.sessions import Session, SessionError, check_session
+from execbound.surfaces.sessions import (
+    DirectoryStale,
+    Session,
+    SessionError,
+    check_session,
+    load_session,
+)
 
 CODE_PREFIX = "ebv1"
 DEFAULT_INVITATION_LIFETIME = timedelta(days=7)
 MIN_INVITATION_LIFETIME = timedelta(hours=1)
 MAX_INVITATION_LIFETIME = timedelta(days=14)
 # How stale a directory session's last verification may be before the next renewal rechecks it,
-# and how long an unreachable directory is tolerated. A session renews once half of its fifteen
-# minutes has passed, so a person using the console is rechecked about every seven and a half
-# minutes; the grace is one session lifetime, which is also how long a person who walked away
-# would have kept the session anyway.
+# and how long an unreachable directory is tolerated. A session is rechecked once its renewal is
+# due, seven and a half minutes after it was last extended (`RENEW_AFTER`) and whether or not the
+# row can still move, so a person using the console is rechecked about that often, up to the last
+# minute of the two days. The grace is fifteen minutes, which a session lifetime of twelve hours
+# no longer sets. A session whose verification is past it, a person back after more than fifteen
+# minutes away included, is refused `DIRECTORY_REQUIRED` by the session check; the guarded loads
+# (`load_rechecked`) answer that refusal with a recheck first, so the person keeps the session
+# for the twelve idle hours, and a directory that has disabled them is heard about at the first
+# request after they return.
 RECHECK_INTERVAL = timedelta(minutes=5)
 RECHECK_GRACE = timedelta(minutes=15)
+# How long a recheck's claim stands before another request may take it over, so a request that
+# died holding it cannot hold it for ever: the sixty seconds `directory_recheck_claim` itself
+# reads (0102). A directory call usually takes well under that, but nothing bounds it as a whole:
+# httpx's five seconds bound each connect, write and read alone, and the name lookup takes none.
+# A call that outlives the lease lets the next request redeem the same refresh token, and its own
+# late yes is then not recorded, since `directory_recheck` records a yes only under the claim it
+# was made under (T5.19).
+CLAIM_LEASE = timedelta(seconds=60)
+# How long a request that finds the recheck claimed by another waits for it to settle before the
+# session check decides on the verification as it stands (#863), and how often it looks: from
+# `SETTLE_POLL` seconds, doubling to `SETTLE_POLL_MAX`, so a waiter reads the row about twenty
+# times rather than a hundred and fifty.
+SETTLE_WAIT = timedelta(seconds=15)
+SETTLE_POLL = 0.1
+SETTLE_POLL_MAX = 1.0
+# How many requests in one process may wait on another's recheck at once. A waiter holds one of
+# the server's request slots (`app.REQUESTS_IN_FLIGHT`, thirty-two shared by every surface) and a
+# thread for as long as it waits, and a workspace administrator can register a directory that
+# answers slowly, so beyond these a request is refused at once rather than wait (#863).
+MAX_WAITERS = 8
+_WAITERS = threading.BoundedSemaphore(MAX_WAITERS)
 STATES = ("draft", "verified", "enabled", "disabled")
 REQUESTABLE = ("enabled", "disabled")
 
@@ -775,15 +809,58 @@ def recheck_session(runtime: Runtime, directory: DirectoryConfig, session: Sessi
     """Ask the directory whether a renewing session's account still exists, and act on the answer.
 
     Called from the one place both the pages and the console API load a session, and only when
-    that session was just renewed, so the cost is one directory call about every seven and a
-    half minutes of continuous use and nothing at all for a password or credential session.
+    that session's renewal is due (`Session.renewal_due`: `RENEW_AFTER` since it was last
+    extended, whether or not the row could move, so a session at its two-day end is still
+    rechecked), so the cost is one directory call about every seven and a half minutes of
+    continuous use and nothing at all for a password or credential session. The second factor's
+    pages call it on every request; the verification time below keeps that to the same cadence.
 
     A refusal revokes the credential and every session under it, so the session is gone on this
     request. An unreachable directory is tolerated while the last verification is inside the
     grace and refuses the session after it, revoking nothing: an outage that resolves lets
     people carry on rather than forcing a tenant-wide sign-in.
     """
-    identity = session.identity
+    _recheck(runtime, directory, session.identity)
+
+
+def load_rechecked(
+    runtime: Runtime,
+    directory: DirectoryConfig | None,
+    token: str,
+    *,
+    allow_pending_mfa: bool = False,
+) -> Session:
+    """`load_session`, except that a directory session refused only because its last
+    verification is older than `RECHECK_GRACE` is rechecked first and loaded again (#859).
+
+    A session that is otherwise valid, in a workspace that requires its directory, is refused
+    `DIRECTORY_REQUIRED` once its verification is past the grace, and a person who walked away
+    for more than fifteen minutes comes back to exactly that. Here the refusal (`DirectoryStale`)
+    is answered by the recheck a renewal would have made, through the same claim: a directory
+    that confirms the account moves the verification to now and the second load passes; one
+    that refuses it revokes the credential and every session under it; one that cannot answer
+    lets the claim go with the verification unmoved, so the second load is refused as the first
+    was. The claim never moves the verification: a request that finds another's claim on a stale
+    session waits for it to settle (`SETTLE_WAIT`, with at most `MAX_WAITERS` waiting at once),
+    so it is served only on the directory's yes and never on the claim (#863). Whatever the
+    recheck does, the
+    second load is the one gate: the session is refused `DIRECTORY_REQUIRED` unless the row now
+    holds a verification inside the grace."""
+    try:
+        return load_session(
+            runtime.db, token, clock=runtime.clock, allow_pending_mfa=allow_pending_mfa
+        )
+    except DirectoryStale as stale:
+        if directory is None or stale.identity is None:
+            raise
+        try:
+            _recheck(runtime, directory, stale.identity)
+        except (SessionError, DirectoryError):
+            raise stale from None
+    return load_session(runtime.db, token, clock=runtime.clock, allow_pending_mfa=allow_pending_mfa)
+
+
+def _recheck(runtime: Runtime, directory: DirectoryConfig, identity: Identity) -> None:
     try:
         with runtime.db.transaction(identity.tenant_id) as conn:
             check_runtime(conn)
@@ -806,41 +883,156 @@ def recheck_session(runtime: Runtime, directory: DirectoryConfig, session: Sessi
         return
     row = _session_provider(found)
     stale = now - verified_at > RECHECK_GRACE
-    if found["refresh_ciphertext"] is None:
-        # The directory issued no refresh token, so there is nothing to redeem and nothing this
-        # server can learn. It is unavailability, not a refusal.
-        _unavailable(row, identity, "NO_REFRESH_TOKEN", stale=stale)
+    # Of several requests that find the verification old at once, exactly one goes on: it claims
+    # the recheck while `verified_at` still reads the value it saw and no other claim stands. A
+    # directory that refuses a refresh token used twice would otherwise answer the second call
+    # `invalid_grant` and sign the person out. The claim is a column of its own and never moves
+    # the verification, so the others read the verification as it was (#863).
+    try:
+        claimed = _claim(runtime, identity, found["verified_at"], now)
+    except _ClaimUnwritten:
+        # Nothing was claimed, so nothing was asked. Inside the grace that is tolerated, as an
+        # unreachable directory is; past it the session is refused, not passed over (#863).
+        _unavailable(row, identity, "CLAIM_UNAVAILABLE", stale=stale)
+        return
+    if claimed is None:
+        if stale:
+            # Another request holds the recheck of a verification past the grace. This one is
+            # served on that request's answer, never on its claim: it waits for the claim to
+            # settle, and the session check then reads what it left (#863).
+            _await_settled(runtime, identity, found["verified_at"])
+        return
+    settled = False
+    try:
+        if found["refresh_ciphertext"] is None:
+            # The directory issued no refresh token, so there is nothing to redeem and nothing
+            # this server can learn. It is unavailability, not a refusal.
+            _unavailable(row, identity, "NO_REFRESH_TOKEN", stale=stale)
+            return
+        try:
+            provider = directory.provider(row)
+            token = unseal(
+                directory.ring,
+                found["refresh_ciphertext"],
+                found["refresh_key_id"],
+                row.tenant_id,
+                row.provider_id,
+                "refresh_token",
+            )
+        except EnvelopeError as exc:
+            _unavailable(row, identity, exc.code, stale=stale)
+            return
+        answer = provider.recheck(token, found["subject"], now=now.timestamp())
+        log_event(
+            "directory.recheck",
+            level="WARNING" if answer.state != "VERIFIED" else "INFO",
+            state=answer.state,
+            code=answer.code,
+            tenant_id=identity.tenant_id,
+            credential_id=identity.credential_id,
+            provider_id=row.provider_id,
+        )
+        if answer.state == "REFUSED":
+            revoke(runtime, row, identity, answer.code)
+            settled = True
+            raise SessionError("PROVIDER_REFUSED")
+        if answer.state == "UNAVAILABLE":
+            _unavailable(row, identity, answer.code, stale=stale)
+            return
+        settled = _verified(runtime, directory, row, identity, answer.refresh_token, claimed)
+    finally:
+        if not settled:
+            # Nothing was recorded, so the claim is let go: the next request may recheck at
+            # once rather than wait out the lease, and an unreachable directory is refused once
+            # the grace passes, the verification never having moved.
+            _release(runtime, identity, claimed)
+
+
+class _ClaimUnwritten(Exception):
+    """The claim could not be written, which says nothing about the account."""
+
+
+def _claim(runtime: Runtime, identity: Identity, seen: datetime, now: datetime) -> datetime | None:
+    """Claim the recheck, stamped with the application's present, while the verification still
+    reads the value seen and no other claim stands (one past `CLAIM_LEASE` counts as none): the
+    claim, or None when another request holds it or the verification moved first. Raises
+    `_ClaimUnwritten` when the database could not be asked."""
+    try:
+        with runtime.db.transaction(identity.tenant_id) as conn:
+            check_runtime(conn)
+            claimed = conn.execute(
+                text("SELECT execbound.directory_recheck_claim(:c,:seen,:now)"),
+                {"c": identity.credential_id, "seen": seen, "now": now},
+            ).scalar_one_or_none()
+    except (DBAPIError, SQLAlchemyError, UnsafeDatabaseRole):
+        raise _ClaimUnwritten() from None
+    return claimed
+
+
+def _release(runtime: Runtime, identity: Identity, claimed: datetime) -> None:
+    try:
+        with runtime.db.transaction(identity.tenant_id) as conn:
+            check_runtime(conn)
+            conn.execute(
+                text("SELECT execbound.directory_recheck_release(:c,:claimed)"),
+                {"c": identity.credential_id, "claimed": claimed},
+            )
+    except (DBAPIError, SQLAlchemyError, UnsafeDatabaseRole):
+        # The claim then stands until its lease runs out, and the verification has not moved,
+        # so nothing is served on it.
+        return
+
+
+_CLAIM_ROW = text(
+    "SELECT verified_at, recheck_claimed_at, revoked_reason FROM execbound.federated_sign_ins "
+    "WHERE tenant_id=:t AND credential_id=:c"
+)
+
+
+def _await_settled(runtime: Runtime, identity: Identity, seen: datetime) -> None:
+    """Wait, up to `SETTLE_WAIT`, until the recheck another request claimed has settled: the
+    verification has moved, the credential was ended, or the claim was let go. Then, or once the
+    wait runs out, return; the session check decides on what the row holds. With `MAX_WAITERS`
+    already waiting, return at once, so the session is refused rather than another slot held."""
+    if not _WAITERS.acquire(blocking=False):
+        log_event(
+            "directory.recheck",
+            level="WARNING",
+            state="STALE",
+            code="TOO_MANY_WAITING",
+            tenant_id=identity.tenant_id,
+            credential_id=identity.credential_id,
+        )
         return
     try:
-        provider = directory.provider(row)
-        token = unseal(
-            directory.ring,
-            found["refresh_ciphertext"],
-            found["refresh_key_id"],
-            row.tenant_id,
-            row.provider_id,
-            "refresh_token",
-        )
-    except EnvelopeError as exc:
-        _unavailable(row, identity, exc.code, stale=stale)
-        return
-    answer = provider.recheck(token, found["subject"], now=now.timestamp())
-    log_event(
-        "directory.recheck",
-        level="WARNING" if answer.state != "VERIFIED" else "INFO",
-        state=answer.state,
-        code=answer.code,
-        tenant_id=identity.tenant_id,
-        credential_id=identity.credential_id,
-        provider_id=row.provider_id,
-    )
-    if answer.state == "REFUSED":
-        revoke(runtime, row, identity, answer.code)
-        raise SessionError("PROVIDER_REFUSED")
-    if answer.state == "UNAVAILABLE":
-        _unavailable(row, identity, answer.code, stale=stale)
-        return
-    _verified(runtime, directory, row, identity, answer.refresh_token)
+        _poll_settled(runtime, identity, seen)
+    finally:
+        _WAITERS.release()
+
+
+def _poll_settled(runtime: Runtime, identity: Identity, seen: datetime) -> None:
+    deadline = time.monotonic() + SETTLE_WAIT.total_seconds()
+    pause = SETTLE_POLL
+    while time.monotonic() < deadline:
+        time.sleep(min(pause, max(0.0, deadline - time.monotonic())))
+        pause = min(pause * 2, SETTLE_POLL_MAX)
+        try:
+            with runtime.db.transaction(identity.tenant_id) as conn:
+                check_runtime(conn)
+                row = (
+                    conn.execute(_CLAIM_ROW, {"t": identity.tenant_id, "c": identity.credential_id})
+                    .mappings()
+                    .one_or_none()
+                )
+        except (SQLAlchemyError, UnsafeDatabaseRole):
+            return
+        if (
+            row is None
+            or row["revoked_reason"] is not None
+            or row["verified_at"] != seen
+            or row["recheck_claimed_at"] is None
+        ):
+            return
 
 
 def _session_provider(found: Any) -> ProviderRow:
@@ -887,7 +1079,11 @@ def _verified(
     row: ProviderRow,
     identity: Identity,
     refresh_token: str | None,
-) -> None:
+    claimed: datetime,
+) -> bool:
+    """Record the directory's yes under the claim it was asked under: the verification stamped
+    with the application's present, the claim cleared, any rotated refresh token sealed. Whether
+    it was recorded; it is not when the claim has since been taken over."""
     ciphertext: str | None = None
     key_id: str | None = None
     if refresh_token is not None:
@@ -901,17 +1097,20 @@ def _verified(
         with runtime.db.transaction(row.tenant_id) as conn:
             check_runtime(conn)
             conn.execute(
-                text("SELECT execbound.directory_recheck(:c,:x,:k,:now)"),
+                text("SELECT execbound.directory_recheck(:c,:x,:k,:now,:claimed)"),
                 {
                     "c": identity.credential_id,
                     "x": ciphertext,
                     "k": key_id,
                     "now": _now(runtime.clock),
+                    "claimed": claimed,
                 },
             )
     except (DBAPIError, SQLAlchemyError, UnsafeDatabaseRole):
-        # The directory said yes; failing to record that is not a reason to end the session.
-        return
+        # The directory said yes; failing to record that is not a reason to end the session,
+        # though one past the grace is refused by the session check until a recheck records it.
+        return False
+    return True
 
 
 def revoke(runtime: Runtime, row: ProviderRow, identity: Identity, reason: str) -> None:
