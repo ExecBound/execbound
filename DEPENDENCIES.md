@@ -106,6 +106,17 @@ a notice a distributor can ship, not for a license decision about the combined w
   through `httpx`; MPL-2.0 and Apache-2.0 coexist in one distribution as long as certifi's
   files stay unmodified, which they are.
 
+## Release-age exceptions
+
+Every ecosystem waits seven days before a version is proposed, so a compromised release has a
+week to be noticed before it can land. A version pinned sooner is named here with the reason,
+and needs nothing further once it is seven days old.
+
+- `certifi` 2026.10.19, pinned on 21 October 2026, a day after its release. It removes root
+  certificates whose intermediates' keys were compromised (GHSA-6q48-6c7w-9gw2, critical),
+  which the image's outbound TLS trusted, and a critical trust-store fix outweighs the week.
+  It is seven days old on 27 October 2026.
+
 ## Licenses the installed metadata does not declare
 
 Some distributions supply no SPDX expression this script will read. Each was read by hand,

@@ -116,7 +116,8 @@ def test_all_prints_every_stage_in_order_and_runs_nothing(capsys, monkeypatch):
         "uv run ruff check .",
         "uv run ruff format --check .",
         "uv run mypy",
-        "uvx bandit==1.9.4 -c pyproject.toml -q -r src",
+        "uvx bandit==1.9.4 -c pyproject.toml -q -r"
+        " src clients/python protocol connectors integrations/mde-producer",
     ]
     assert found["suite"] == [
         "uv run pytest --collect-only -q > local-data/replay-collected.txt",
