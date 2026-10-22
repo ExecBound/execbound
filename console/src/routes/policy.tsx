@@ -8,7 +8,7 @@ import { BundleList, NewDraft } from "../components/policy/BundleList";
 import { EmptyState } from "../components/ui/EmptyState";
 import { PageHeading } from "../components/ui/PageHeading";
 import { NoConnectionHint } from "../components/welcome/NoConnectionHint";
-import { useSession } from "../lib/session";
+import { inAllSpaces, useSession } from "../lib/session";
 
 export interface PolicySearch {
   /** Whether the retired versions are shown; `?retired=1` in the address, so Back keeps it. */
@@ -36,7 +36,7 @@ function PolicyRoute() {
       {page !== undefined ? (
         <>
           <NewDraft hasActive={page.active !== null} formAvailable={active.data?.form_available ?? false} starterAvailable={page.starter_available} starterHint={page.starter_hint} />
-          {page.active === null && !page.starter_available && session.role === "ADMIN" ? <NoConnectionHint /> : null}
+          {!inAllSpaces(session) && page.active === null && !page.starter_available && session.role === "ADMIN" ? <NoConnectionHint /> : null}
           <BundleList page={page} showRetired={search.retired === 1} />
         </>
       ) : query.error !== null ? (

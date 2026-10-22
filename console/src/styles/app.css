@@ -663,7 +663,9 @@ dl.figures { margin: 0 0 14px; }
 
 /* @block kit: a page's own views — the tab strip that Monitoring and Policy share */
 .tabs { margin: -6px 0 16px; border-bottom: 1px solid var(--eb-line); }
-.tabs ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; overflow-x: auto; }
+/* Sideways scrolling turns vertical scrolling on too, and the tabs overhang the strip by a pixel, so
+   without overflow-y a scroll arrow pair sat at the strip's end on every tab. */
+.tabs ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; }
 .tab-link { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; margin-bottom: -1px; color: var(--eb-muted); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
 .tab-link:hover { color: var(--eb-text); }
 .tab-link[aria-current="page"] { color: var(--eb-text); font-weight: 500; border-bottom-color: var(--eb-accent); }
@@ -702,7 +704,11 @@ p.muted { margin: 8px 0 0; }
 /* A link inside prose is told apart by more than its colour (WCAG 1.4.1). */
 .muted a, .defs a, .lead a, .service-footer a { text-decoration: underline; text-underline-offset: 2px; }
 .card-subtitle { margin: 18px 0 8px; font-size: 12.5px; font-weight: 600; color: var(--eb-muted); }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 14px; margin-bottom: 14px; }
+/* A card shrinks to its column, so a wide table scrolls inside it instead of widening the page
+   and keeping two columns on a phone; a long card or a wide table takes the whole row. */
+.cards > * { min-width: 0; }
+.cards > .card-wide { grid-column: 1 / -1; }
 .cards .card + .card { margin-top: 0; }
 .dialog-lead { margin: 6px 0 0; color: var(--eb-muted); }
 .dialog-fault { padding: 0 22px 10px; }
@@ -735,6 +741,17 @@ p.muted { margin: 8px 0 0; }
 .dialog-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 22px 0; margin-top: 8px; border-top: 1px solid var(--eb-line); }
 .dialog-wide { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 140px); overflow-y: auto; }
 .dialog-over { z-index: 36; top: 132px; }
+/* Decision coverage on Approval rules: a Space per titled part, an action per row, its gaps beneath. */
+.coverage-space { margin-top: 16px; }
+.coverage-space + .coverage-space { padding-top: 14px; border-top: 1px solid var(--eb-line); }
+.coverage-space > h3 { margin: 0 0 8px; font-size: 13.5px; font-weight: 600; }
+.coverage-space > p { margin: 0 0 8px; }
+.coverage-actions, .coverage-gaps { list-style: none; margin: 0; padding: 0; }
+.coverage-action { padding: 10px 0; border-top: 1px solid var(--eb-line); }
+.coverage-action:first-child { border-top: 0; padding-top: 2px; }
+.coverage-action p { margin: 0 0 4px; }
+.coverage-gap { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 6px 0 6px 12px; }
+.coverage-gap small { flex: 1 1 240px; color: var(--eb-muted); }
 
 /* @block home: Home and the record drawer (#333): figures, the decisions chart, needs you, recent decisions */
 .segments { display: inline-flex; border: 1px solid var(--eb-line); border-radius: var(--radius-control); overflow: hidden; }
@@ -821,6 +838,11 @@ p.muted { margin: 8px 0 0; }
 }
 .effect-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 12px 0; }
 .effect-counts .eyebrow { margin: 0 0 6px; }
+/* The New draft card's ways to start: each its own titled part, set apart from the next. */
+.new-draft section > h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; }
+.new-draft section > p { margin: 0 0 10px; color: var(--eb-muted); }
+.new-draft .card-body > section, .new-draft .card-body > .grid-2, .new-draft .card-body > details { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--eb-line); }
+.new-draft .card-body > details > summary { cursor: pointer; font-weight: 500; }
 
 /* @block assistant (#330): the Ask page's turn list, a turn's steps, answer and
    citations, and the Explain disclosure a record's page carries below its own facts. The

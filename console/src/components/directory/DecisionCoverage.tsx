@@ -166,9 +166,16 @@ function SpaceCoverage({
   onAssign: (gap: Gap) => void;
 }) {
   const heading = `coverage-${space.space_id}`;
+  // When nobody can decide any of several actions, say so once for the Space, not per action.
+  const nobody = space.actions.length > 1 && space.actions.every((action) => action.reviewers === 0);
   return (
     <section className="coverage-space" aria-labelledby={heading}>
       <h3 id={heading}>{space.name}</h3>
+      {nobody ? (
+        <p className="tone-deny">
+          Nobody can decide any of these {String(space.actions.length)} actions in {space.name}.
+        </p>
+      ) : null}
       {space.policy === "none" ? (
         <p className="muted">No active policy: nothing is held.</p>
       ) : space.actions.length === 0 ? (
@@ -182,6 +189,7 @@ function SpaceCoverage({
               action={action}
               rules={rules}
               writable={writable}
+              said={nobody}
               onAddToRule={onAddToRule}
               onAssign={onAssign}
             />
@@ -197,6 +205,7 @@ function ActionCoverage({
   action,
   rules,
   writable,
+  said,
   onAddToRule,
   onAssign,
 }: {
@@ -204,6 +213,8 @@ function ActionCoverage({
   action: CoverageAction;
   rules: ApprovalRule[];
   writable: boolean;
+  /** Whether the Space's line already says nobody can decide any of its actions. */
+  said: boolean;
   onAddToRule: (gap: Gap, rule: ApprovalRule | null) => void;
   onAssign: (gap: Gap) => void;
 }) {
@@ -215,7 +226,7 @@ function ActionCoverage({
         can decide
       </p>
       {action.reviewers === 0 ? (
-        <p className="tone-deny">Nobody can decide this action in {space.name}.</p>
+        said ? null : <p className="tone-deny">Nobody can decide this action in {space.name}.</p>
       ) : action.reviewers < action.required ? (
         <p className="tone-deny">
           Needs {String(action.required)} people; {String(action.reviewers)} can decide this action in {space.name}.

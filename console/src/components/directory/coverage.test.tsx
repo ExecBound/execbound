@@ -115,6 +115,17 @@ async function card(): Promise<HTMLElement> {
 }
 
 describe("decision coverage", () => {
+  it("says once for the Space when nobody can decide any of its actions", async () => {
+    setup(coverage([
+      action({ reviewers: 0 }),
+      action({ action: "endpoint.lift_isolation", action_label: "Lift isolation", reviewers: 0 }),
+    ]));
+    renderPage(<ApprovalRules />);
+    const found = await card();
+    expect(found).toHaveTextContent("Nobody can decide any of these 2 actions in Default.");
+    expect(found).not.toHaveTextContent("Nobody can decide this action in Default.");
+  });
+
   it("renders one section per Space and one row per action, with the shortfall in words", async () => {
     setup(coverage([
       action({ reviewers: 0 }),

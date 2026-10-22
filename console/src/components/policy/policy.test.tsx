@@ -204,6 +204,13 @@ describe("an active version under All spaces (#678)", () => {
   // With no Space selected the server marks no version as the selection.
   const unselected: PolicyPage = { ...PAGE, active: null, bundles: PAGE.bundles.map((row) => ({ ...row, active: false })) };
 
+  it("asks for a Space instead of offering a first policy it could not create", async () => {
+    mount(<SessionContext.Provider value={ALL_SPACES}><NewDraft hasActive={false} starterHint="Choose a Space before starting or copying a policy." /></SessionContext.Provider>);
+    expect(await screen.findByText(/Choose a Space in the switcher at the top of the page/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create first policy" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create from JSON" })).toBeNull();
+  });
+
   it("reads Active in the list, and Active in another Space only where a Space is selected", async () => {
     mount(<SessionContext.Provider value={ALL_SPACES}><BundleList page={unselected} /></SessionContext.Provider>);
     const table = await screen.findByRole("table", { name: /Policy versions/ });

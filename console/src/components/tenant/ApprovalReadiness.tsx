@@ -54,7 +54,7 @@ export function windowWords(item: ApprovalWindow): string {
 export function ApprovalReadiness({ view, workspace }: { view: TenantSettingsView; workspace: boolean }) {
   const [open, setOpen] = useState(false);
   return (
-    <Card title="Approval readiness">
+    <Card title="Approval readiness" className="card-wide">
       <Warning view={view} />
       <p className="figure-value">{view.deadline.seconds === null ? "off" : `${String(view.deadline.seconds)} s`}</p>
       <Changed change={view.deadline.changed} never="The default, never changed." />
