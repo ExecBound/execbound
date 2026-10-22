@@ -446,7 +446,7 @@ function TrustedBrowsers({ view }: { view: PersonalSettingsView }) {
   });
   if (!security?.available) return null;
   return (
-    <Card title="Trusted browsers" aside={<span className="muted">{count(trusted.length, "browser")}</span>}>
+    <Card title="Trusted browsers" className="card-wide" aside={<span className="muted">{count(trusted.length, "browser")}</span>}>
       {security.trust_allowed === false ? (
         <p className="note">
           This workspace does not allow trusted browsers: every sign-in here asks for your second factor.

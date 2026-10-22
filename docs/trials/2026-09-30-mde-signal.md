@@ -1,4 +1,4 @@
-# Defender for Endpoint signal trial, September 30, 2026
+# Defender for Endpoint signal trial, 30 September 2026
 
 Status: live platform trial. The scenarios support the integration register's `platform-validated` state for the local Defender-to-gateway path described here. The row was promoted on October 1, 2026. S7, the Windows alert-resolution transition from `Medium` to `None`, was pending then and was established on October 3, 2026 in a follow-up run recorded [below](#s7-october-3-2026). The same day, the committed Tines governed-action story sent the baseline, quiet and compromised requests to the hosted gateway, with the producer posting to it over HTTPS; that stage is recorded in [Hosted Tines stage, October 3, 2026](#hosted-tines-stage-october-3-2026). The first run was on September 30 local time, crossing October 1 UTC.
 

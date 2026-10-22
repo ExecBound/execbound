@@ -144,7 +144,8 @@ export function BundleList({ page, showRetired = false }: { page: PolicyPage; sh
  */
 export function NewDraft({ hasActive, formAvailable = false, starterAvailable = false, starterHint = "" }: { hasActive: boolean; formAvailable?: boolean; starterAvailable?: boolean; starterHint?: string }) {
   // The document is kept in this tab across signing in again (#678).
-  const draft = usePolicyDraft(useSession().person.id);
+  const session = useSession();
+  const draft = usePolicyDraft(session.person.id);
   const { text: document, set: setDocument } = draft;
   useEffect(() => {
     if (draft.restored) toast("Your policy document was kept.");
@@ -161,8 +162,20 @@ export function NewDraft({ hasActive, formAvailable = false, starterAvailable = 
       void navigate({ to: "/policy/$bundleId", params: { bundleId: made.bundle_id } });
     },
   });
+  // A policy belongs to one Space. Under All spaces nothing here could be created, and "first
+  // policy" would be wrong whenever another Space has one, so say what to do instead.
+  if (inAllSpaces(session) && !draft.restored) {
+    return (
+      <Card title="New draft" className="new-draft">
+        <p>
+          A policy belongs to one Space. Choose a Space in the switcher at the top of the page to start a new
+          policy or copy its active one. The versions below come from every Space you can see.
+        </p>
+      </Card>
+    );
+  }
   return (
-    <Card title="New draft">
+    <Card title="New draft" className="new-draft">
       <p className="muted">
         A draft changes nothing. Validate it, preview what it would change, then activate it.
       </p>
